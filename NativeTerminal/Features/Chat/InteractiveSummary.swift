@@ -15,10 +15,10 @@ struct InteractiveSummary: View {
                         .font(.system(size: fontSize, design: .monospaced))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
+        .fixedSize(horizontal: !isExpanded, vertical: false)
         .bubble(.reply)
         .padding(.trailing, Metrics.bubbleOppositeInset)
     }

@@ -7,6 +7,9 @@ struct RootView: View {
     @Query(sort: \TerminalSession.lastActivity, order: .reverse) private var sessions: [TerminalSession]
     @State private var searchText = ""
     @State private var searchScope = SearchScope.session
+    #if DEBUG
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     var body: some View {
         let selectedID = controller.selectedSessionID
@@ -44,6 +47,7 @@ struct RootView: View {
         .task { DebugAutomation.start(controller: controller) }
         .onDebugAction("#search") { searchText = $0 }
         .onDebugAction("#scope") { searchScope = $0 == "all" ? .all : .session }
+        .onDebugAction("#settings") { _ in openSettings() }
         #endif
     }
 }

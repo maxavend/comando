@@ -16,6 +16,11 @@ struct ChatView: View {
     @State private var lastWidth: CGFloat = 800
     /// Width of the transcript content; less than the view when a scroller takes space.
     @State private var contentWidth: CGFloat = 800
+    @State private var position = ScrollPosition(edge: .bottom)
+    /// Whether the transcript follows new output. Only the user's own
+    /// scrolling changes it; resizes and new output keep the last state.
+    @State private var isPinnedToBottom = true
+    @State private var isAtBottom = true
 
     init(session: TerminalSession) {
         self.session = session
@@ -30,45 +35,58 @@ struct ChatView: View {
         let shell = controller.shells[session.id]
         let directory = shell?.directory ?? session.directory
 
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(entries.enumerated(), id: \.element.id) { index, entry in
-                        EntryView(
-                            entry: entry,
-                            previous: index > 0 ? entries[index - 1] : nil,
-                            shell: shell,
-                            isHighlighted: highlightedEntryID == entry.id,
-                            onEdit: { draft = $0 }
-                        )
-                        .id(entry.id)
-                    }
-                }
-                .padding(.horizontal, Metrics.contentInset)
-                .padding(.top, Metrics.transcriptVerticalInset - Metrics.exchangeSpacing)
-                .padding(.bottom, Metrics.transcriptVerticalInset)
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-                    contentWidth = width
-                    updateColumns()
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(entries.enumerated(), id: \.element.id) { index, entry in
+                    EntryView(
+                        entry: entry,
+                        previous: index > 0 ? entries[index - 1] : nil,
+                        shell: shell,
+                        isHighlighted: highlightedEntryID == entry.id,
+                        onEdit: { draft = $0 }
+                    )
+                    .id(entry.id)
                 }
             }
-            .overlay {
-                if entries.isEmpty {
-                    EmptyChatView(directory: directory)
-                }
-            }
-            .defaultScrollAnchor(.bottom)
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
-            .onChange(of: entries.last?.id) { _, last in
-                guard let last else { return }
-                withAnimation(.smooth) { proxy.scrollTo(last, anchor: .bottom) }
-            }
-            .task(id: controller.focusedEntryID) {
-                await reveal(controller.focusedEntryID, with: proxy)
+            .padding(.horizontal, Metrics.contentInset)
+            .padding(.top, Metrics.transcriptVerticalInset - Metrics.exchangeSpacing)
+            .padding(.bottom, Metrics.transcriptVerticalInset)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                contentWidth = width
+                updateColumns()
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-            lastWidth = width
+        .overlay {
+            if entries.isEmpty {
+                EmptyChatView(directory: directory)
+            }
+        }
+        .scrollPosition($position)
+        .defaultScrollAnchor(.bottom)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.visibleRect.maxY >= geometry.contentSize.height - Metrics.exchangeSpacing
+        } action: { _, atBottom in
+            isAtBottom = atBottom
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, _ in
+            followOutput()
+        }
+        .onScrollPhaseChange { oldPhase, newPhase in
+            // Only scrolling the user did decides whether to keep following.
+            if newPhase == .idle, [.tracking, .interacting, .decelerating].contains(oldPhase) {
+                isPinnedToBottom = isAtBottom
+            }
+        }
+        .onChange(of: entries.last?.id) {
+            isPinnedToBottom = true
+            withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
+        }
+        .task(id: controller.focusedEntryID) {
+            await reveal(controller.focusedEntryID)
+        }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+            lastWidth = size.width
+            followOutput()
         }
         .onChange(of: fontSize) {
             updateColumns()
@@ -172,11 +190,18 @@ struct ChatView: View {
         draft += paths
     }
 
-    private func reveal(_ entryID: UUID?, with proxy: ScrollViewProxy) async {
+    /// Keeps the newest output in view while the transcript is pinned to the bottom.
+    private func followOutput() {
+        guard isPinnedToBottom else { return }
+        position.scrollTo(edge: .bottom)
+    }
+
+    private func reveal(_ entryID: UUID?) async {
         guard let entryID else { return }
         // Give the lazy stack a moment to lay out after switching sessions.
         try? await Task.sleep(for: .milliseconds(150))
-        withAnimation(.smooth) { proxy.scrollTo(entryID, anchor: .center) }
+        isPinnedToBottom = false
+        withAnimation(.smooth) { position.scrollTo(id: entryID, anchor: .center) }
         highlightedEntryID = entryID
         controller.focusedEntryID = nil
         try? await Task.sleep(for: .seconds(2))

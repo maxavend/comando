@@ -58,10 +58,13 @@ enum DebugAutomation {
             controller.selectAdjacentSession(offset: Int(argument) ?? 1)
             try? await Task.sleep(for: .milliseconds(500))
         case "#settings":
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            NotificationCenter.default.post(name: .debugAction, object: "#settings")
             try? await Task.sleep(for: .seconds(1))
         case "#close":
-            closeTopmost()
+            // SwiftUI sheets dismiss themselves; only close AppKit windows if one remains.
+            NotificationCenter.default.post(name: .debugAction, object: "#close")
+            try? await Task.sleep(for: .milliseconds(500))
+            if mainWindow?.attachedSheet == nil { closeTopmost() }
             try? await Task.sleep(for: .milliseconds(600))
         case "#appearance":
             setAppearance(argument)

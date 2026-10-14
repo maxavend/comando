@@ -47,7 +47,7 @@ struct FinishedResponseView: View {
         }
         #endif
         .sheet(isPresented: $isShowingAll) {
-            FullOutputSheet(command: entry.command, output: entry.output)
+            FullOutputSheet(command: entry.command, output: entry.output, lineCount: rendered?.totalLines ?? 0)
         }
     }
 }

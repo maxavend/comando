@@ -20,12 +20,11 @@ struct SettingsView: View {
                             .frame(width: 40, alignment: .trailing)
                     }
                 }
-                Text("ls -la")
-                    .font(.system(size: fontSize, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .bubble(.command)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .accessibilityLabel("Vista previa")
+                HStack {
+                    Text("Vista previa")
+                    Spacer()
+                    CommandBubble(command: "ls -la")
+                }
             }
 
             Section {
@@ -44,6 +43,8 @@ struct SettingsView: View {
 
             Section {
                 TextField("Comandos", text: $interactiveCommands, axis: .vertical)
+                    .labelsHidden()
+                    .multilineTextAlignment(.leading)
                     .font(.body.monospaced())
                     .lineLimit(2...5)
             } header: {
@@ -53,6 +54,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        // With scrolling off, the grouped form reports its full height and the
+        // settings window fits it exactly.
+        .scrollDisabled(true)
         .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
     }
