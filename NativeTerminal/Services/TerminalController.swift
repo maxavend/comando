@@ -283,13 +283,17 @@ extension TerminalController: ShellSessionDelegate {
     func shellSession(_ shell: ShellSession, didFinish result: CommandResult) {
         permissionTasks[shell.id]?.cancel()
         guard let entry = entry(withID: result.entryID) else { return }
-        entry.output = Data(result.output)
+        var output = result.output
+        if result.exitCode.map(Int.init) == ErrorExplainer.interruptedStatus {
+            Self.removeInterruptEcho(from: &output)
+        }
+        entry.output = Data(output)
         entry.exitCode = result.exitCode.map(Int.init)
         entry.finishedAt = result.finishedAt
         entry.truncated = result.truncated
         entry.kind = result.wasInteractive ? .interactive : .command
         entry.transcript = result.transcript
-        let rendered = OutputRenderer.render(raw: result.output)
+        let rendered = OutputRenderer.render(raw: output)
         RenderCache.shared[entry] = RenderCache.linked(rendered, for: entry)
         entry.plainOutput = String(rendered.plainText.prefix(CommandEntry.plainOutputLimit))
         if let hint = ErrorExplainer.hint(
@@ -318,6 +322,16 @@ extension TerminalController: ShellSessionDelegate {
             )
         }
         save()
+    }
+
+    /// The terminal echoes “^C” when a command is stopped; the receipt already
+    /// says “Detenido”, so the echo is just noise.
+    static func removeInterruptEcho(from output: inout [UInt8]) {
+        let echo: [UInt8] = [0x5E, 0x43] // "^C"
+        var end = output.count
+        while end > 0, [0x0A, 0x0D, 0x20].contains(output[end - 1]) { end -= 1 }
+        guard end >= echo.count, Array(output[(end - echo.count)..<end]) == echo else { return }
+        output.removeSubrange((end - echo.count)...)
     }
 
     func shellSessionDidExit(_ shell: ShellSession) {

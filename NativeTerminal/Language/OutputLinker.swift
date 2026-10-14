@@ -2,6 +2,35 @@ import Foundation
 
 /// Turns the file names that `ls` prints into links to those files.
 nonisolated enum OutputLinker {
+    private static let urlDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+
+    /// Makes web addresses in any output clickable (they open in the browser).
+    static func linkifyURLs(_ output: AttributedString) -> AttributedString {
+        let text = String(output.characters)
+        guard text.contains("://"), let detector = urlDetector else { return output }
+        var result = output
+        let matches = detector.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        for match in matches {
+            guard let url = match.url, ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+                  let range = Range(match.range, in: text) else { continue }
+            let offset = text.distance(from: text.startIndex, to: range.lowerBound)
+            let length = text.distance(from: range.lowerBound, to: range.upperBound)
+            let start = result.characters.index(result.startIndex, offsetBy: offset)
+            let end = result.characters.index(start, offsetBy: length)
+            result[start..<end].link = url
+        }
+        return result
+    }
+
+    /// The first address of a server running on this Mac (dev servers print one).
+    static func firstLocalURL(in text: String) -> URL? {
+        guard text.contains("://"), let detector = urlDetector else { return nil }
+        let matches = detector.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        return matches.lazy.compactMap(\.url).first { url in
+            ["http", "https"].contains(url.scheme ?? "") && ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].contains(url.host ?? "")
+        }
+    }
+
     /// Characters `ls -F` appends to show the kind of an entry.
     private static let classifySuffixes: Set<Character> = ["/", "*", "@", "=", "|", "%"]
 

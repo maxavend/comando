@@ -36,11 +36,13 @@ final class RenderCache {
         return rendered
     }
 
-    /// Makes the names in `ls` output clickable links to the files.
+    /// Makes web addresses, and the names in `ls` output, clickable.
     static func linked(_ rendered: RenderedOutput, for entry: CommandEntry) -> RenderedOutput {
-        guard let folder = OutputLinker.listedFolder(command: entry.command, directory: entry.directory) else { return rendered }
         var linked = rendered
-        linked.preview = OutputLinker.linkify(rendered.preview, folder: folder)
+        linked.preview = OutputLinker.linkifyURLs(rendered.preview)
+        if let folder = OutputLinker.listedFolder(command: entry.command, directory: entry.directory) {
+            linked.preview = OutputLinker.linkify(linked.preview, folder: folder)
+        }
         return linked
     }
 

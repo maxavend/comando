@@ -19,7 +19,7 @@ struct LiveResponseView: View {
                     .transition(.opacity)
             }
             if showsBusy || live.hasOutput || live.isInteractive {
-                RunningFooter(live: live)
+                RunningFooter(live: live, shell: shell)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

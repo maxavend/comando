@@ -58,3 +58,16 @@ struct OutputLinkerTests {
         #expect(links.first?.lastPathComponent == "readme.md")
     }
 }
+
+struct URLLinkTests {
+    @Test func linksWebAddresses() {
+        let linked = OutputLinker.linkifyURLs(AttributedString("- Local: http://localhost:6006/ ok"))
+        #expect(linked.runs.compactMap(\.link).map(\.absoluteString) == ["http://localhost:6006/"])
+    }
+
+    @Test func findsLocalServer() {
+        let text = "Docs: https://storybook.js.org\n- Local: http://localhost:6006/\n- Network: http://192.168.1.5:6006/"
+        #expect(OutputLinker.firstLocalURL(in: text)?.absoluteString == "http://localhost:6006/")
+        #expect(OutputLinker.firstLocalURL(in: "nothing here") == nil)
+    }
+}
