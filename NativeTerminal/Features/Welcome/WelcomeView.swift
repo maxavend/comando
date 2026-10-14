@@ -74,7 +74,7 @@ struct WelcomeStep {
 
     static let all: [WelcomeStep] = [
         WelcomeStep(
-            symbol: "bubble.left.and.text.bubble.right",
+            symbol: "apple.terminal",
             title: "Una terminal que conversa contigo",
             message: "Escribe un comando como si enviaras un mensaje. La respuesta llega en una burbuja, con una explicación de lo que hizo el comando."
         ),
