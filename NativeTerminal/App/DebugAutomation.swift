@@ -44,9 +44,9 @@ enum DebugAutomation {
             try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
         case "#ask":
             if let session = controller.selectedSession {
-                let files = environment["NATIVETERM_ATTACH"].map { [URL(filePath: $0)] } ?? []
+                let files = environment["NATIVETERM_ATTACH"].flatMap { $0.isEmpty ? nil : [URL(filePath: $0)] } ?? []
                 controller.ask(argument, attachments: argument.contains("audio") ? files : [], in: session)
-                try? await Task.sleep(for: .seconds(4))
+                try? await Task.sleep(for: .milliseconds(300))
             }
         case "#pin":
             controller.selectedSession?.isPinned = true
@@ -63,7 +63,7 @@ enum DebugAutomation {
         case "#welcome":
             controller.isShowingWelcome = true
             try? await Task.sleep(for: .seconds(1))
-        case "#type", "#rename", "#delete", "#search", "#scope", "#showall", "#tab", "#next", "#query", "#choose", "#attach":
+        case "#type", "#rename", "#delete", "#search", "#scope", "#showall", "#tab", "#next", "#query", "#choose", "#attach", "#tools", "#toolsection", "#toolselect":
             var object = argument
             if action == "#showall" { object = lastEntryID(controller)?.uuidString ?? "" }
             NotificationCenter.default.post(name: .debugAction, object: "\(action) \(object)")

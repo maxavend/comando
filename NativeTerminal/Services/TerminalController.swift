@@ -25,6 +25,8 @@ final class TerminalController {
     var isShowingRecipes = false
     /// Text to place in the selected session's composer (from a recipe or hint).
     var draftRequest: String?
+    /// Bumped when a command installs or removes tools, so lists reload.
+    var installedToolsVersion = 0
 
     private(set) var shells: [UUID: ShellSession] = [:]
 
@@ -219,15 +221,34 @@ final class TerminalController {
         session.lastActivity = entry.startedAt
         session.lastCommand = "✨ " + request
         save()
+        answer(entry, in: shell)
+    }
 
+    /// Answers the assistant's “which file?” and asks again with it attached.
+    func provide(_ file: URL, to entry: CommandEntry) {
+        guard let session = entry.session else { return }
+        entry.attachmentPaths.append(file.path(percentEncoded: false))
+        entry.finishedAt = nil
+        entry.assistantExplanation = nil
+        entry.assistantError = nil
+        entry.assistantExtras = AssistantExtras()
+        save()
+        answer(entry, in: shell(for: session))
+    }
+
+    private func answer(_ entry: CommandEntry, in shell: ShellSession) {
         let executables = Set(ExecutableIndex.shared.names(for: shell.pathEntries))
-        let directory = shell.directory
+        let directory = entry.directory
+        let request = entry.command
+        let attachments = entry.attachmentPaths.map { URL(filePath: $0) }
+        let path = shell.pathEntries
         Task {
-            let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments)
+            let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
             let reply = await AssistantEngine.reply(to: request, inventory: inventory)
             entry.assistantExplanation = reply.explanation
             entry.proposals = reply.proposals
             entry.assistantError = reply.error
+            entry.assistantExtras = reply.extras
             entry.finishedAt = .now
             save()
         }
@@ -242,7 +263,15 @@ final class TerminalController {
 
     func installPackage(_ package: String, for entry: CommandEntry) {
         guard let session = entry.session else { return }
-        submit("brew install " + ShellEscape.quote(package), in: session)
+        let command = ToolCatalog.tool(named: package)?.installCommand ?? "brew install " + ShellEscape.quote(package)
+        submit(command, in: session)
+    }
+
+    /// Runs a package-manager command (from the Tools window) in the selected
+    /// session, where its output stays visible.
+    func runPackageCommand(_ command: String) {
+        guard let session = selectedSession else { return }
+        submit(command, in: session)
     }
 
     func rerun(_ entry: CommandEntry) {
@@ -375,6 +404,12 @@ extension TerminalController: ShellSessionDelegate {
             entry.hintSuggestion = hint.suggestion
         }
 
+        if Self.changesInstalledTools(entry.command) {
+            ExecutableIndex.shared.invalidate()
+            Task { await InstalledPackages.shared.invalidate() }
+            installedToolsVersion += 1
+        }
+
         guard let session = entry.session else { return }
         session.lastActivity = result.finishedAt
         let isVisible = NSApp.isActive && selectedSessionID == session.id
@@ -401,6 +436,17 @@ extension TerminalController: ShellSessionDelegate {
         while end > 0, [0x0A, 0x0D, 0x20].contains(output[end - 1]) { end -= 1 }
         guard end >= echo.count, Array(output[(end - echo.count)..<end]) == echo else { return }
         output.removeSubrange((end - echo.count)...)
+    }
+
+    /// Installs, upgrades and removals that make the tool lists stale.
+    static func changesInstalledTools(_ command: String) -> Bool {
+        let managers: Set<String> = ["brew", "npm", "pnpm", "yarn", "bun", "pipx", "uv", "pip", "pip3", "gem", "cargo"]
+        let verbs = ["install", "uninstall", "remove", "upgrade", "update", "add", "rm", "reinstall"]
+        return command.split(separator: "&&").contains { part in
+            let words = part.split(separator: " ").map(String.init)
+            guard let first = words.first, managers.contains(first) else { return false }
+            return words.dropFirst().contains { verbs.contains($0) }
+        }
     }
 
     func shellSessionDidExit(_ shell: ShellSession) {

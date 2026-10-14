@@ -7,6 +7,7 @@ struct ChatView: View {
     let session: TerminalSession
 
     @Environment(TerminalController.self) private var controller
+    @Environment(\.openWindow) private var openWindow
     @Query private var entries: [CommandEntry]
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @State private var draft = ""
@@ -231,6 +232,9 @@ struct ChatView: View {
                 }
                 Button("Reiniciar shell", systemImage: "arrow.clockwise") {
                     controller.restartShell(of: session)
+                }
+                Button("Herramientas instaladas…", systemImage: "shippingbox") {
+                    openWindow(id: "tools")
                 }
                 Divider()
                 Button("Limpiar historial", systemImage: "clear") {

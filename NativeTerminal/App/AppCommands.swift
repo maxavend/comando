@@ -3,6 +3,8 @@ import SwiftUI
 struct AppCommands: Commands {
     let controller: TerminalController
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("Nueva sesión") {
@@ -27,6 +29,11 @@ struct AppCommands: Commands {
                 controller.isShowingRecipes = true
             }
             .keyboardShortcut("k")
+
+            Button("Herramientas instaladas…") {
+                openWindow(id: "tools")
+            }
+            .keyboardShortcut("i", modifiers: [.command, .shift])
         }
 
         CommandMenu("Ir") {

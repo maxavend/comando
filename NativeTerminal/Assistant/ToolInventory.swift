@@ -15,7 +15,7 @@ nonisolated struct ToolInventory: Sendable {
         var kind: Kind
         var size: Int64
 
-        enum Kind: String, Sendable {
+        enum Kind: String, Codable, Sendable {
             case audio, video, image, folder, archive, other
         }
 
@@ -54,10 +54,10 @@ nonisolated struct ToolInventory: Sendable {
     // MARK: - Gathering
 
     @concurrent
-    static func gather(directory: String, executables: Set<String>, attachments: [URL]) async -> ToolInventory {
+    static func gather(directory: String, executables: Set<String>, attachments: [URL], path: [String] = []) async -> ToolInventory {
         var inventory = ToolInventory(directory: directory, executables: executables)
         inventory.brew = await InstalledPackages.shared.brew()
-        inventory.npmGlobals = await InstalledPackages.shared.npm()
+        inventory.npmGlobals = await InstalledPackages.shared.npm(path: path)
         inventory.files = listFiles(in: directory)
         inventory.attachments = attachments.map { info(for: $0, relativeTo: directory) }
         if let project = nearestFile(named: "package.json", from: directory) {
@@ -137,7 +137,24 @@ nonisolated struct ToolInventory: Sendable {
         }
     }
 
-    static func run(_ arguments: [String], path: String = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin") -> String? {
+    static let defaultPath = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\(NSHomeDirectory())/.local/bin"
+
+    /// The shell's `$PATH`, which knows where nvm and friends put things.
+    static func searchPath(_ entries: [String]) -> String {
+        entries.isEmpty ? defaultPath : entries.joined(separator: ":")
+    }
+
+    /// Where the npm on `$PATH` keeps its global packages.
+    static func npmRoot(path entries: [String]) -> String? {
+        let folders = entries.isEmpty ? defaultPath.split(separator: ":").map(String.init) : entries
+        guard let bin = folders.first(where: { FileManager.default.isExecutableFile(atPath: $0 + "/npm") }) else { return nil }
+        let root = URL(filePath: bin, directoryHint: .isDirectory).deletingLastPathComponent().appending(path: "lib/node_modules")
+        return root.standardizedFileURL.path(percentEncoded: false).trimmingSuffix("/")
+    }
+
+    /// Runs a tool and returns its output; nil if it fails, unless
+    /// `acceptsFailure` (some tools signal findings with a non-zero exit).
+    static func run(_ arguments: [String], path: String = defaultPath, acceptsFailure: Bool = false) -> String? {
         let process = Process()
         process.executableURL = URL(filePath: "/usr/bin/env")
         process.arguments = arguments
@@ -150,7 +167,7 @@ nonisolated struct ToolInventory: Sendable {
         guard (try? process.run()) != nil else { return nil }
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        return process.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
+        return process.terminationStatus == 0 || acceptsFailure ? String(decoding: data, as: UTF8.self) : nil
     }
 }
 
@@ -160,6 +177,11 @@ actor InstalledPackages {
 
     private var brewCache: [ToolInventory.Package]?
     private var npmCache: [ToolInventory.Package]?
+
+    func invalidate() {
+        brewCache = nil
+        npmCache = nil
+    }
 
     func brew() -> [ToolInventory.Package] {
         if let brewCache { return brewCache }
@@ -181,11 +203,11 @@ actor InstalledPackages {
         return packages
     }
 
-    func npm() -> [ToolInventory.Package] {
+    func npm(path: [String]) -> [ToolInventory.Package] {
         if let npmCache { return npmCache }
         var packages: [ToolInventory.Package] = []
-        // npm often lives under nvm, so ask the user's login shell where it is.
-        if let root = ToolInventory.run(["zsh", "-lc", "npm root -g"])?.trimmingCharacters(in: .whitespacesAndNewlines),
+        // npm often lives under nvm, so look for it on the shell's own $PATH.
+        if let root = ToolInventory.npmRoot(path: path),
            let names = try? FileManager.default.contentsOfDirectory(atPath: root) {
             for name in names where !name.hasPrefix(".") {
                 let folders = name.hasPrefix("@")
@@ -200,5 +222,11 @@ actor InstalledPackages {
         }
         npmCache = packages
         return packages
+    }
+}
+
+extension String {
+    nonisolated func trimmingSuffix(_ suffix: String) -> String {
+        hasSuffix(suffix) && count > suffix.count ? String(dropLast(suffix.count)) : self
     }
 }

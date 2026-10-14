@@ -104,6 +104,58 @@ struct AssistantBuilderTests {
         #expect(AssistantEngine.build(steps: steps, request: request, inventory: inventory()).error != nil)
     }
 
+    @Test func asksForTheFileInsteadOfGivingUp() {
+        let request = "Hola, quisiera comprimir un audio, ¿cómo puedo hacer?"
+        let song = ToolInventory.FileInfo(name: "cancion.wav", path: "cancion.wav", kind: .audio, size: 1)
+        let context = inventory(executables: ["afconvert"], files: [logo, song])
+        // Even if the model finds nothing, the words are enough.
+        let steps = AssistantEngine.validate([AssistantStep(action: .unknown)], request: request, inventory: context)
+        #expect(steps.map(\.action) == [.compressAudio])
+        let reply = AssistantEngine.build(steps: steps, request: request, inventory: context)
+        #expect(reply.error == nil)
+        #expect(reply.proposals.isEmpty)
+        #expect(reply.extras.fileRequest == FileRequest(kind: .audio, choices: ["cancion.wav"]))
+        #expect(reply.extras.suggestions.map(\.package) == ["ffmpeg"])
+    }
+
+    @Test func folderFilesNeedToBeNamed() {
+        let song = ToolInventory.FileInfo(name: "Glass.aiff", path: "Glass.aiff", kind: .audio, size: 1)
+        let context = inventory(files: [song])
+        let unnamed = AssistantEngine.validate([AssistantStep(action: .compressAudio, file: "Glass.aiff")], request: "comprime un audio", inventory: context)
+        #expect(unnamed.first?.file == nil)
+        let named = AssistantEngine.validate([AssistantStep(action: .compressAudio, file: "Glass.aiff")], request: "comprime el audio glass", inventory: context)
+        #expect(named.first?.file == "Glass.aiff")
+    }
+
+    @Test func compressingAnAudioIsNotAZip() {
+        let steps = AssistantEngine.validate([AssistantStep(action: .zipFiles)], request: "comprime este audio", inventory: inventory(attachments: [audio]))
+        #expect(steps.map(\.action) == [.compressAudio])
+        #expect(steps.first?.file == audio.path)
+    }
+
+    @Test func recommendsAToolToInstall() {
+        let reply = AssistantEngine.build(steps: [], request: "quiero descargar un video de youtube", inventory: inventory())
+        #expect(reply.proposals.map(\.command) == ["brew install yt-dlp"])
+        #expect(reply.explanation.contains("yt-dlp"))
+
+        let installed = AssistantEngine.build(steps: [], request: "quiero descargar un video de youtube",
+                                              inventory: inventory(executables: ["yt-dlp", "brew"]))
+        #expect(installed.proposals.map(\.command) == ["yt-dlp --help"])
+        #expect(installed.explanation.contains("ya la tienes"))
+    }
+
+    @Test func installUsesTheCatalogPackageName() {
+        let step = AssistantEngine.validate([AssistantStep(action: .installTool, package: "magick")], request: "instala magick", inventory: inventory())
+        #expect(step.first?.package == "imagemagick")
+    }
+
+    @Test func packageCommandsRefreshTheToolLists() {
+        #expect(TerminalController.changesInstalledTools("brew install ffmpeg"))
+        #expect(TerminalController.changesInstalledTools("cd x && npm uninstall -g foo"))
+        #expect(!TerminalController.changesInstalledTools("brew info ffmpeg"))
+        #expect(!TerminalController.changesInstalledTools("ls install"))
+    }
+
     @Test func onlyOneStepUnlessAskedForSeveral() {
         let steps = [AssistantStep(action: .installDependencies), AssistantStep(action: .runScript, script: "test")]
         #expect(AssistantEngine.validate(steps, request: "instala las dependencias", inventory: inventory()).count == 1)
@@ -141,6 +193,17 @@ struct AssistantModelTests {
 
     @Test func installsWithHomebrew() async {
         let reply = await AssistantEngine.reply(to: "instala yt-dlp", inventory: inventory())
+        #expect(reply.proposals.map(\.command) == ["brew install yt-dlp"], "\(reply)")
+    }
+
+    @Test func asksWhichAudioWhenNoneIsAttached() async {
+        let reply = await AssistantEngine.reply(to: "Hola, quisiera comprimir un audio, ¿cómo puedo hacer?", inventory: inventory())
+        #expect(reply.extras.fileRequest?.kind == .audio, "\(reply)")
+        #expect(reply.error == nil)
+    }
+
+    @Test func recommendsYtDlp() async {
+        let reply = await AssistantEngine.reply(to: "¿cómo descargo un video de youtube?", inventory: inventory())
         #expect(reply.proposals.map(\.command) == ["brew install yt-dlp"], "\(reply)")
     }
 

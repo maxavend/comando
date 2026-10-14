@@ -10,10 +10,45 @@ nonisolated struct AssistantProposal: Codable, Hashable, Sendable {
     var missingPackage: String?
 }
 
+/// A tool worth installing for the request, shown with an Install button.
+nonisolated struct ToolSuggestion: Codable, Hashable, Sendable {
+    var package: String
+    var title: String
+    var detail: String
+    var isCask = false
+    var isInstalled = false
+
+    init(_ tool: CatalogTool, isInstalled: Bool) {
+        package = tool.id
+        title = tool.title
+        detail = tool.detail
+        isCask = tool.isCask
+        self.isInstalled = isInstalled
+    }
+
+    var installCommand: String {
+        isCask ? "brew install --cask \(package)" : "brew install \(package)"
+    }
+}
+
+/// The file a request needs but didn't name: the reply asks for it.
+nonisolated struct FileRequest: Codable, Hashable, Sendable {
+    var kind: ToolInventory.FileInfo.Kind
+    /// Matching files in the current folder, offered as one-click answers.
+    var choices: [String]
+}
+
+/// What a reply carries besides commands; stored with the entry.
+nonisolated struct AssistantExtras: Codable, Hashable, Sendable {
+    var fileRequest: FileRequest?
+    var suggestions: [ToolSuggestion] = []
+}
+
 nonisolated struct AssistantReply: Sendable {
     var explanation: String
     var proposals: [AssistantProposal]
     var error: String?
+    var extras = AssistantExtras()
 
     static func failure(_ message: String) -> AssistantReply {
         AssistantReply(explanation: "", proposals: [], error: message)
@@ -98,12 +133,15 @@ nonisolated enum AssistantEngine {
         let words = normalized(request)
         let allowsSeveral = [" y ", " luego ", " despues ", " and ", " then ", ", "].contains { " \(words) ".contains($0) }
         var result: [AssistantStep] = []
-        for step in steps where step.action != .unknown {
+        // When the model finds nothing usable, plain keywords still can.
+        let candidates = steps.contains { check($0, words: words, inventory: inventory) != nil }
+            ? steps : steps + [guess(words)].compactMap { $0.map { AssistantStep(action: $0) } }
+        for step in candidates where step.action != .unknown {
             guard !result.contains(where: { $0.action == step.action && $0.script == step.script }) else { continue }
             guard var checked = check(step, words: words, inventory: inventory) else { continue }
             if checked.action == .resizeImage, checked.width == nil {
-                checked.width = request.firstMatch(of: /(\d{2,5})/).flatMap { Int($0.1) }
-                if checked.width == nil { continue }
+                // Without a number, a common size that can be edited before running.
+                checked.width = request.firstMatch(of: /(\d{2,5})/).flatMap { Int($0.1) } ?? defaultImageWidth
             }
             result.append(checked)
             if !allowsSeveral { break }
@@ -114,18 +152,20 @@ nonisolated enum AssistantEngine {
     private static func check(_ step: AssistantStep, words: String, inventory: ToolInventory) -> AssistantStep? {
         var step = step
         func mentions(_ keys: [String]) -> Bool { keys.contains { words.contains($0) } }
+        /// Points the step at a real file, or clears it so the reply asks
+        /// which one (never a file the model made up).
         func resolveFile(_ kinds: [ToolInventory.FileInfo.Kind]) -> Bool {
-            if let file = matchFile(step.file, kinds: kinds, inventory: inventory) {
+            // A folder file counts only when the request names it; attachments
+            // were given on purpose.
+            if let file = matchFile(step.file, kinds: kinds, inventory: inventory),
+               inventory.attachments.contains(file) || mentionsFile(file, in: words) {
                 step.file = file.path
                 return true
             }
             // A single attachment of the right kind is clearly “this”.
             let candidates = inventory.attachments.filter { kinds.contains($0.kind) }
-            if candidates.count == 1 {
-                step.file = candidates[0].path
-                return true
-            }
-            return false
+            step.file = candidates.count == 1 ? candidates[0].path : nil
+            return true
         }
 
         switch step.action {
@@ -141,19 +181,23 @@ nonisolated enum AssistantEngine {
         case .installDependencies:
             guard inventory.packageManager != nil, mentions(["dependencia", "instala", "install", "paquetes", "modulos"]) else { return nil }
         case .compressAudio:
-            guard mentions(["audio", "sonido", "voz", "grabacion", "mp3", "m4a", "wav", "whatsapp", "podcast", "cancion"])
-                    || inventory.attachments.contains(where: { $0.kind == .audio }),
+            // “Descargar un audio” is not compressing one.
+            guard mentions(audioWords) || inventory.attachments.contains(where: { $0.kind == .audio }),
+                  mentions(shrinkWords),
                   resolveFile([.audio]) else { return nil }
         case .compressVideo:
-            guard mentions(["video", "mov", "mp4", "clip", "pelicula", "grabacion de pantalla"])
-                    || inventory.attachments.contains(where: { $0.kind == .video }),
+            guard mentions(videoWords) || inventory.attachments.contains(where: { $0.kind == .video }),
+                  mentions(shrinkWords + ["720"]),
                   resolveFile([.video]) else { return nil }
         case .resizeImage:
-            guard mentions(["imagen", "foto", "logo", "png", "jpg", "jpeg", "ancho", "px", "achica", "redimension", "tamano", "agranda"])
+            guard mentions(imageWords + ["ancho", "px", "achica", "redimension", "tamano", "agranda"])
                     || inventory.attachments.contains(where: { $0.kind == .image }),
                   resolveFile([.image]) else { return nil }
         case .zipFiles:
-            guard mentions(["zip", "comprim", "empaquet"]), resolveFile([.folder, .other, .image, .audio, .video]) else { return nil }
+            // “Comprimir un audio” means a smaller audio, not a .zip.
+            guard mentions(["zip", "empaquet"])
+                    || (mentions(["comprim"]) && !mentions(audioWords + videoWords + imageWords + ["pdf"])),
+                  resolveFile([.folder, .other, .image, .audio, .video]) else { return nil }
         case .gitPublish:
             guard mentions(["github", "git", "sube", "subir", "push", "publica", "commit", "repositorio", "repo"]) else { return nil }
         case .gitStatus:
@@ -162,11 +206,38 @@ nonisolated enum AssistantEngine {
             guard let package = step.package?.trimmingCharacters(in: .whitespaces), !package.isEmpty,
                   package.allSatisfy({ $0.isLetter || $0.isNumber || "-_@./".contains($0) }),
                   mentions(["instala", "install", "brew", "descarga"]) else { return nil }
-            step.package = package.lowercased()
+            // “instala magick” → the imagemagick package.
+            step.package = ToolCatalog.tool(named: package.lowercased())?.id ?? package.lowercased()
         case .unknown:
             return nil
         }
         return step
+    }
+
+    static let defaultImageWidth = 1200
+
+    private static let audioWords = ["audio", "sonido", "voz", "grabacion", "mp3", "m4a", "wav", "whatsapp", "podcast", "cancion", "musica"]
+    private static let videoWords = ["video", "mov", "mp4", "clip", "pelicula", "grabacion de pantalla"]
+    /// Words that ask for a smaller or converted file, or one ready to send.
+    private static let shrinkWords = ["comprim", "achic", "reduc", "liviano", "pesa", "peso", "convert", "pasar a", "chico",
+                                      "mp3", "m4a", "whatsapp", "mandar", "enviar", "correo", "mail"]
+    private static let imageWords = ["imagen", "foto", "logo", "png", "jpg", "jpeg", "heic"]
+
+    /// The action a request clearly asks for by its words alone.
+    static func guess(_ words: String) -> AssistantAction? {
+        func mentions(_ keys: [String]) -> Bool { keys.contains { words.contains($0) } }
+        if mentions(audioWords), mentions(shrinkWords) { return .compressAudio }
+        if mentions(videoWords), mentions(shrinkWords + ["720"]) { return .compressVideo }
+        if mentions(imageWords), mentions(["achic", "redimension", "tamano", "ancho", "px", "agranda"]) { return .resizeImage }
+        if mentions(["zip", "empaquet"]) { return .zipFiles }
+        return nil
+    }
+
+    /// Whether the request names the file, with or without its extension.
+    static func mentionsFile(_ file: ToolInventory.FileInfo, in words: String) -> Bool {
+        let name = normalized(file.name)
+        let base = normalized((file.name as NSString).deletingPathExtension)
+        return words.contains(name) || (base.count >= 3 && words.contains(base))
     }
 
     /// Finds the file the model named among attachments and folder contents,
@@ -184,13 +255,19 @@ nonisolated enum AssistantEngine {
 
     static func build(steps: [AssistantStep], request: String, inventory: ToolInventory) -> AssistantReply {
         guard !steps.isEmpty else {
+            if let tool = ToolCatalog.match(request) {
+                return recommend(tool, inventory: inventory)
+            }
             if let recipe = bestRecipe(for: request), recipe.parameters.isEmpty {
                 return AssistantReply(
                     explanation: String(localized: "Puedo hacerlo con la receta “\(recipe.title)”."),
                     proposals: [AssistantProposal(command: recipe.command(with: [:]), tool: String(localized: "receta"))]
                 )
             }
-            return .failure(String(localized: "No encontré cómo hacerlo con lo que tienes instalado. Prueba con otras palabras o busca en Recetas (⌘K)."))
+            return .failure(String(localized: "No encontré una herramienta para eso. Cuéntame qué quieres lograr, por ejemplo “comprimir este audio” o “descargar un video de YouTube”, o busca en Recetas (⌘K)."))
+        }
+        if let step = steps.first(where: { $0.needsFile && $0.file == nil }) {
+            return askForFile(for: step, inventory: inventory)
         }
         var explanations: [String] = []
         var proposals: [AssistantProposal] = []
@@ -202,7 +279,67 @@ nonisolated enum AssistantEngine {
         guard !proposals.isEmpty else {
             return .failure(String(localized: "No encontré cómo hacerlo con lo que tienes instalado."))
         }
-        return AssistantReply(explanation: explanations.joined(separator: " "), proposals: proposals)
+        var reply = AssistantReply(explanation: explanations.joined(separator: " "), proposals: proposals)
+        reply.extras.suggestions = steps.compactMap { upgradeSuggestion(for: $0.action, inventory: inventory) }
+        return reply
+    }
+
+    /// The request names no file: say which tool will do it and ask for one.
+    static func askForFile(for step: AssistantStep, inventory: ToolInventory) -> AssistantReply {
+        let kind: ToolInventory.FileInfo.Kind
+        let explanation: String
+        switch step.action {
+        case .compressAudio:
+            kind = .audio
+            explanation = String(localized: "Puedo comprimirlo con afconvert, que ya viene en macOS. ¿Qué audio quieres comprimir? Arrástralo a la ventana o elígelo.")
+        case .compressVideo:
+            kind = .video
+            explanation = inventory.has("ffmpeg")
+                ? String(localized: "Puedo comprimirlo con FFmpeg, que ya tienes instalado. ¿Qué video quieres comprimir? Arrástralo a la ventana o elígelo.")
+                : String(localized: "Puedo comprimirlo con avconvert, que ya viene en macOS. ¿Qué video quieres comprimir? Arrástralo a la ventana o elígelo.")
+        case .resizeImage:
+            kind = .image
+            explanation = String(localized: "Puedo cambiarle el tamaño con sips, que ya viene en macOS. ¿Qué imagen? Arrástrala a la ventana o elígela.")
+        default:
+            kind = .other
+            explanation = String(localized: "Puedo comprimirlo en un .zip con la herramienta de macOS. ¿Qué archivo o carpeta? Arrástralo a la ventana o elígelo.")
+        }
+        let choices = inventory.files
+            .filter { kind == .other ? $0.kind != .archive : $0.kind == kind }
+            .prefix(6).map(\.path)
+        var reply = AssistantReply(explanation: explanation, proposals: [])
+        reply.extras.fileRequest = FileRequest(kind: kind, choices: Array(choices))
+        if let suggestion = upgradeSuggestion(for: step.action, inventory: inventory) {
+            reply.extras.suggestions = [suggestion]
+        }
+        return reply
+    }
+
+    /// Nothing built-in fits: recommend a well-known tool, installing it if needed.
+    static func recommend(_ tool: CatalogTool, inventory: ToolInventory) -> AssistantReply {
+        let installed = inventory.has(tool.command) || inventory.brew.contains { $0.name == tool.id }
+        if installed {
+            var explanation = String(localized: "Para eso sirve \(tool.title), y ya la tienes instalada: \(tool.detail.lowercasedFirst)")
+            if let example = tool.example {
+                explanation += " " + String(localized: "Por ejemplo: \(example)")
+            }
+            return AssistantReply(
+                explanation: explanation,
+                proposals: [AssistantProposal(command: "\(tool.command) --help", tool: "\(tool.title) · \(inventory.source(of: tool.command))")]
+            )
+        }
+        let explanation = String(localized: "Para eso sirve \(tool.title): \(tool.detail.lowercasedFirst) No la tienes; puedo instalarla con Homebrew.")
+        return AssistantReply(
+            explanation: explanation,
+            proposals: [AssistantProposal(command: tool.installCommand, tool: "Homebrew",
+                                          missingPackage: inventory.has("brew") ? nil : "Homebrew")]
+        )
+    }
+
+    /// A more capable tool to mention when it isn't installed yet.
+    private static func upgradeSuggestion(for action: AssistantAction, inventory: ToolInventory) -> ToolSuggestion? {
+        guard let tool = ToolCatalog.upgrade(for: action), !inventory.has(tool.command) else { return nil }
+        return ToolSuggestion(tool, isInstalled: false)
     }
 
     private static func q(_ value: String) -> String { ShellEscape.quote(value) }
@@ -298,8 +435,10 @@ nonisolated enum AssistantEngine {
                         AssistantProposal(command: "which \(package) && \(package) --version", tool: "\(package) · \(inventory.source(of: package))"))
             }
             guard inventory.has("brew") else { return nil }
-            return (String(localized: "Voy a instalar “\(package)” con Homebrew."),
-                    AssistantProposal(command: "brew install \(q(package))", tool: "Homebrew"))
+            let catalog = ToolCatalog.tool(named: package)
+            let what = catalog.map { " " + $0.detail } ?? ""
+            return (String(localized: "Voy a instalar “\(package)” con Homebrew.") + what,
+                    AssistantProposal(command: catalog?.installCommand ?? "brew install \(q(package))", tool: "Homebrew"))
 
         case .unknown:
             return nil
@@ -323,5 +462,19 @@ nonisolated enum AssistantEngine {
 
     static func normalized(_ text: String) -> String {
         text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "es"))
+    }
+}
+
+extension AssistantStep {
+    /// Actions that work on a file the person has to point at.
+    nonisolated var needsFile: Bool {
+        [.compressAudio, .compressVideo, .resizeImage, .zipFiles].contains(action)
+    }
+}
+
+extension String {
+    nonisolated var lowercasedFirst: String {
+        guard let first else { return self }
+        return first.lowercased() + dropFirst()
     }
 }

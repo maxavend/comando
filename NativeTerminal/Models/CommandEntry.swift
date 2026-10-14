@@ -35,6 +35,8 @@ final class CommandEntry {
     var assistantError: String?
     var assistantProposalsJSON: String?
     var attachmentPathsJSON: String?
+    /// Which file the assistant still needs and tools it suggests installing.
+    var assistantExtrasJSON: String?
     var assistantRanAt: Date?
     var session: TerminalSession?
 
@@ -75,6 +77,11 @@ final class CommandEntry {
     var proposals: [AssistantProposal] {
         get { Self.decode(assistantProposalsJSON) ?? [] }
         set { assistantProposalsJSON = Self.encode(newValue) }
+    }
+
+    var assistantExtras: AssistantExtras {
+        get { Self.decode(assistantExtrasJSON) ?? AssistantExtras() }
+        set { assistantExtrasJSON = newValue == AssistantExtras() ? nil : Self.encode(newValue) }
     }
 
     var attachmentPaths: [String] {

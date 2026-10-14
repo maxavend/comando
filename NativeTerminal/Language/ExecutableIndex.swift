@@ -11,6 +11,11 @@ final class ExecutableIndex {
 
     private var cache: (path: [String], names: [String]) = ([], [])
 
+    /// Forgets the cached names, after something was installed or removed.
+    func invalidate() {
+        cache = ([], [])
+    }
+
     func names(for pathEntries: [String]) -> [String] {
         if cache.path != pathEntries || cache.names.isEmpty {
             var names = Set(Self.builtins)

@@ -9,6 +9,7 @@ struct RootView: View {
     @State private var searchScope = SearchScope.session
     #if DEBUG
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     #endif
 
     private static var isAutomated: Bool {
@@ -66,6 +67,7 @@ struct RootView: View {
         .onDebugAction("#search") { searchText = $0 }
         .onDebugAction("#scope") { searchScope = $0 == "all" ? .all : .session }
         .onDebugAction("#settings") { _ in openSettings() }
+        .onDebugAction("#tools") { _ in openWindow(id: "tools") }
         #endif
     }
 }

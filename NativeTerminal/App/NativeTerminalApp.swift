@@ -28,6 +28,13 @@ struct NativeTerminalApp: App {
             AppCommands(controller: controller)
         }
 
+        Window("Herramientas", id: "tools") {
+            ToolsView()
+                .environment(controller)
+        }
+        .defaultSize(width: 1120, height: 640)
+        .windowToolbarStyle(.unified)
+
         Settings {
             SettingsView()
         }
