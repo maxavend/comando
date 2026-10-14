@@ -200,6 +200,45 @@ struct AssistantBuilderTests {
         #expect(AssistantEngine.checkCommand("gs -o chico.pdf grande.pdf", request: "comprime el pdf", inventory: context)?.missingPackage == "ghostscript")
     }
 
+    @Test func hiddenOrDestructiveCommandsAreRejected() {
+        let context = inventory(executables: ["bash", "echo", "ls", "git", "find", "sed", "sort", "python3", "xargs", "wc"])
+        let accepted = [
+            "bash -c 'rm -rf ~/x'", "echo $(rm -rf src)", "echo `whoami`", "ls && git reset --hard",
+            "find . -name '*.log' -delete", "find . -exec rm {} +", "sed -i '' 's/a/b/' notas.md",
+            "python3 -c 'import os'", "ls | xargs wc -l", "git push", "sort notas.md > notas.md",
+        ].filter { AssistantEngine.checkCommand($0, request: "ordena y guarda el archivo notas.md", inventory: context) != nil }
+        #expect(accepted.isEmpty)
+        #expect(AssistantEngine.checkCommand("sort notas.md > ordenado-nuevo.md", request: "guarda las líneas ordenadas en un archivo", inventory: context) != nil)
+    }
+
+    @Test func dangerIsCheckedInEveryPart() {
+        #expect(DangerDetector.risk(of: "ls && rm -rf build") != nil)
+        #expect(DangerDetector.risk(of: "echo hola; git reset --hard") != nil)
+        #expect(DangerDetector.risk(of: "bash -c 'rm -rf x'") != nil)
+        #expect(DangerDetector.risk(of: "echo $(rm -rf x)") != nil)
+        #expect(DangerDetector.risk(of: "find . -name '*.tmp' -delete") != nil)
+        #expect(DangerDetector.risk(of: "ls -la | grep txt") == nil)
+    }
+
+    @Test func onlyRealDeletionsGoToTheTrash() {
+        let files = [
+            ToolInventory.FileInfo(name: "borrador.md", path: "borrador.md", kind: .other, size: 1),
+            ToolInventory.FileInfo(name: "notas.txt", path: "notas.txt", kind: .other, size: 1),
+            ToolInventory.FileInfo(name: "TODO.md", path: "TODO.md", kind: .other, size: 1),
+            ToolInventory.FileInfo(name: "dist", path: "dist", kind: .folder, size: 0),
+        ]
+        let context = inventory(files: files)
+        #expect(AssistantEngine.trashReply(for: "abre borrador.md", inventory: context) == nil)
+        #expect(AssistantEngine.trashReply(for: "elimina los espacios de notas.txt", inventory: context) == nil)
+        #expect(AssistantEngine.trashReply(for: "borra notas.txt", inventory: context)?.proposals.first?.command == "trash notas.txt")
+        #expect(AssistantEngine.trashReply(for: "borra todo lo que hay en dist", inventory: context)?.proposals.first?.command == "trash dist/*")
+    }
+
+    @Test func toolListsRefreshAfterNvmCommands() {
+        #expect(TerminalController.changesInstalledTools("nvm exec 24.14.0 npm uninstall -g @google/gemini-cli"))
+        #expect(TerminalController.changesInstalledTools("cd x; npm i -g pnpm"))
+    }
+
     @Test func catalogMatchesWordForms() {
         #expect(ToolCatalog.match("comprime un pdf")?.id == "ghostscript")
         #expect(ToolCatalog.match("descarga un archivo de internet")?.id == "wget")

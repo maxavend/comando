@@ -4,7 +4,6 @@ import SwiftUI
 /// What a package is, how much space it takes and what to do with it.
 struct PackageInspector: View {
     let package: ManagedPackage
-    let isBusy: Bool
     let onRun: (String) -> Void
     let onUninstall: () -> Void
 
@@ -36,7 +35,6 @@ struct PackageInspector: View {
                     LabeledContent {
                         Button("Actualizar") { onRun(package.upgradeCommand) }
                             .buttonStyle(.glassProminent)
-                            .disabled(isBusy)
                             .help(package.upgradeCommand)
                     } label: {
                         Label("Versión \(latest) disponible", systemImage: "arrow.up.circle.fill")
@@ -53,7 +51,7 @@ struct PackageInspector: View {
                         Text(installedAt, format: .dateTime.day().month().year())
                     }
                 }
-                if package.location != nil {
+                if let location = package.location, FileManager.default.fileExists(atPath: location) {
                     LabeledContent("Tamaño") {
                         if let size {
                             Text(size, format: .byteCount(style: .file))
@@ -88,7 +86,6 @@ struct PackageInspector: View {
                     }
                 }
                 Button("Desinstalar…", systemImage: "trash", role: .destructive, action: onUninstall)
-                    .disabled(isBusy)
             }
             .buttonStyle(.link)
         }

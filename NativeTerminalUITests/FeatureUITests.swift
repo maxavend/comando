@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 /// Drives the real app with clicks and typing to check each feature end to end.
@@ -10,7 +11,8 @@ final class FeatureUITests: XCTestCase {
         continueAfterFailure = true
         folder = FileManager.default.temporaryDirectory.appending(path: "nt-ui-\(UUID().uuidString.prefix(6))")
         try FileManager.default.createDirectory(at: folder.appending(path: "Carpeta Uno"), withIntermediateDirectories: true)
-        try "hola".write(to: folder.appending(path: "notas.txt"), atomically: true, encoding: .utf8)
+        try "hola\n".write(to: folder.appending(path: "notas.txt"), atomically: true, encoding: .utf8)
+        try FileManager.default.copyItem(at: URL(filePath: "/System/Library/Sounds/Glass.aiff"), to: folder.appending(path: "Entrevista.aiff"))
         try "borrar".write(to: folder.appending(path: "borrar-me.txt"), atomically: true, encoding: .utf8)
 
         app = XCUIApplication()
@@ -29,9 +31,15 @@ final class FeatureUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: "composer").firstMatch
     }
 
+    /// Pastes instead of typing: simulated typing drops spaces with some
+    /// keyboard layouts (“cd /Users” arrived as “cd/Users”).
     private func run(_ command: String, wait: TimeInterval = 1.5) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
         composer.click()
-        composer.typeText(command + "\n")
+        composer.typeKey("a", modifierFlags: .command)
+        composer.typeKey("v", modifierFlags: .command)
+        composer.typeKey(.return, modifierFlags: [])
         Thread.sleep(forTimeInterval: wait)
     }
 
@@ -137,7 +145,8 @@ final class FeatureUITests: XCTestCase {
         app.typeKey("k", modifierFlags: .command)
         let search = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS 'Qué quieres hacer'")).firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3), "⌘K no abrió las recetas")
-        search.typeText("puerto\n")
+        search.typeText("puerto")
+        search.typeKey(.return, modifierFlags: [])
         let port = app.textFields["Puerto"].firstMatch
         XCTAssertTrue(port.waitForExistence(timeout: 3), "No se abrió el formulario de la receta")
         port.click()
@@ -163,6 +172,97 @@ final class FeatureUITests: XCTestCase {
             folderLink.click()
             XCTAssertTrue(text("Ahora estás en").waitForExistence(timeout: 5), "Clic en carpeta no navegó")
         }
+    }
+
+    // MARK: - Asistente
+
+    /// The newest “Ejecutar” in the chat.
+    private func lastRunButton() -> XCUIElement {
+        app.buttons.matching(identifier: "Ejecutar").allElementsBoundByIndex.last ?? app.buttons["Ejecutar"]
+    }
+
+    func testAssistantGreetingAndExample() {
+        run("Hola, ¿qué tal?")
+        XCTAssertTrue(text("Cuéntame qué quieres hacer").waitForExistence(timeout: 5), "El saludo no tuvo respuesta")
+        let example = app.buttons["Crea una carpeta llamada Proyectos"]
+        XCTAssertTrue(example.waitForExistence(timeout: 3), "No aparecen los ejemplos como botones")
+        attach("asistente-saludo")
+        example.click()
+        XCTAssertTrue(text("mkdir Proyectos").waitForExistence(timeout: 20), "El ejemplo no propuso mkdir")
+        lastRunButton().click()
+        let created = folder.appending(path: "Proyectos").path(percentEncoded: false)
+        let deadline = Date.now.addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: created), Date.now < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: created), "Ejecutar no creó la carpeta")
+        attach("asistente-ejecutado")
+    }
+
+    func testAssistantAsksForTheFile() {
+        run("Quisiera comprimir un audio, ¿cómo hago?")
+        let choice = app.buttons["Entrevista.aiff"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 20), "No ofreció los audios de la carpeta")
+        XCTAssertTrue(app.buttons["Elegir archivo…"].exists, "Falta el botón Elegir archivo…")
+        attach("asistente-pide-archivo")
+        choice.click()
+        XCTAssertTrue(text("afconvert").waitForExistence(timeout: 20), "Al elegir el audio no propuso afconvert")
+        lastRunButton().click()
+        let output = folder.appending(path: "Entrevista-comprimido.m4a").path(percentEncoded: false)
+        let deadline = Date.now.addingTimeInterval(10)
+        while !FileManager.default.fileExists(atPath: output), Date.now < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: output), "No se creó el audio comprimido")
+        attach("asistente-audio")
+    }
+
+    func testAssistantWritesACommand() {
+        run("¿cuántas líneas tiene notas.txt?")
+        XCTAssertTrue(text("Sugerido por Apple Intelligence").waitForExistence(timeout: 25), "No propuso un comando escrito por el modelo")
+        XCTAssertTrue(text("wc -l").exists, "El comando sugerido no es wc -l")
+        attach("asistente-comando")
+        lastRunButton().click()
+        XCTAssertTrue(text("1 notas.txt").waitForExistence(timeout: 5), "El comando sugerido no mostró el resultado")
+    }
+
+    // MARK: - Herramientas
+
+    func testToolsWindow() {
+        app.typeKey("i", modifierFlags: [.command, .shift])
+        let window = app.windows["Herramientas"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "⇧⌘I no abrió Herramientas")
+        let table = window.tables.firstMatch
+        XCTAssertTrue(table.waitForExistence(timeout: 20), "No se cargó la lista de herramientas")
+        XCTAssertGreaterThan(table.tableRows.count, 0, "La lista está vacía")
+        table.tableRows.element(boundBy: 0).click()
+        XCTAssertTrue(window.staticTexts["Versión"].waitForExistence(timeout: 3), "El panel de detalles no muestra la versión")
+        attach("herramientas")
+        window.outlines.firstMatch.staticTexts["Recomendadas"].click()
+        XCTAssertTrue(window.staticTexts["FFmpeg"].waitForExistence(timeout: 3), "No aparecen las recomendadas")
+        attach("herramientas-recomendadas")
+        window.outlines.firstMatch.staticTexts["Para actualizar"].click()
+        Thread.sleep(forTimeInterval: 1)
+        attach("herramientas-actualizar")
+    }
+
+    // MARK: - Bienvenida y Ajustes
+
+    func testWelcomeAndSettings() {
+        app.menuBars.menuBarItems["Ayuda"].click()
+        app.menuItems["Bienvenida a NativeTerminal"].click()
+        XCTAssertTrue(text("Una terminal que conversa contigo").waitForExistence(timeout: 3), "No se abrió la bienvenida")
+        app.buttons["Siguiente"].click()
+        XCTAssertTrue(text("Pídelo con tus palabras").waitForExistence(timeout: 2), "Falta el paso del asistente")
+        app.buttons["Siguiente"].click()
+        app.buttons["Siguiente"].click()
+        let start = app.buttons["Empezar"]
+        XCTAssertTrue(start.waitForExistence(timeout: 2), "El último paso no dice Empezar")
+        start.click()
+
+        app.typeKey(",", modifierFlags: .command)
+        let toggle = app.checkBoxes["Entender pedidos con tus palabras"].firstMatch
+        let assistantSwitch = toggle.exists ? toggle : app.switches["Entender pedidos con tus palabras"].firstMatch
+        XCTAssertTrue(assistantSwitch.waitForExistence(timeout: 3), "Ajustes no muestra el interruptor del asistente")
+        attach("ajustes")
+        assistantSwitch.click()
+        assistantSwitch.click()
     }
 
     private func attach(_ name: String) {

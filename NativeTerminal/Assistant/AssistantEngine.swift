@@ -179,8 +179,11 @@ nonisolated enum AssistantEngine {
     static func isGreeting(_ words: String) -> Bool { isOnly(greetingPhrases, in: words) }
     static func isThanks(_ words: String) -> Bool { isOnly(thanksPhrases, in: words) }
 
+    /// “¿Qué es npm?”, but not “¿qué es lo que más pesa?”.
     static func asksForMeaning(_ words: String) -> Bool {
-        ["que es ", "que son ", "que significa", "para que sirve", "explicame", "diferencia entre", "what is "].contains { words.contains($0) }
+        let text = words.trimmingCharacters(in: CharacterSet(charactersIn: "¿? ")).trimmingCharacters(in: .whitespaces)
+        if text.contains("lo que") { return false }
+        return ["que es ", "que son ", "que significa", "para que sirve", "explicame", "diferencia entre", "what is "].contains { text.hasPrefix($0) }
     }
 
     static func isQuestion(_ request: String) -> Bool {
@@ -191,23 +194,26 @@ nonisolated enum AssistantEngine {
     // MARK: - Deleting
 
     /// “Borra notas.md” moves it to the Trash instead, where it can be recovered.
+    /// Only when the file is what the verb acts on: “abre borrador.md” or
+    /// “elimina los espacios de notas.txt” are not deletions.
     static func trashReply(for request: String, inventory: ToolInventory) -> AssistantReply? {
         let words = normalized(request)
-        guard ["borra", "elimina", "quita", "deshazte", "delete", "remove"].contains(where: words.contains) else { return nil }
-        let targets = (inventory.attachments + inventory.files).filter { mentionsFile($0, in: words) }
-        guard !targets.isEmpty else { return nil }
-        // “Todo lo que hay en src” empties the folder but keeps it.
-        let contentsOnly = ["lo que hay en", "contenido de", "dentro de", "todo en"].contains(where: words.contains)
-        let paths = targets.map { file in
-            contentsOnly && file.kind == .folder ? ShellEscape.quote(file.path) + "/*" : ShellEscape.quote(file.path)
-        }
-        let names = targets.map { "“\($0.name)”" }.formatted(.list(type: .and))
+        let pattern = /(?i)\b(?:borra|borrar|bórralo|elimina|eliminar|deshazte de|manda a la papelera|delete|remove)\s+(?:(?:el|la|los|las|mi|mis|archivo|carpeta|todo)\s+)*(?:(lo que hay en|el contenido de|todo lo que hay en|contenido de|lo de)\s+)?(?:(?:el|la|los|las|archivo|carpeta)\s+)*["“']?([^\s"”']+)/
+        guard let match = words.firstMatch(of: pattern) else { return nil }
+        let named = String(match.2).trimmingCharacters(in: CharacterSet(charactersIn: "?.!,"))
+        let candidates = inventory.attachments + inventory.files
+        guard let target = candidates.first(where: { file in
+            let name = normalized(file.name)
+            return name == named || normalized((file.name as NSString).deletingPathExtension) == named
+        }) else { return nil }
+        let contentsOnly = match.1 != nil && target.kind == .folder
+        let path = contentsOnly ? ShellEscape.quote(target.path) + "/*" : ShellEscape.quote(target.path)
         let explanation = contentsOnly
-            ? String(localized: "Voy a mover lo que hay en \(names) a la Papelera. Si te arrepientes, lo recuperas desde ahí.")
-            : String(localized: "Voy a mover \(names) a la Papelera. Si te arrepientes, lo recuperas desde ahí.")
+            ? String(localized: "Voy a mover lo que hay en “\(target.name)” a la Papelera. Si te arrepientes, lo recuperas desde ahí.")
+            : String(localized: "Voy a mover “\(target.name)” a la Papelera. Si te arrepientes, lo recuperas desde ahí.")
         return AssistantReply(
             explanation: explanation,
-            proposals: [AssistantProposal(command: "trash " + paths.joined(separator: " "), tool: "trash · incluida en macOS")]
+            proposals: [AssistantProposal(command: "trash " + path, tool: "trash · incluida en macOS")]
         )
     }
 
@@ -325,13 +331,19 @@ nonisolated enum AssistantEngine {
         line = line.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
         if line.hasPrefix("$ ") { line.removeFirst(2) }
         let words = normalized(request)
+        let tokens = ShellEscape.words(line)
         guard !line.isEmpty, !line.contains("\n"), line.count <= 300,
-              !ShellEscape.words(line).contains("sudo"),
               DangerDetector.risk(of: line) == nil,
-              !ShellEscape.words(line).contains(where: { ["rm", "rmdir", "trash", "kill", "killall", "shutdown", "reboot"].contains($0) }),
+              // Nothing that runs hidden code, changes or deletes files, or
+              // installs things: those have their own, reviewed flows.
+              !line.contains("$("), !line.contains("`"), !line.contains("<"),
+              !tokens.contains(where: { Self.forbiddenWords.contains($0) }),
+              !tokens.contains(where: { $0.hasPrefix("-delete") || $0 == "-exec" || $0 == "-execdir" }),
+              !zip(tokens, tokens.dropFirst()).contains(where: { Self.interpreters.contains($0) && ["-c", "-e"].contains($1) }),
+              !zip(tokens, tokens.dropFirst()).contains(where: { $0 == "sed" && $1.hasPrefix("-i") }),
+              !zip(tokens, tokens.dropFirst()).contains(where: { ["git", "brew", "npm", "pip", "pip3", "pipx", "uv", "gem"].contains($0) && Self.changingVerbs.contains($1) }),
               !line.contains("http") || request.contains("http"),
-              !line.contains(">") || ["guard", "export", "escrib", "archivo"].contains(where: words.contains),
-              !line.contains("<") else { return nil }
+              writesOnlyNewFiles(line, request: words, inventory: inventory) else { return nil }
 
         var programs: [String] = []
         for segment in line.split(separator: /\|\||&&|\||;/) {
@@ -349,6 +361,33 @@ nonisolated enum AssistantEngine {
         guard ToolInventory.run(["zsh", "-n", "-c", line]) != nil else { return nil }
         return AssistantProposal(command: line, tool: "\(first) · \(inventory.source(of: first))",
                                  missingPackage: missing, isGenerated: true)
+    }
+
+    private static let forbiddenWords: Set<String> = [
+        "sudo", "su", "rm", "rmdir", "trash", "kill", "killall", "pkill", "shutdown", "reboot", "halt", "mv", "cp",
+        "chmod", "chown", "dd", "tee", "xargs", "eval", "exec", "source", ".", "launchctl", "defaults", "osascript",
+        "diskutil", "truncate", "shred", "ln",
+    ]
+    private static let interpreters: Set<String> = ["sh", "bash", "zsh", "python", "python3", "node", "ruby", "perl", "osascript"]
+    private static let changingVerbs: Set<String> = [
+        "reset", "clean", "checkout", "restore", "push", "rebase", "rm", "commit", "merge", "stash", "switch",
+        "install", "uninstall", "upgrade", "update", "remove", "add", "i", "un", "link", "unlink",
+    ]
+
+    /// A `>` only when the person asked to save something, and only into a
+    /// new file: never one that exists or that the command itself reads
+    /// (`sort notas.md > notas.md` empties it).
+    private static func writesOnlyNewFiles(_ line: String, request: String, inventory: ToolInventory) -> Bool {
+        guard line.contains(">") else { return true }
+        guard ["guard", "export", "escrib", "crea", "archivo nuevo"].contains(where: request.contains),
+              !line.contains(">>"), line.filter({ $0 == ">" }).count == 1,
+              let match = line.firstMatch(of: />\s*(\S+)/) else { return false }
+        let target = String(match.1).trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
+        let path = target.hasPrefix("/") ? target : (inventory.directory as NSString).appendingPathComponent(target)
+        let reads = ShellEscape.words(String(line[..<match.range.lowerBound]))
+        return !target.hasPrefix("/dev") && !reads.contains(target)
+            && !inventory.files.contains { $0.name == target || $0.path == target }
+            && !FileManager.default.fileExists(atPath: path)
     }
 
     private static let shellBuiltins: Set<String> = [
@@ -670,7 +709,7 @@ nonisolated enum AssistantEngine {
             guard let script = step.script else { return nil }
             if inventory.scripts.contains(script) {
                 let manager = (inventory.packageManager ?? .npm).rawValue
-                let command = manager == "npm" ? "npm run \(script)" : "\(manager) run \(script)"
+                let command = "\(manager) run \(q(script))"
                 return (String(localized: "Voy a ejecutar el script “\(script)” del proyecto con \(manager)."),
                         AssistantProposal(command: command, tool: "\(script) · script de \(manager)",
                                           missingPackage: inventory.has(manager) ? nil : (manager == "npm" ? "node" : manager)))
@@ -751,8 +790,10 @@ nonisolated enum AssistantEngine {
         case .installTool:
             guard let package = step.package else { return nil }
             if inventory.has(package) || inventory.brew.contains(where: { $0.name == package }) {
+                let command = ToolCatalog.tool(named: package)?.command ?? package
+                let check = inventory.has(command) ? "which \(q(command)) && \(q(command)) --version" : "brew info \(q(package))"
                 return (String(localized: "“\(package)” ya está instalado; voy a mostrar dónde está y su versión."),
-                        AssistantProposal(command: "which \(package) && \(package) --version", tool: "\(package) · \(inventory.source(of: package))"))
+                        AssistantProposal(command: check, tool: "\(package) · \(inventory.source(of: command))"))
             }
             guard inventory.has("brew") else { return nil }
             let catalog = ToolCatalog.tool(named: package)

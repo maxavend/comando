@@ -94,7 +94,11 @@ final class PackageStore {
 
     /// - Parameter path: the shell's `$PATH`, to find the npm, pipx and uv it uses.
     func reload(path: [String]) async {
-        guard !isLoading else { return }
+        // A reload asked for mid-load (after an install) runs right after it.
+        guard !isLoading else {
+            pendingPath = path
+            return
+        }
         isLoading = true
         let result = await Self.gather(path: path)
         packages = result.packages
@@ -102,8 +106,15 @@ final class PackageStore {
         activeNodeVersion = result.activeNode
         isLoading = false
         hasLoaded = true
+        if let pending = pendingPath {
+            pendingPath = nil
+            await reload(path: pending)
+            return
+        }
         await checkNpmUpdates(path: path)
     }
+
+    @ObservationIgnored private var pendingPath: [String]?
 
     /// `npm outdated` asks the registry, so it runs after the list is shown.
     private func checkNpmUpdates(path: [String]) async {
@@ -235,7 +246,7 @@ final class PackageStore {
     @concurrent
     private static func npmOutdated(path: [String]) async -> [String: String] {
         // `npm outdated` exits with 1 when something is outdated, so read it regardless.
-        guard let json = ToolInventory.run(["npm", "outdated", "-g", "--json"], path: ToolInventory.searchPath(path), acceptsFailure: true),
+        guard let json = ToolInventory.run(["npm", "outdated", "-g", "--json"], path: ToolInventory.searchPath(path), acceptsFailure: true, timeout: 20),
               let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: [String: Any]] else { return [:] }
         return object.compactMapValues { $0["latest"] as? String }
     }
@@ -251,8 +262,10 @@ final class PackageStore {
             var package = ManagedPackage(name: main["package"] as? String ?? name, source: .pipx,
                                          version: main["package_version"] as? String ?? "")
             package.commands = main["apps"] as? [String] ?? []
-            package.location = "\(home)/.local/pipx/venvs/\(name)"
-            package.installedAt = (try? FileManager.default.attributesOfItem(atPath: package.location!))?[.creationDate] as? Date
+            // pipx 1.3+ keeps its venvs in Application Support on macOS.
+            package.location = ["\(home)/Library/Application Support/pipx/venvs/\(name)", "\(home)/.local/pipx/venvs/\(name)"]
+                .first { FileManager.default.fileExists(atPath: $0) }
+            package.installedAt = package.location.flatMap { try? FileManager.default.attributesOfItem(atPath: $0)[.creationDate] as? Date }
             return package
         }
     }

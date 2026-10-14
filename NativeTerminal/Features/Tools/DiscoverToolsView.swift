@@ -4,7 +4,6 @@ import SwiftUI
 struct DiscoverToolsView: View {
     let query: String
     let isInstalled: (CatalogTool) -> Bool
-    let isBusy: Bool
     let onInstall: (CatalogTool) -> Void
 
     private let columns = [GridItem(.adaptive(minimum: 260), spacing: Metrics.bubbleHorizontalPadding)]
@@ -20,7 +19,7 @@ struct DiscoverToolsView: View {
                             .font(.headline)
                         LazyVGrid(columns: columns, spacing: Metrics.bubbleHorizontalPadding) {
                             ForEach(items) { tool in
-                                ToolCard(tool: tool, isInstalled: isInstalled(tool), isBusy: isBusy) {
+                                ToolCard(tool: tool, isInstalled: isInstalled(tool)) {
                                     onInstall(tool)
                                 }
                             }
@@ -48,7 +47,6 @@ struct DiscoverToolsView: View {
 private struct ToolCard: View {
     let tool: CatalogTool
     let isInstalled: Bool
-    let isBusy: Bool
     let onInstall: () -> Void
 
     var body: some View {
@@ -80,7 +78,6 @@ private struct ToolCard: View {
                 Button("Instalar", action: onInstall)
                     .buttonStyle(.glass)
                     .controlSize(.small)
-                    .disabled(isBusy)
                     .help(tool.installCommand)
             }
         }

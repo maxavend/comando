@@ -256,7 +256,7 @@ final class TerminalController {
 
     /// Runs what the assistant proposed, as one visible command.
     func runProposals(of entry: CommandEntry) {
-        guard let session = entry.session, !entry.proposals.isEmpty else { return }
+        guard let session = entry.session, !entry.proposals.isEmpty, !(shells[session.id]?.isBusy ?? false) else { return }
         entry.assistantRanAt = .now
         submit(entry.proposals.map(\.command).joined(separator: " && "), in: session)
     }
@@ -264,14 +264,22 @@ final class TerminalController {
     func installPackage(_ package: String, for entry: CommandEntry) {
         guard let session = entry.session else { return }
         let command = ToolCatalog.tool(named: package)?.installCommand ?? "brew install " + ShellEscape.quote(package)
-        submit(command, in: session)
+        submit(command, in: idleSession(preferring: session))
     }
 
     /// Runs a package-manager command (from the Tools window) in the selected
     /// session, where its output stays visible.
     func runPackageCommand(_ command: String) {
         guard let session = selectedSession else { return }
-        submit(command, in: session)
+        submit(command, in: idleSession(preferring: session))
+    }
+
+    /// The session itself when its shell is free; otherwise a new one in the
+    /// same folder, so a command is never typed into a running program (an
+    /// ssh session, a REPL or a password prompt).
+    private func idleSession(preferring session: TerminalSession) -> TerminalSession {
+        guard shells[session.id]?.isBusy ?? false else { return session }
+        return createSession(directory: shells[session.id]?.directory ?? session.directory)
     }
 
     func rerun(_ entry: CommandEntry) {
@@ -441,9 +449,11 @@ extension TerminalController: ShellSessionDelegate {
     /// Installs, upgrades and removals that make the tool lists stale.
     static func changesInstalledTools(_ command: String) -> Bool {
         let managers: Set<String> = ["brew", "npm", "pnpm", "yarn", "bun", "pipx", "uv", "pip", "pip3", "gem", "cargo"]
-        let verbs = ["install", "uninstall", "remove", "upgrade", "update", "add", "rm", "reinstall"]
-        return command.split(separator: "&&").contains { part in
-            let words = part.split(separator: " ").map(String.init)
+        let verbs: Set<String> = ["install", "uninstall", "remove", "upgrade", "update", "add", "rm", "reinstall", "i", "un", "r", "up"]
+        return command.split(separator: /&&|\|\||;/).contains { part in
+            var words = part.split(separator: " ").map(String.init)
+            // “nvm exec 24.1.0 npm uninstall -g x” runs npm.
+            if words.first == "nvm", words.dropFirst().first == "exec" { words.removeFirst(min(3, words.count)) }
             guard let first = words.first, managers.contains(first) else { return false }
             return words.dropFirst().contains { verbs.contains($0) }
         }

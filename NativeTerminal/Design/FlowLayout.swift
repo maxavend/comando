@@ -7,7 +7,9 @@ struct FlowLayout: Layout {
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = rows(for: subviews, width: proposal.width ?? .infinity)
-        let width = rows.map(\.width).max() ?? 0
+        // Takes the whole width offered, so the width never depends on how
+        // the rows happened to wrap.
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? rows.map(\.width).max() ?? 0
         let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0))
         return CGSize(width: width, height: height)
     }
@@ -37,7 +39,10 @@ struct FlowLayout: Layout {
         for index in subviews.indices {
             let size = subviews[index].sizeThatFits(.unspecified)
             let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
-            if needed > width, !current.indices.isEmpty {
+            // A pixel of slack: a width rounded down by layout must not wrap a
+            // row that fit before, or measuring and placing never agree and
+            // the layout recomputes forever.
+            if needed > width + 1, !current.indices.isEmpty {
                 rows.append(current)
                 current = Row()
             }

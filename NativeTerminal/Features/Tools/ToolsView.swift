@@ -88,7 +88,7 @@ struct ToolsView: View {
     @ViewBuilder
     private var detail: some View {
         if section == .discover {
-            DiscoverToolsView(query: query, isInstalled: isInstalled, isBusy: isBusy) { tool in
+            DiscoverToolsView(query: query, isInstalled: isInstalled) { tool in
                 run(tool.installCommand)
             }
         } else if !store.hasLoaded {
@@ -105,7 +105,7 @@ struct ToolsView: View {
             .inspector(isPresented: $showsInspector) {
                 Group {
                     if let package = selectedPackage {
-                        PackageInspector(package: package, isBusy: isBusy, onRun: run) {
+                        PackageInspector(package: package, onRun: run) {
                             pendingRemoval = package
                         }
                         .id(package.id)
@@ -199,7 +199,6 @@ struct ToolsView: View {
         ToolbarItem(placement: .primaryAction) {
             if !outdated.isEmpty {
                 Button("Actualizar todo", systemImage: "arrow.up.circle") { run(upgradeAllCommand) }
-                    .disabled(isBusy)
                     .help(upgradeAllCommand)
             }
         }
@@ -250,9 +249,8 @@ struct ToolsView: View {
     private var subtitle: String {
         guard store.hasLoaded else { return "" }
         let count = visible(store.packages).count
-        return outdated.isEmpty
-            ? String(localized: "\(count) instaladas")
-            : String(localized: "\(count) instaladas · \(outdated.count) por actualizar")
+        let installed = count == 1 ? String(localized: "1 instalada") : String(localized: "\(count) instaladas")
+        return outdated.isEmpty ? installed : installed + " · " + String(localized: "\(outdated.count) por actualizar")
     }
 
     /// Several Node versions each keep their own globals; say so where it matters.
@@ -270,7 +268,6 @@ struct ToolsView: View {
         return commands.joined(separator: " && ")
     }
 
-    private var isBusy: Bool { controller.selectedShell?.isBusy ?? false }
 
     private func isInstalled(_ tool: CatalogTool) -> Bool {
         store.packages.contains { ($0.source == .formula || $0.source == .cask) && $0.name == tool.id }

@@ -157,11 +157,22 @@ struct ComposerView: View {
     }
 
     private var textField: some View {
-        TextField(placeholder, text: $text, axis: .vertical)
+        // The ghost sits behind the field as a sibling, not inside it: views
+        // attached to this AppKit-backed field join its accessibility element,
+        // and resolving its label then recursed until the app crashed.
+        ZStack(alignment: .topLeading) {
+            ghost
+            inputField
+        }
+    }
+
+    private var inputField: some View {
+        // The title is the accessibility label.
+        TextField("Comando", text: $text, prompt: Text(placeholder), axis: .vertical)
             .textFieldStyle(.plain)
+            .labelsHidden()
             .font(.system(size: fontSize))
             .lineLimit(1...8)
-            .background(alignment: .topLeading) { ghost }
             .focused($isFocused)
             .disabled(phase == .interactive)
             .onSubmit(submit)
@@ -185,7 +196,6 @@ struct ComposerView: View {
             .dropDestination(for: URL.self) { urls, _ in
                 insert(urls)
             }
-            .accessibilityLabel("Comando")
             .accessibilityIdentifier("composer")
             #if DEBUG
             .onDebugAction("#tab") { _ in _ = completeWithTab() }

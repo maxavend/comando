@@ -48,6 +48,25 @@ enum DebugAutomation {
                 controller.ask(argument, attachments: argument.contains("audio") ? files : [], in: session)
                 try? await Task.sleep(for: .milliseconds(300))
             }
+        case "#axdump":
+            // Walks the accessibility tree like UI tests do, to catch crashes there.
+            var lines: [String] = []
+            let out = (folder?.path(percentEncoded: false) ?? NSTemporaryDirectory()) + "/ax.txt"
+            func value(_ element: NSObject, _ attribute: NSAccessibility.Attribute) -> Any? {
+                element.accessibilityAttributeValue(attribute)
+            }
+            func walk(_ element: NSObject, depth: Int) {
+                guard depth < 80 else { return }
+                let role = value(element, .role) as? String ?? "?"
+                lines.append(String(repeating: " ", count: depth) + role + " …")
+                try? lines.joined(separator: "\n").write(toFile: out, atomically: false, encoding: .utf8)
+                let label = [value(element, .title), value(element, .description), value(element, .value)]
+                    .compactMap { $0.map { "\($0)" } }.joined(separator: " | ")
+                lines[lines.count - 1] = String(repeating: " ", count: depth) + role + " «" + label.prefix(80) + "»"
+                for child in value(element, .children) as? [NSObject] ?? [] { walk(child, depth: depth + 1) }
+            }
+            for window in NSApp.windows where window.isVisible { walk(window, depth: 0) }
+            try? lines.joined(separator: "\n").write(toFile: out, atomically: false, encoding: .utf8)
         case "#pin":
             controller.selectedSession?.isPinned = true
         case "#style":

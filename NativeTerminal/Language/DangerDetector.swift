@@ -10,8 +10,8 @@ nonisolated struct CommandRisk: Equatable, Sendable {
 nonisolated enum DangerDetector {
     static func risk(of command: String) -> CommandRisk? {
         let line = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        let words = line.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init)
-        guard !words.isEmpty else { return nil }
+        guard !line.isEmpty else { return nil }
+        var usesSudoPrefix = false
 
         // A script downloaded and run directly.
         if line.range(of: #"(curl|wget)[^|]*\|\s*(sudo\s+)?(sh|bash|zsh)\b"#, options: .regularExpression) != nil {
@@ -21,9 +21,28 @@ nonisolated enum DangerDetector {
             )
         }
 
-        var arguments = words
-        let usesSudo = arguments.first == "sudo"
-        if usesSudo { arguments.removeFirst() }
+        // Each part of “a && b; c | d” runs, so each one gets checked, and
+        // so do commands hidden in $(…), backticks or `bash -c '…'`.
+        let segments = line.split(separator: /&&|\|\||;|\|/).map { $0.trimmingCharacters(in: .whitespaces) }
+        if segments.count > 1 {
+            return segments.lazy.compactMap { risk(of: $0) }.first
+        }
+        for inner in line.matches(of: /\$\(([^)]*)\)|`([^`]*)`/) {
+            if let risk = risk(of: String(inner.1 ?? inner.2 ?? "")) { return risk }
+        }
+
+        var arguments = ShellEscape.words(line)
+        // Prefixes that run the next word as the real command.
+        while let first = arguments.first, ["sudo", "env", "time", "nohup", "command", "exec", "xargs"].contains(first) {
+            if first == "sudo" { usesSudoPrefix = true }
+            arguments.removeFirst()
+            while arguments.first?.hasPrefix("-") == true || arguments.first?.contains("=") == true { arguments.removeFirst() }
+        }
+        let usesSudo = usesSudoPrefix
+        if let shell = arguments.first.map({ String($0.split(separator: "/").last ?? "") }),
+           ["sh", "bash", "zsh"].contains(shell), let index = arguments.firstIndex(of: "-c"), index + 1 < arguments.count {
+            return risk(of: arguments[index + 1]) ?? (usesSudo ? sudoRisk : nil)
+        }
         let name = arguments.first.map { String($0.split(separator: "/").last ?? "") } ?? ""
         let flags = arguments.dropFirst().filter { $0.hasPrefix("-") }.joined()
 
@@ -39,6 +58,12 @@ nonisolated enum DangerDetector {
                         : String(localized: "Borra todos los archivos que coincidan con el patrón. No pasa por la Papelera y no se puede deshacer.")
                 )
             }
+        case "find" where arguments.contains("-delete") || arguments.contains(where: { $0 == "-exec" || $0 == "-execdir" })
+            && arguments.contains(where: { ["rm", "trash"].contains($0) }):
+            return CommandRisk(
+                title: String(localized: "Este comando borra archivos de forma permanente"),
+                explanation: String(localized: "Borra todos los archivos que encuentre. No pasa por la Papelera y no se puede deshacer.")
+            )
         case "dd", "mkfs", "newfs_apfs", "newfs_hfs":
             return CommandRisk(
                 title: String(localized: "Este comando escribe directamente en un disco"),
@@ -92,12 +117,11 @@ nonisolated enum DangerDetector {
             break
         }
 
-        if usesSudo {
-            return CommandRisk(
-                title: String(localized: "Este comando se ejecuta como administrador"),
-                explanation: String(localized: "Tendrá acceso a todo el sistema y te pedirá tu contraseña. Úsalo solo si sabes qué hace.")
-            )
-        }
-        return nil
+        return usesSudo ? sudoRisk : nil
     }
+
+    private static let sudoRisk = CommandRisk(
+        title: String(localized: "Este comando se ejecuta como administrador"),
+        explanation: String(localized: "Tendrá acceso a todo el sistema y te pedirá tu contraseña. Úsalo solo si sabes qué hace.")
+    )
 }

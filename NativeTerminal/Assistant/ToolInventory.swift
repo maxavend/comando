@@ -163,7 +163,7 @@ nonisolated struct ToolInventory: Sendable {
 
     /// Runs a tool and returns its output; nil if it fails, unless
     /// `acceptsFailure` (some tools signal findings with a non-zero exit).
-    static func run(_ arguments: [String], path: String = defaultPath, acceptsFailure: Bool = false) -> String? {
+    static func run(_ arguments: [String], path: String = defaultPath, acceptsFailure: Bool = false, timeout: Double = 30) -> String? {
         let process = Process()
         process.executableURL = URL(filePath: "/usr/bin/env")
         process.arguments = arguments
@@ -174,8 +174,13 @@ nonisolated struct ToolInventory: Sendable {
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         guard (try? process.run()) != nil else { return nil }
+        // Offline, tools like `npm outdated` can wait forever: stop them.
+        let watchdog = DispatchWorkItem { if process.isRunning { process.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: watchdog)
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
+        watchdog.cancel()
+        if process.terminationReason == .uncaughtSignal { return nil }
         return process.terminationStatus == 0 || acceptsFailure ? String(decoding: data, as: UTF8.self) : nil
     }
 }

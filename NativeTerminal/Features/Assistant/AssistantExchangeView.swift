@@ -38,7 +38,7 @@ struct AssistantExchangeView: View {
     private var request: some View {
         VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
             if !entry.attachmentPaths.isEmpty {
-                FlowLayout(spacing: Metrics.chipSpacing) {
+                HStack(spacing: Metrics.statusSpacing) {
                     ForEach(entry.attachmentPaths, id: \.self) { AttachmentChip(path: $0) }
                 }
             }
@@ -173,11 +173,18 @@ private struct ProposalBlock: View {
             if let package = proposal.missingPackage {
                 HStack(spacing: Metrics.statusSpacing) {
                     Caption(systemImage: "exclamationmark.triangle.fill", text: String(localized: "Necesitas instalar \(package)."), tint: .orange)
-                    Button("Instalar") { onInstall(package) }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                        .pointerStyle(.link)
-                        .disabled(isBusy)
+                    if package == "Homebrew" {
+                        // Homebrew can't install itself: point to its site.
+                        Link("Cómo instalarlo", destination: URL(string: "https://brew.sh/es/")!)
+                            .font(.caption)
+                            .pointerStyle(.link)
+                    } else {
+                        Button("Instalar") { onInstall(package) }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                            .pointerStyle(.link)
+                            .disabled(isBusy)
+                    }
                 }
                 .padding(.leading, Metrics.wellHorizontalPadding)
             }
