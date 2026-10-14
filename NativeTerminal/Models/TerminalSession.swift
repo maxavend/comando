@@ -14,6 +14,12 @@ final class TerminalSession {
     var unreadCount: Int = 0
     /// Folders visited in this session, most recent first.
     var recentDirectories: [String] = []
+    /// Pinned sessions stay at the top of the sidebar.
+    var isPinned: Bool = false
+    /// Optional emoji shown in the avatar instead of the terminal symbol.
+    var emoji: String?
+    /// Index into `SessionColor.all` for the avatar background.
+    var colorIndex: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \CommandEntry.session)
     var entries: [CommandEntry] = []

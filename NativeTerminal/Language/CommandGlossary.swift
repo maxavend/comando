@@ -28,6 +28,7 @@ nonisolated enum CommandGlossary {
         "mkdir": String(localized: "Crear una carpeta"),
         "rmdir": String(localized: "Eliminar una carpeta vacía"),
         "rm": String(localized: "Eliminar archivos"),
+        "trash": String(localized: "Mover a la Papelera"),
         "cp": String(localized: "Copiar archivos"),
         "mv": String(localized: "Mover o renombrar"),
         "touch": String(localized: "Crear un archivo vacío"),

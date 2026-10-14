@@ -48,7 +48,9 @@ nonisolated enum OutputRenderer {
         var tail = LineBuffer()
         tail.replaceLines(with: Array(buffer.lines.suffix(limit + 20)))
         var rendered = render(tail, previewLimit: limit)
-        rendered.totalLines = max(rendered.totalLines, buffer.lineCount)
+        if !rendered.isEmpty {
+            rendered.totalLines = max(rendered.totalLines, buffer.lineCount)
+        }
         return rendered
     }
 

@@ -6,4 +6,6 @@ struct PendingCommand: Identifiable {
     let command: String
     let sessionID: UUID
     let risk: CommandRisk
+    /// For `rm`: the same files moved to the Trash instead (recoverable).
+    var trashAlternative: String?
 }

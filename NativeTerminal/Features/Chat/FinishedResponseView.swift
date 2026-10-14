@@ -12,6 +12,13 @@ struct FinishedResponseView: View {
     @State private var rendered: RenderedOutput?
     @State private var isShowingAll = false
     @State private var quickLookURL: URL?
+    @State private var isExpanded = false
+    @State private var startsSearching = false
+
+    /// Long outputs start folded to their last lines, which is usually where
+    /// the result or the error is.
+    private static let foldThreshold = 24
+    private static let foldedLines = 10
 
     var body: some View {
         let rendered = rendered ?? RenderCache.shared.immediate(for: entry)
@@ -20,18 +27,34 @@ struct FinishedResponseView: View {
                 InteractiveSummary(entry: entry)
             }
             if let rendered, !rendered.isEmpty {
-                OutputBubble(output: rendered.preview, plainText: rendered.plainText, monospaced: rendered.isTabular) {
-                    if rendered.isClipped {
-                        Button("Mostrar las \(rendered.totalLines) líneas") {
-                            isShowingAll = true
+                let isFoldable = rendered.totalLines > Self.foldThreshold
+                let isFolded = isFoldable && !isExpanded
+                OutputBubble(
+                    output: isFolded ? rendered.preview.lastLines(Self.foldedLines) : rendered.preview,
+                    plainText: rendered.plainText,
+                    monospaced: rendered.isTabular
+                ) {
+                    if isFoldable {
+                        HStack(spacing: Metrics.bubbleHorizontalPadding) {
+                            Button(isFolded
+                                ? "Mostrar \(rendered.totalLines - Self.foldedLines) líneas anteriores"
+                                : "Mostrar menos") {
+                                withAnimation(.smooth(duration: 0.2)) { isExpanded.toggle() }
+                            }
+                            if !isFolded && rendered.isClipped {
+                                Button("Ver las \(rendered.totalLines) líneas") { showAll(searching: false) }
+                            }
+                            Button("Buscar…") { showAll(searching: true) }
                         }
                         .buttonStyle(.link)
+                        .foregroundStyle(.tint)
                     }
                 }
                 .contextMenu {
                     Button("Copiar salida", systemImage: "doc.on.doc") { Pasteboard.copy(rendered.plainText) }
                     Button("Copiar comando", systemImage: "terminal") { Pasteboard.copy(entry.command) }
-                    Button("Mostrar toda la salida", systemImage: "arrow.up.left.and.arrow.down.right") { isShowingAll = true }
+                    Button("Mostrar toda la salida", systemImage: "arrow.up.left.and.arrow.down.right") { showAll(searching: false) }
+                    Button("Buscar en la salida…", systemImage: "magnifyingglass") { showAll(searching: true) }
                     Divider()
                     Button("Volver a ejecutar", systemImage: "arrow.clockwise", action: onRerun)
                 }
@@ -57,8 +80,13 @@ struct FinishedResponseView: View {
         }
         #endif
         .sheet(isPresented: $isShowingAll) {
-            FullOutputSheet(command: entry.command, output: entry.output, lineCount: rendered?.totalLines ?? 0)
+            FullOutputSheet(command: entry.command, output: entry.output, lineCount: rendered?.totalLines ?? 0, startsSearching: startsSearching)
         }
+    }
+
+    private func showAll(searching: Bool) {
+        startsSearching = searching
+        isShowingAll = true
     }
 
     /// File names in `ls` output: a folder opens in the session, a file shows

@@ -42,6 +42,15 @@ enum DebugAutomation {
             await requestSnapshot(named: argument, in: folder)
         case "#sleep":
             try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
+        case "#pin":
+            controller.selectedSession?.isPinned = true
+        case "#style":
+            let parts = argument.split(separator: " ")
+            controller.selectedSession?.emoji = parts.first.map(String.init)
+            controller.selectedSession?.colorIndex = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+        case "#explain":
+            NotificationCenter.default.post(name: .debugAction, object: "#explain \(lastEntryID(controller)?.uuidString ?? "")")
+            try? await Task.sleep(for: .milliseconds(800))
         case "#recipes":
             controller.isShowingRecipes = true
             try? await Task.sleep(for: .seconds(1))

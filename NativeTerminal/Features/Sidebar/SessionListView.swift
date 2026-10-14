@@ -7,18 +7,25 @@ struct SessionListView: View {
     @State private var renaming: TerminalSession?
     @State private var newName = ""
     @State private var deleting: TerminalSession?
+    @State private var customizing: TerminalSession?
 
     var body: some View {
         @Bindable var controller = controller
         let shells = controller.shells
 
+        let pinned = sessions.filter(\.isPinned)
+        let others = sessions.filter { !$0.isPinned }
+
         List(selection: $controller.selectedSessionID) {
-            ForEach(sessions) { session in
-                SessionRow(session: session, shell: shells[session.id])
-                    .tag(session.id)
-                    .contextMenu {
-                        contextMenu(for: session)
-                    }
+            if pinned.isEmpty {
+                rows(others, shells: shells)
+            } else {
+                Section("Fijadas") {
+                    rows(pinned, shells: shells)
+                }
+                Section("Sesiones") {
+                    rows(others, shells: shells)
+                }
             }
         }
         .listStyle(.sidebar)
@@ -39,12 +46,26 @@ struct SessionListView: View {
         } message: { _ in
             Text("Déjalo vacío para usar el nombre de la carpeta.")
         }
+        .sheet(item: $customizing) { session in
+            SessionAppearanceEditor(session: session) { controller.save() }
+        }
         .confirmationDialog("¿Eliminar esta sesión?", item: $deleting) { session in
             Button("Eliminar sesión", role: .destructive) {
                 controller.delete(session)
             }
         } message: { _ in
             Text("Se cerrará su shell y se borrará su historial. Esta acción no se puede deshacer.")
+        }
+    }
+
+    @ViewBuilder
+    private func rows(_ sessions: [TerminalSession], shells: [UUID: ShellSession]) -> some View {
+        ForEach(sessions) { session in
+            SessionRow(session: session, shell: shells[session.id])
+                .tag(session.id)
+                .contextMenu {
+                    contextMenu(for: session)
+                }
         }
     }
 
@@ -56,6 +77,13 @@ struct SessionListView: View {
                 Button("Abrir en el navegador", systemImage: "safari") { NSWorkspace.shared.open(url) }
             }
             Divider()
+        }
+        Button(session.isPinned ? "Dejar de fijar" : "Fijar arriba", systemImage: session.isPinned ? "pin.slash" : "pin") {
+            session.isPinned.toggle()
+            controller.save()
+        }
+        Button("Personalizar…", systemImage: "face.smiling") {
+            customizing = session
         }
         Button("Renombrar…", systemImage: "pencil") {
             newName = session.customName ?? ""

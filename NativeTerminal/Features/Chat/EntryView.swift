@@ -9,6 +9,7 @@ struct EntryView: View {
     let onEdit: (String) -> Void
 
     @Environment(TerminalController.self) private var controller
+    @State private var isExplaining = false
 
     var body: some View {
         let live = shell?.live
@@ -22,8 +23,11 @@ struct EntryView: View {
             VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
                 CommandBubble(command: entry.command)
                     .contextMenu { commandMenu }
+                    .popover(isPresented: $isExplaining, arrowEdge: .leading) {
+                        CommandBreakdownView(command: entry.command)
+                    }
                 if let description = CommandGlossary.describe(entry.command) {
-                    CommandDescription(text: description)
+                    CommandDescription(text: description, command: entry.command)
                 }
             }
             .padding(.leading, Metrics.bubbleOppositeInset)
@@ -39,6 +43,11 @@ struct EntryView: View {
             }
         }
         .padding(.top, Metrics.exchangeSpacing)
+        #if DEBUG
+        .onDebugAction("#explain") { id in
+            if id == entry.id.uuidString { isExplaining = true }
+        }
+        #endif
         .background {
             RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
                 .fill(.tint.quaternary)
@@ -51,6 +60,7 @@ struct EntryView: View {
 
     @ViewBuilder
     private var commandMenu: some View {
+        Button("¿Qué hace este comando?", systemImage: "info.circle", action: explain)
         Button("Copiar comando", systemImage: "doc.on.doc", action: copyCommand)
         Button("Editar y volver a enviar", systemImage: "pencil", action: edit)
         Button("Volver a ejecutar", systemImage: "arrow.clockwise", action: rerun)
@@ -58,6 +68,7 @@ struct EntryView: View {
     }
 
     private func copyCommand() { Pasteboard.copy(entry.command) }
+    private func explain() { isExplaining = true }
     private func edit() { onEdit(entry.command) }
     private func rerun() { controller.rerun(entry) }
 

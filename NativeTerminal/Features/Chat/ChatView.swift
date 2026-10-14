@@ -19,6 +19,7 @@ struct ChatView: View {
     @State private var contentWidth: CGFloat = 800
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var isDropTargeted = false
+    @State private var gitInfo: GitInfo?
     /// Whether the transcript follows new output. Only the user's own
     /// scrolling changes it; resizes and new output keep the last state.
     @State private var isPinnedToBottom = true
@@ -138,7 +139,13 @@ struct ChatView: View {
             isPresented: confirmingRisk,
             presenting: controller.pendingCommand
         ) { pending in
-            Button("Ejecutar", role: .destructive) { controller.confirmPendingCommand() }
+            if pending.trashAlternative != nil {
+                Button("Mover a la Papelera") { controller.moveToTrashInstead() }
+                    .keyboardShortcut(.defaultAction)
+                Button("Eliminar para siempre", role: .destructive) { controller.confirmPendingCommand() }
+            } else {
+                Button("Ejecutar", role: .destructive) { controller.confirmPendingCommand() }
+            }
             Button("Cancelar", role: .cancel) { draft = pending.command }
         } message: { pending in
             Text("\(pending.risk.explanation)\n\n\(pending.command)")
@@ -157,6 +164,11 @@ struct ChatView: View {
         .task(id: session.id) {
             controller.shell(for: session)
             updateColumns()
+        }
+        // Refresh the branch and changes when the folder changes or a command ends.
+        .task(id: "\(directory)|\(entries.last?.finishedAt?.timeIntervalSince1970 ?? 0)") {
+            let info = await GitInfo.read(in: directory)
+            if gitInfo != info { gitInfo = info }
         }
         .sheet(isPresented: showingRecipes) {
             RecipesView(
@@ -191,6 +203,13 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private func toolbar(directory: String) -> some ToolbarContent {
+        if let gitInfo {
+            ToolbarItem(placement: .primaryAction) {
+                GitMenu(info: gitInfo, isBusy: controller.shells[session.id]?.isBusy ?? false) {
+                    controller.submit($0, in: session)
+                }
+            }
+        }
         ToolbarItem(placement: .primaryAction) {
             Button("Recetas", systemImage: "wand.and.sparkles") {
                 controller.isShowingRecipes = true

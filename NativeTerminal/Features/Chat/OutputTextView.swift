@@ -6,6 +6,7 @@ import SwiftUI
 struct OutputTextView: NSViewRepresentable {
     let output: Data
     let fontSize: Double
+    var startsSearching = false
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -25,6 +26,19 @@ struct OutputTextView: NSViewRepresentable {
             textView.textStorage?.setAttributedString(
                 OutputRenderer.fullAttributedString(raw: [UInt8](output), font: font)
             )
+            // ⌘F shows the standard find bar, with incremental highlighting.
+            textView.usesFindBar = true
+            textView.isIncrementalSearchingEnabled = true
+            if startsSearching {
+                Task { [weak textView] in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard let textView else { return }
+                    textView.window?.makeFirstResponder(textView)
+                    let item = NSMenuItem()
+                    item.tag = NSTextFinder.Action.showFindInterface.rawValue
+                    textView.performTextFinderAction(item)
+                }
+            }
         }
         return scrollView
     }

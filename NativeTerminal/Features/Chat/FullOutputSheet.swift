@@ -6,6 +6,8 @@ struct FullOutputSheet: View {
     let command: String
     let output: Data
     let lineCount: Int
+    /// Opens with the find bar showing (“Buscar en la salida…”).
+    var startsSearching = false
 
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
@@ -26,7 +28,7 @@ struct FullOutputSheet: View {
 
             Divider()
 
-            OutputTextView(output: output, fontSize: fontSize)
+            OutputTextView(output: output, fontSize: fontSize, startsSearching: startsSearching)
 
             Divider()
 

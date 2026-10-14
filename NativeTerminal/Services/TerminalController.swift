@@ -160,9 +160,19 @@ final class TerminalController {
         let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !command.isEmpty else { return }
 
-        if !confirmed, AppSettings.confirmRiskyCommands, let risk = DangerDetector.risk(of: command) {
-            pendingCommand = PendingCommand(command: command, sessionID: session.id, risk: risk)
-            return
+        if !confirmed, AppSettings.confirmRiskyCommands {
+            // Deleting files always offers the recoverable option: the Trash.
+            let trash = TrashConverter.isAvailable ? TrashConverter.trashCommand(for: command) : nil
+            let risk = DangerDetector.risk(of: command) ?? trash.map { _ in
+                CommandRisk(
+                    title: String(localized: "Este comando borra archivos para siempre"),
+                    explanation: String(localized: "No pasan por la Papelera. Si los mueves a la Papelera, podrás recuperarlos.")
+                )
+            }
+            if let risk {
+                pendingCommand = PendingCommand(command: command, sessionID: session.id, risk: risk, trashAlternative: trash)
+                return
+            }
         }
 
         if command == "clear" || command == "reset" {
@@ -185,6 +195,14 @@ final class TerminalController {
         guard let pending = pendingCommand, let session = session(withID: pending.sessionID) else { return }
         pendingCommand = nil
         submit(pending.command, in: session, confirmed: true)
+    }
+
+    /// Runs the recoverable version of a pending `rm`: move to the Trash.
+    func moveToTrashInstead() {
+        guard let pending = pendingCommand, let trash = pending.trashAlternative,
+              let session = session(withID: pending.sessionID) else { return }
+        pendingCommand = nil
+        submit(trash, in: session, confirmed: true)
     }
 
     func rerun(_ entry: CommandEntry) {

@@ -184,13 +184,18 @@ struct ComposerView: View {
         .help("Acciones")
     }
 
+    /// Just the program name, so the placeholder stays on one line.
+    private var runningProgram: String {
+        ShellSession.firstWord(of: shell?.live?.command ?? "")
+    }
+
     private var placeholder: String {
         if isRunning && !showsBusy { return String(localized: "Escribe un comando") }
         return switch phase {
         case .running:
-            String(localized: "Enviar entrada a \(shell?.live?.command ?? "")")
+            String(localized: "Enviar entrada a \(runningProgram)")
         case .interactive:
-            String(localized: "\(shell?.live?.command ?? "") está usando la terminal")
+            String(localized: "\(runningProgram) está usando la terminal")
         case .exited:
             String(localized: "El shell terminó · escribe para reiniciarlo")
         default:
