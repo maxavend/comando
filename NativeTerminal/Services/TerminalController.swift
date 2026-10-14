@@ -145,7 +145,7 @@ final class TerminalController {
 
     func terminateAll() {
         for shell in shells.values { shell.terminate() }
-        try? modelContext.save()
+        flushPendingSave()
     }
 
     // MARK: - Commands
@@ -256,6 +256,13 @@ final class TerminalController {
             guard !Task.isCancelled else { return }
             try? modelContext.save()
         }
+    }
+
+    /// Saves now instead of waiting for the debounced save.
+    func flushPendingSave() {
+        saveTask?.cancel()
+        saveTask = nil
+        try? modelContext.save()
     }
 
     private func entry(withID id: UUID) -> CommandEntry? {

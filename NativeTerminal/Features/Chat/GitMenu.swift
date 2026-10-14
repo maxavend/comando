@@ -24,6 +24,7 @@ struct GitMenu: View {
                 .labelStyle(.titleAndIcon)
         }
         .disabled(isBusy)
+        .accessibilityIdentifier("gitMenu")
         .help("Rama \(info.branch) · \(summary)")
     }
 

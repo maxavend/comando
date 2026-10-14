@@ -26,6 +26,7 @@ struct CommandDescription: View {
         .padding(.trailing, Metrics.bubbleHorizontalPadding)
         .onHover { isHovering = $0 }
         .help("¿Qué hace este comando?")
+        .accessibilityIdentifier("commandDescription")
         .popover(isPresented: $isExplaining, arrowEdge: .bottom) {
             CommandBreakdownView(command: command)
         }

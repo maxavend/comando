@@ -14,6 +14,7 @@ struct RootView: View {
     private static var isAutomated: Bool {
         #if DEBUG
         DebugAutomation.environment["NATIVETERM_SCRIPT"] != nil
+            || DebugAutomation.environment["NATIVETERM_SKIP_WELCOME"] != nil
         #else
         false
         #endif

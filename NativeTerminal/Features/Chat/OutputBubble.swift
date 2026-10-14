@@ -15,7 +15,7 @@ struct OutputBubble<Accessory: View>: View {
         let gap = Metrics.replySpacing
         VStack(alignment: .leading, spacing: Metrics.bubbleVerticalPadding) {
             accessory
-            Text(output)
+            LinkAwareText(content: output)
                 .font(.system(size: fontSize, design: monospaced ? .monospaced : .default))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)

@@ -47,6 +47,7 @@ struct FinishedResponseView: View {
                             Button("Buscar…") { showAll(searching: true) }
                         }
                         .buttonStyle(.link)
+                        .pointerStyle(.link)
                         .foregroundStyle(.tint)
                     }
                 }

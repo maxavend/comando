@@ -58,6 +58,19 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NativeTerminal.app/Contents/MacOS/NativeTerminal"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  NativeTerminalUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: NativeTerminalUITests
+    dependencies:
+      - target: NativeTerminal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cl.native.NativeTerminalUITests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+        TEST_TARGET_NAME: NativeTerminal
 schemes:
   NativeTerminal:
     build:
@@ -67,3 +80,12 @@ schemes:
     test:
       targets:
         - NativeTerminalTests
+  # UI tests move the real mouse: run them only on purpose, with this scheme.
+  NativeTerminalUI:
+    build:
+      targets:
+        NativeTerminal: all
+        NativeTerminalUITests: [test]
+    test:
+      targets:
+        - NativeTerminalUITests

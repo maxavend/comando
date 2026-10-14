@@ -45,6 +45,7 @@ struct EmptyChatView: View {
 
             Button("Ver más ideas en Recetas (⌘K)", systemImage: "wand.and.sparkles", action: onShowRecipes)
                 .buttonStyle(.link)
+                .pointerStyle(.link)
                 .foregroundStyle(.tint)
         }
         .padding(Metrics.contentInset)

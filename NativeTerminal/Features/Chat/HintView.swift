@@ -17,6 +17,7 @@ struct HintView: View {
                 if let suggestion {
                     Button("Usar “\(suggestion)”") { onUseSuggestion(suggestion) }
                         .buttonStyle(.link)
+                        .pointerStyle(.link)
                         .foregroundStyle(.tint)
                         .help("Escribe este comando en el campo para revisarlo antes de enviarlo")
                 }

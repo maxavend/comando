@@ -44,6 +44,7 @@ struct SessionAppearanceEditor: View {
                 }
                 Button("Sin emoji") { emoji = nil }
                     .buttonStyle(.link)
+                    .pointerStyle(.link)
                     .foregroundStyle(.tint)
             }
 

@@ -33,6 +33,7 @@ struct RunningFooter: View {
                 if let url = live.localURL {
                     Text("·")
                     Link("Abrir en el navegador", destination: url)
+                        .pointerStyle(.link)
                         .foregroundStyle(.tint)
                         .help(url.absoluteString)
                 }
@@ -40,6 +41,7 @@ struct RunningFooter: View {
                     Text("·")
                     Button("Detener", action: stop)
                         .buttonStyle(.link)
+                        .pointerStyle(.link)
                         .foregroundStyle(.tint)
                         .help("Detener el comando (⌘.)")
                 }

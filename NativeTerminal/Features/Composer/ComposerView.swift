@@ -150,6 +150,7 @@ struct ComposerView: View {
                     insert(urls)
                 }
                 .accessibilityLabel("Comando")
+                .accessibilityIdentifier("composer")
                 #if DEBUG
                 .onDebugAction("#tab") { _ in _ = completeWithTab() }
                 #endif

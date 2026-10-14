@@ -71,3 +71,12 @@ struct URLLinkTests {
         #expect(OutputLinker.firstLocalURL(in: "nothing here") == nil)
     }
 }
+
+struct SingleSpaceColumnsTests {
+    @Test func greedyNamesWithSingleSpaces() {
+        let entries: Set<String> = ["Carpeta Uno", "notas.txt", "a"]
+        let names = OutputLinker.names(in: "Carpeta Uno notas.txt a", entries: entries).map(\.2)
+        #expect(names == ["Carpeta Uno", "notas.txt", "a"])
+        #expect(OutputLinker.names(in: "Carpeta/ notas.txt*", entries: ["Carpeta", "notas.txt"]).map(\.2) == ["Carpeta", "notas.txt"])
+    }
+}
