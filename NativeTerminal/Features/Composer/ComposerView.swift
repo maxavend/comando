@@ -13,6 +13,8 @@ struct ComposerView: View {
     let directory: String
     /// Commands of this session, oldest first.
     let history: [String]
+    /// Extra trailing space matching an always-visible scroller in the transcript.
+    var trailingInset: CGFloat = 0
     let onSubmit: (String) -> Void
 
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
@@ -28,40 +30,29 @@ struct ComposerView: View {
     private var isPasswordPrompt: Bool { phase == .running && (shell?.echoDisabled ?? false) }
 
     var body: some View {
-        GlassEffectContainer(spacing: 10) {
-            HStack(alignment: .bottom, spacing: 10) {
+        GlassEffectContainer(spacing: Metrics.composerSpacing) {
+            HStack(alignment: .bottom, spacing: Metrics.composerSpacing) {
                 actionsMenu
                 field
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .frame(minHeight: 36)
-                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 18))
+                    .padding(.horizontal, Metrics.composerFieldHorizontalPadding)
+                    .padding(.vertical, Metrics.bubbleVerticalPadding)
+                    .frame(minHeight: Metrics.composerControlSize)
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Metrics.composerControlSize / 2))
                 if isRunning {
-                    Button("Detener", systemImage: "stop.fill") {
-                        shell?.interrupt()
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
-                    .controlSize(.extraLarge)
-                    .tint(.red)
-                    .help("Interrumpir el comando (⌘.)")
+                    Button("Detener", systemImage: "stop.fill", action: interrupt)
+                        .buttonStyle(.glassCircle(.destructive))
+                        .help("Interrumpir el comando (⌘.)")
                 }
-                Button("Enviar", systemImage: "arrow.up") {
-                    submit()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.glassProminent)
-                .buttonBorderShape(.circle)
-                .controlSize(.extraLarge)
-                .disabled(!canSubmit)
-                .keyboardShortcut(.return, modifiers: .command)
-                .help("Enviar (↩)")
+                Button("Enviar", systemImage: "arrow.up", action: submit)
+                    .buttonStyle(.glassCircle(.prominent))
+                    .disabled(!canSubmit)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .help("Enviar (↩)")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 14)
+        .padding(.leading, Metrics.contentInset)
+        .padding(.trailing, Metrics.contentInset + trailingInset)
+        .padding(.vertical, Metrics.composerVerticalPadding)
         .onAppear { isFocused = true }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .idle { isFocused = true }
@@ -80,7 +71,7 @@ struct ComposerView: View {
     @ViewBuilder
     private var field: some View {
         if isPasswordPrompt {
-            HStack(spacing: 8) {
+            HStack(spacing: Metrics.composerSpacing) {
                 Image(systemName: "lock.fill")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
@@ -89,6 +80,7 @@ struct ComposerView: View {
                     .focused($isFocused)
                     .onSubmit(submitSecret)
             }
+            .font(.system(size: fontSize, design: .monospaced))
             .onAppear { isFocused = true }
         } else {
             TextField(placeholder, text: $text, axis: .vertical)
@@ -138,12 +130,9 @@ struct ComposerView: View {
         } label: {
             Label("Acciones", systemImage: "plus")
         }
-        .labelStyle(.iconOnly)
         .menuStyle(.button)
         .menuIndicator(.hidden)
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.extraLarge)
+        .buttonStyle(.glassCircle)
         .help("Acciones")
     }
 
@@ -179,6 +168,10 @@ struct ComposerView: View {
         text = ""
         historyIndex = nil
         onSubmit(value)
+    }
+
+    private func interrupt() {
+        shell?.interrupt()
     }
 
     private func submitSecret() {

@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct OutputBubble<Accessory: View>: View {
@@ -10,30 +9,25 @@ struct OutputBubble<Accessory: View>: View {
     @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let firstLineCenter = Metrics.singleLineBubbleHeight(fontSize: fontSize) / 2
+        let gap = Metrics.replySpacing
+        VStack(alignment: .leading, spacing: Metrics.bubbleVerticalPadding) {
             accessory
             Text(output)
                 .font(.system(size: fontSize, design: .monospaced))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, BubbleMetrics.horizontalPadding)
-        .padding(.vertical, 8)
-        .background(.fill.secondary, in: .rect(cornerRadius: 17))
+        .bubble(.reply)
         .overlay(alignment: .topTrailing) {
-            Button("Copiar salida", systemImage: "doc.on.doc") {
-                Pasteboard.copy(plainText)
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .controlSize(.small)
-            .help("Copiar salida")
-            .padding(6)
-            .opacity(isHovering ? 1 : 0)
+            // Sits just outside the bubble, centered on its first line.
+            CopyButton(text: plainText)
+                .alignmentGuide(.trailing) { $0[.leading] - gap }
+                .alignmentGuide(.top) { $0[VerticalAlignment.center] - firstLineCenter }
+                .opacity(isHovering ? 1 : 0)
         }
         .onHover { isHovering = $0 }
-        .padding(.trailing, BubbleMetrics.trailingInset)
+        .padding(.trailing, Metrics.bubbleOppositeInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Salida")

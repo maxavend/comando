@@ -23,6 +23,19 @@ final class RenderCache {
         }
     }
 
+    /// Output small enough to render while laying out, so the bubble has its
+    /// final height from the first frame and the transcript doesn't jump.
+    static let synchronousLimit = 64 * 1024
+
+    /// The cached rendering, or a synchronous one when the output is small.
+    func immediate(for entry: CommandEntry) -> RenderedOutput? {
+        if let cached = self[entry] { return cached }
+        guard entry.output.count <= Self.synchronousLimit else { return nil }
+        let rendered = OutputRenderer.render(raw: [UInt8](entry.output))
+        self[entry] = rendered
+        return rendered
+    }
+
     private static func key(_ entry: CommandEntry) -> NSString {
         "\(entry.id.uuidString)-\(entry.finishedAt?.timeIntervalSinceReferenceDate ?? 0)" as NSString
     }

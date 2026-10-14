@@ -14,8 +14,8 @@ struct ChatView: View {
     @State private var isConfirmingDelete = false
     @State private var highlightedEntryID: UUID?
     @State private var lastWidth: CGFloat = 800
-
-    static let horizontalPadding: CGFloat = 20
+    /// Width of the transcript content; less than the view when a scroller takes space.
+    @State private var contentWidth: CGFloat = 800
 
     init(session: TerminalSession) {
         self.session = session
@@ -33,9 +33,6 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    if entries.isEmpty {
-                        EmptyChatView(directory: directory)
-                    }
                     ForEach(entries.enumerated(), id: \.element.id) { index, entry in
                         EntryView(
                             entry: entry,
@@ -47,8 +44,18 @@ struct ChatView: View {
                         .id(entry.id)
                     }
                 }
-                .padding(.horizontal, Self.horizontalPadding)
-                .padding(.vertical, 16)
+                .padding(.horizontal, Metrics.contentInset)
+                .padding(.top, Metrics.transcriptVerticalInset - Metrics.exchangeSpacing)
+                .padding(.bottom, Metrics.transcriptVerticalInset)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                    contentWidth = width
+                    updateColumns()
+                }
+            }
+            .overlay {
+                if entries.isEmpty {
+                    EmptyChatView(directory: directory)
+                }
             }
             .defaultScrollAnchor(.bottom)
             .defaultScrollAnchor(.bottom, for: .sizeChanges)
@@ -61,10 +68,10 @@ struct ChatView: View {
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-            updateColumns(forWidth: width)
+            lastWidth = width
         }
         .onChange(of: fontSize) {
-            controller.shells[session.id]?.setChatSize(columns: columns(forWidth: lastWidth), rows: 40)
+            updateColumns()
         }
         .safeAreaBar(edge: .bottom) {
             ComposerView(
@@ -72,6 +79,7 @@ struct ChatView: View {
                 shell: shell,
                 directory: directory,
                 history: entries.map(\.command),
+                trailingInset: max(0, lastWidth - contentWidth),
                 onSubmit: { controller.submit($0, in: session) }
             )
         }
@@ -79,16 +87,19 @@ struct ChatView: View {
             insertPaths(urls)
         }
         #if DEBUG
-        .onReceive(NotificationCenter.default.publisher(for: .debugTypeDraft)) { note in
-            draft = note.object as? String ?? ""
+        .onDebugAction("#type") { draft = $0 }
+        .onDebugAction("#rename") { _ in
+            newName = session.customName ?? ""
+            isRenaming = true
         }
+        .onDebugAction("#delete") { _ in isConfirmingDelete = true }
         #endif
         .navigationTitle(session.displayName)
         .navigationSubtitle(subtitle(for: directory))
         .toolbar { toolbar(directory: directory) }
         .task(id: session.id) {
             controller.shell(for: session)
-            updateColumns(forWidth: lastWidth)
+            updateColumns()
         }
         .alert("Renombrar sesión", isPresented: $isRenaming) {
             TextField("Nombre", text: $newName)
@@ -141,16 +152,16 @@ struct ChatView: View {
 
     // MARK: - Layout
 
-    private func updateColumns(forWidth width: CGFloat) {
-        lastWidth = width
-        controller.shells[session.id]?.setChatSize(columns: columns(forWidth: width), rows: 40)
+    private func updateColumns() {
+        controller.shells[session.id]?.setChatSize(columns: columns(forWidth: contentWidth), rows: 40)
     }
 
     /// Columns that fit in an output bubble, so tools like `ls` lay out to the bubble width.
+    /// `width` is the transcript content width, including its horizontal insets.
     private func columns(forWidth width: CGFloat) -> Int {
         let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         let characterWidth = ("M" as NSString).size(withAttributes: [.font: font]).width
-        let textWidth = width - Self.horizontalPadding * 2 - BubbleMetrics.trailingInset - BubbleMetrics.horizontalPadding * 2
+        let textWidth = width - Metrics.contentInset * 2 - Metrics.bubbleOppositeInset - Metrics.bubbleHorizontalPadding * 2
         return max(20, Int(textWidth / max(characterWidth, 1)))
     }
 

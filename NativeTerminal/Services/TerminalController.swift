@@ -250,8 +250,9 @@ extension TerminalController: ShellSessionDelegate {
         entry.truncated = result.truncated
         entry.kind = result.wasInteractive ? .interactive : .command
         entry.transcript = result.transcript
-        let plain = OutputRenderer.plainText(raw: result.output)
-        entry.plainOutput = String(plain.prefix(CommandEntry.plainOutputLimit))
+        let rendered = OutputRenderer.render(raw: result.output)
+        RenderCache.shared[entry] = rendered
+        entry.plainOutput = String(rendered.plainText.prefix(CommandEntry.plainOutputLimit))
 
         guard let session = entry.session else { return }
         session.lastActivity = result.finishedAt

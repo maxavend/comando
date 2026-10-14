@@ -23,9 +23,7 @@ struct SettingsView: View {
                 Text("ls -la")
                     .font(.system(size: fontSize, design: .monospaced))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(.tint, in: .rect(cornerRadius: 17))
+                    .bubble(.command)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .accessibilityLabel("Vista previa")
             }

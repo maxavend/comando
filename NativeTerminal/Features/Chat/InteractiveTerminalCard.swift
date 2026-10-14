@@ -1,5 +1,3 @@
-import AppKit
-import SwiftTerm
 import SwiftUI
 
 /// A full terminal for programs that take over the screen (vim, top, less) or
@@ -12,27 +10,29 @@ struct InteractiveTerminalCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(alignment: .firstTextBaseline) {
                 Label(live.command, systemImage: "rectangle.inset.filled.and.cursorarrow")
-                    .font(.callout.monospaced())
+                    .font(.system(size: fontSize, design: .monospaced))
                     .lineLimit(1)
                 Spacer()
                 Text("El teclado va directo al programa")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Metrics.bubbleHorizontalPadding)
+            .padding(.vertical, Metrics.bubbleVerticalPadding)
 
             Divider()
 
             EmbeddedTerminal(shell: shell, fontSize: fontSize)
-                .frame(height: 440)
+                .padding(.leading, Metrics.bubbleHorizontalPadding)
+                .padding(.vertical, Metrics.bubbleVerticalPadding)
+                .frame(height: Metrics.embeddedTerminalHeight)
         }
-        .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 14))
-        .clipShape(.rect(cornerRadius: 14))
+        .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: Metrics.cardCornerRadius))
+        .clipShape(.rect(cornerRadius: Metrics.cardCornerRadius))
         .overlay {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
                 .strokeBorder(.separator)
         }
     }

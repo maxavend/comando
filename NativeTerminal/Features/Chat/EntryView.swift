@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// One exchange in the chat: the command bubble and the shell's reply.
@@ -13,48 +12,46 @@ struct EntryView: View {
 
     var body: some View {
         let live = shell?.live
-        VStack(spacing: 6) {
-            if showsTimestamp {
-                TimestampSeparator(date: entry.startedAt)
-            }
-            if showsDirectory {
-                DirectoryChip(directory: entry.directory)
+        VStack(spacing: Metrics.replySpacing) {
+            if showsTimestamp || showsDirectory {
+                ExchangeHeader(
+                    date: showsTimestamp ? entry.startedAt : nil,
+                    directory: showsDirectory ? entry.directory : nil
+                )
             }
             CommandBubble(command: entry.command)
                 .contextMenu { commandMenu }
+                .padding(.leading, Metrics.bubbleOppositeInset)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.leading, 80)
 
             if let shell, let live, live.entryID == entry.id {
                 LiveResponseView(live: live, shell: shell)
             } else {
-                FinishedResponseView(entry: entry, onRerun: { controller.rerun(entry) })
+                FinishedResponseView(entry: entry, onRerun: rerun)
             }
         }
-        .padding(.top, 10)
-        .padding(.vertical, isHighlighted ? 4 : 0)
+        .padding(.top, Metrics.exchangeSpacing)
         .background {
-            if isHighlighted {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.tint.quaternary)
-                    .padding(.horizontal, -8)
-            }
+            RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
+                .fill(.tint.quaternary)
+                .padding(.horizontal, -Metrics.bubbleHorizontalPadding / 2)
+                .padding(.top, Metrics.exchangeSpacing / 2)
+                .padding(.bottom, -Metrics.exchangeSpacing / 2)
+                .opacity(isHighlighted ? 1 : 0)
         }
     }
 
     @ViewBuilder
     private var commandMenu: some View {
-        Button("Copiar comando", systemImage: "doc.on.doc") {
-            Pasteboard.copy(entry.command)
-        }
-        Button("Editar y volver a enviar", systemImage: "pencil") {
-            onEdit(entry.command)
-        }
-        Button("Volver a ejecutar", systemImage: "arrow.clockwise") {
-            controller.rerun(entry)
-        }
-        .disabled(shell?.isBusy ?? false)
+        Button("Copiar comando", systemImage: "doc.on.doc", action: copyCommand)
+        Button("Editar y volver a enviar", systemImage: "pencil", action: edit)
+        Button("Volver a ejecutar", systemImage: "arrow.clockwise", action: rerun)
+            .disabled(shell?.isBusy ?? false)
     }
+
+    private func copyCommand() { Pasteboard.copy(entry.command) }
+    private func edit() { onEdit(entry.command) }
+    private func rerun() { controller.rerun(entry) }
 
     /// Like Messages: a timestamp when there's a pause of more than 15 minutes.
     private var showsTimestamp: Bool {

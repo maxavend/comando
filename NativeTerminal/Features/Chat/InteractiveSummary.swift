@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct InteractiveSummary: View {
@@ -7,9 +6,8 @@ struct InteractiveSummary: View {
     @State private var isExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Metrics.bubbleVerticalPadding) {
             Label("Sesión interactiva", systemImage: "rectangle.inset.filled.and.cursorarrow")
-                .font(.callout)
                 .foregroundStyle(.secondary)
             if let transcript = entry.transcript {
                 DisclosureGroup("Transcripción", isExpanded: $isExpanded) {
@@ -19,12 +17,9 @@ struct InteractiveSummary: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .font(.callout)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.fill.secondary, in: .rect(cornerRadius: 17))
-        .padding(.trailing, BubbleMetrics.trailingInset)
+        .bubble(.reply)
+        .padding(.trailing, Metrics.bubbleOppositeInset)
     }
 }

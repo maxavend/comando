@@ -7,7 +7,7 @@ struct SessionAvatar: View {
         Image(systemName: "apple.terminal.fill")
             .font(.system(size: 15, weight: .medium))
             .foregroundStyle(.white)
-            .frame(width: 34, height: 34)
+            .frame(width: Metrics.avatarSize, height: Metrics.avatarSize)
             .background(
                 LinearGradient(colors: [Color(white: 0.62), Color(white: 0.45)], startPoint: .top, endPoint: .bottom),
                 in: .circle

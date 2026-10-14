@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct CommandBubble: View {
@@ -10,9 +9,7 @@ struct CommandBubble: View {
             .font(.system(size: fontSize, design: .monospaced))
             .foregroundStyle(.white)
             .textSelection(.enabled)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(.tint, in: .rect(cornerRadius: 17))
+            .bubble(.command)
             .accessibilityLabel("Comando: \(command)")
     }
 }

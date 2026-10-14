@@ -1,15 +1,14 @@
-import AppKit
 import SwiftUI
 
-/// Small status line under a reply, like “Delivered” in Messages.
+/// Status under a finished reply.
 struct ReceiptView: View {
     let entry: CommandEntry
 
     var body: some View {
         // The symbol shape (check vs. cross) carries the status, not only its color.
-        HStack(spacing: 4) {
+        StatusLine {
             if entry.wasInterrupted {
-                Image(systemName: "stop.circle")
+                Image(systemName: "stop.circle.fill")
                 Text("Interrumpido")
             } else if entry.succeeded {
                 Image(systemName: "checkmark.circle.fill")
@@ -27,9 +26,5 @@ struct ReceiptView: View {
                 Text("· Salida recortada")
             }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .padding(.leading, 10)
-        .accessibilityElement(children: .combine)
     }
 }

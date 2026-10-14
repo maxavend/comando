@@ -42,6 +42,8 @@ struct RootView: View {
         }
         #if DEBUG
         .task { DebugAutomation.start(controller: controller) }
+        .onDebugAction("#search") { searchText = $0 }
+        .onDebugAction("#scope") { searchScope = $0 == "all" ? .all : .session }
         #endif
     }
 }

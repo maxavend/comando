@@ -9,8 +9,8 @@ struct FinishedResponseView: View {
     @State private var isShowingAll = false
 
     var body: some View {
-        let rendered = rendered ?? RenderCache.shared[entry]
-        VStack(alignment: .leading, spacing: 4) {
+        let rendered = rendered ?? RenderCache.shared.immediate(for: entry)
+        VStack(alignment: .leading, spacing: Metrics.statusSpacing) {
             if entry.kind == .interactive {
                 InteractiveSummary(entry: entry)
             }
@@ -21,7 +21,6 @@ struct FinishedResponseView: View {
                             isShowingAll = true
                         }
                         .buttonStyle(.link)
-                        .font(.callout)
                     }
                 }
                 .contextMenu {
@@ -42,6 +41,11 @@ struct FinishedResponseView: View {
             RenderCache.shared[entry] = result
             self.rendered = result
         }
+        #if DEBUG
+        .onDebugAction("#showall") { id in
+            if id == entry.id.uuidString { isShowingAll = true }
+        }
+        #endif
         .sheet(isPresented: $isShowingAll) {
             FullOutputSheet(command: entry.command, output: entry.output)
         }

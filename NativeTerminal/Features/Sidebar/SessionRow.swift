@@ -5,7 +5,7 @@ struct SessionRow: View {
     let isRunning: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Metrics.sidebarRowSpacing) {
             SessionAvatar(isRunning: isRunning)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
@@ -13,15 +13,10 @@ struct SessionRow: View {
                         .font(.headline)
                         .lineLimit(1)
                     Spacer(minLength: 4)
-                    if isRunning {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .accessibilityLabel("En ejecución")
-                    } else {
-                        Text(Self.timestamp(for: session.lastActivity))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    // Running state is shown on the avatar, so the row never changes shape.
+                    Text(Self.timestamp(for: session.lastActivity))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Text(session.lastCommand ?? ShellEscape.abbreviate(session.directory))
                     .font(.subheadline.monospaced())
@@ -29,10 +24,11 @@ struct SessionRow: View {
                     .lineLimit(1)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Metrics.sidebarRowVerticalPadding)
         .badge(session.unreadCount)
         .help(ShellEscape.abbreviate(session.directory))
         .accessibilityElement(children: .combine)
+        .accessibilityValue(isRunning ? Text("En ejecución") : Text(""))
     }
 
     /// Messages-style timestamps: time today, “Ayer”, then the date.

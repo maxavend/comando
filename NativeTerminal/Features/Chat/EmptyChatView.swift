@@ -9,6 +9,5 @@ struct EmptyChatView: View {
         } description: {
             Text("Escribe un comando abajo para empezar.\nEstás en \(ShellEscape.abbreviate(directory)).")
         }
-        .padding(.top, 80)
     }
 }

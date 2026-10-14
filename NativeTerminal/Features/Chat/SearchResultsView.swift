@@ -13,18 +13,22 @@ struct SearchResultsView: View {
             if results.isEmpty {
                 ContentUnavailableView.search
             } else {
-                List(results) { entry in
-                    Button {
-                        open(entry)
-                    } label: {
-                        SearchResultRow(entry: entry, query: query, showsSession: scope == .all)
+                // A plain stack (not a List) keeps rows on the same inset as the chat.
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(results) { entry in
+                            SearchResultRow(entry: entry, query: query, showsSession: scope == .all) {
+                                open(entry)
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, Metrics.contentInset)
+                    .padding(.vertical, Metrics.transcriptVerticalInset)
                 }
             }
         }
         .navigationTitle("Buscar")
-        .navigationSubtitle(results.isEmpty ? "" : String(localized: "\(results.count) resultados"))
+        .navigationSubtitle(results.isEmpty ? Text("") : Text("^[\(results.count) resultado](inflect: true)"))
     }
 
     private func open(_ entry: CommandEntry) {
