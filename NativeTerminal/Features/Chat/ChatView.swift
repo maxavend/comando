@@ -67,6 +67,8 @@ struct ChatView: View {
             }
         }
         .scrollPosition($position)
+        // A hard edge keeps text from showing distorted under the composer.
+        .scrollEdgeEffectStyle(.hard, for: .bottom)
         .defaultScrollAnchor(.bottom)
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.visibleRect.maxY >= geometry.contentSize.height - Metrics.exchangeSpacing
@@ -83,8 +85,10 @@ struct ChatView: View {
             }
         }
         .onChange(of: entries.last?.id) {
+            // Jump without animating: an animated scroll slides the new bubble
+            // underneath the composer's glass, which reads as a flicker.
             isPinnedToBottom = true
-            withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
+            position.scrollTo(edge: .bottom)
         }
         .task(id: controller.focusedEntryID) {
             await reveal(controller.focusedEntryID)

@@ -13,7 +13,7 @@ struct SearchResultRow: View {
             VStack(alignment: .leading, spacing: Metrics.statusSpacing) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(entry.command)
-                        .font(.body.monospaced())
+                        .font(.body)
                         .lineLimit(1)
                     Spacer()
                     Text(entry.startedAt, format: .dateTime.day().month().hour().minute())
@@ -22,7 +22,7 @@ struct SearchResultRow: View {
                 }
                 if let snippet {
                     Text(snippet)
-                        .font(.callout.monospaced())
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }

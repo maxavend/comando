@@ -18,6 +18,10 @@ nonisolated enum Metrics {
     /// Fixed height of the status line, whether or not it has text.
     static let statusLineHeight: CGFloat = 16
 
+    /// How long a command runs before the UI shows it as running. Quick
+    /// commands go straight to their result without flashing a busy state.
+    static let busyStateDelay: Duration = .milliseconds(300)
+
     // MARK: Bubbles
 
     static let bubbleHorizontalPadding: CGFloat = 12
@@ -30,8 +34,10 @@ nonisolated enum Metrics {
     static let embeddedTerminalHeight: CGFloat = 440
 
     /// Height of a reply bubble holding a single line of monospaced text.
-    static func singleLineBubbleHeight(fontSize: Double) -> CGFloat {
-        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+    static func singleLineBubbleHeight(fontSize: Double, monospaced: Bool = false) -> CGFloat {
+        let font = monospaced
+            ? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+            : NSFont.systemFont(ofSize: fontSize)
         return ceil(font.ascender - font.descender + font.leading) + bubbleVerticalPadding * 2
     }
 

@@ -16,7 +16,7 @@ struct FinishedResponseView: View {
                 InteractiveSummary(entry: entry)
             }
             if let rendered, !rendered.isEmpty {
-                OutputBubble(output: rendered.preview, plainText: rendered.plainText) {
+                OutputBubble(output: rendered.preview, plainText: rendered.plainText, monospaced: rendered.isTabular) {
                     if rendered.isClipped {
                         Button("Mostrar las \(rendered.totalLines) líneas") {
                             isShowingAll = true

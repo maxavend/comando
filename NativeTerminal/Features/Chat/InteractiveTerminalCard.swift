@@ -12,7 +12,7 @@ struct InteractiveTerminalCard: View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Label(live.command, systemImage: "rectangle.inset.filled.and.cursorarrow")
-                    .font(.system(size: fontSize, design: .monospaced))
+                    .font(.system(size: fontSize))
                     .lineLimit(1)
                 Spacer()
                 Text("El teclado va directo al programa")

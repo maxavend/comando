@@ -37,7 +37,8 @@ nonisolated enum OutputRenderer {
             preview: preview,
             totalLines: lines.count + buffer.droppedLines,
             previewLines: lines.count - start,
-            plainText: plain
+            plainText: plain,
+            isTabular: isTabular(lines)
         )
     }
 
@@ -92,6 +93,26 @@ nonisolated enum OutputRenderer {
     }
 
     // MARK: - Helpers
+
+    /// True when text is aligned in columns: two or more spaces inside a line,
+    /// or box-drawing characters. Plain sentences read better proportionally.
+    static func isTabular(_ lines: [[Cell]]) -> Bool {
+        for line in lines {
+            var seenText = false
+            var spaces = 0
+            for cell in line {
+                if cell.character == " " {
+                    spaces += 1
+                    if seenText && spaces >= 2 { return true }
+                } else {
+                    if let scalar = cell.character.unicodeScalars.first, (0x2500...0x257F).contains(scalar.value) { return true }
+                    seenText = true
+                    spaces = 0
+                }
+            }
+        }
+        return false
+    }
 
     /// Removes trailing blank cells and leading/trailing blank lines.
     static func trimmedLines(_ buffer: LineBuffer) -> [[Cell]] {

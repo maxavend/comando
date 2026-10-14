@@ -6,7 +6,7 @@ struct CommandBubble: View {
 
     var body: some View {
         Text(command)
-            .font(.system(size: fontSize, design: .monospaced))
+            .font(.system(size: fontSize))
             .foregroundStyle(.white)
             .textSelection(.enabled)
             .bubble(.command)

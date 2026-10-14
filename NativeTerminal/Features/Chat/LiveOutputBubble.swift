@@ -9,6 +9,6 @@ struct LiveOutputBubble: View {
         // Reading `version` subscribes this view to throttled buffer updates.
         let _ = live.version
         let rendered = OutputRenderer.renderTail(live.buffer, limit: OutputRenderer.liveLineLimit)
-        OutputBubble(output: rendered.preview, plainText: rendered.plainText)
+        OutputBubble(output: rendered.preview, plainText: rendered.plainText, monospaced: rendered.isTabular)
     }
 }

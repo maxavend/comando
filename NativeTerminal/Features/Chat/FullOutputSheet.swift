@@ -14,7 +14,7 @@ struct FullOutputSheet: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(command)
-                    .font(.system(size: fontSize, weight: .semibold, design: .monospaced))
+                    .font(.system(size: fontSize, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text("^[\(lineCount) línea](inflect: true)")

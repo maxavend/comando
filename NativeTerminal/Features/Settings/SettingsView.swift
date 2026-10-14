@@ -45,7 +45,7 @@ struct SettingsView: View {
                 TextField("Comandos", text: $interactiveCommands, axis: .vertical)
                     .labelsHidden()
                     .multilineTextAlignment(.leading)
-                    .font(.body.monospaced())
+                    .font(.body)
                     .lineLimit(2...5)
             } header: {
                 Text("Terminal integrada")

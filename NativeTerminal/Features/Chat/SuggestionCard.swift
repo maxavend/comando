@@ -17,7 +17,7 @@ struct SuggestionCard: View {
                     .font(.callout)
                     .foregroundStyle(.primary)
                 Text(command)
-                    .font(.caption.monospaced())
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }

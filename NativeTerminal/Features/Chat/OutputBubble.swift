@@ -3,18 +3,20 @@ import SwiftUI
 struct OutputBubble<Accessory: View>: View {
     let output: AttributedString
     let plainText: String
+    /// Columns (ls, tables) keep a monospaced font; prose uses the system font.
+    var monospaced = false
     @ViewBuilder let accessory: Accessory
 
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @State private var isHovering = false
 
     var body: some View {
-        let firstLineCenter = Metrics.singleLineBubbleHeight(fontSize: fontSize) / 2
+        let firstLineCenter = Metrics.singleLineBubbleHeight(fontSize: fontSize, monospaced: monospaced) / 2
         let gap = Metrics.replySpacing
         VStack(alignment: .leading, spacing: Metrics.bubbleVerticalPadding) {
             accessory
             Text(output)
-                .font(.system(size: fontSize, design: .monospaced))
+                .font(.system(size: fontSize, design: monospaced ? .monospaced : .default))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -35,7 +37,7 @@ struct OutputBubble<Accessory: View>: View {
 }
 
 extension OutputBubble where Accessory == EmptyView {
-    init(output: AttributedString, plainText: String) {
-        self.init(output: output, plainText: plainText) { EmptyView() }
+    init(output: AttributedString, plainText: String, monospaced: Bool) {
+        self.init(output: output, plainText: plainText, monospaced: monospaced) { EmptyView() }
     }
 }

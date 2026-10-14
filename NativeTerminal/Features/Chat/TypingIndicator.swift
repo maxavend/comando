@@ -7,7 +7,7 @@ struct TypingIndicator: View {
     var body: some View {
         // A hidden line of text gives the bubble exactly the height of a one-line reply.
         Text(verbatim: "0000")
-            .font(.system(size: fontSize, design: .monospaced))
+            .font(.system(size: fontSize))
             .hidden()
             .overlay {
                 Image(systemName: "ellipsis")

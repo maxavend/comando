@@ -10,6 +10,9 @@ nonisolated struct RenderedOutput: Sendable {
     /// Number of lines included in `preview`.
     var previewLines: Int
     var plainText: String
+    /// Output whose columns line up with spaces (ls, tables), which needs a
+    /// monospaced font to stay readable.
+    var isTabular: Bool = false
 
     var isEmpty: Bool { totalLines == 0 }
     var isClipped: Bool { previewLines < totalLines }

@@ -26,8 +26,10 @@ struct ComposerView: View {
     @State private var completions = CompletionProvider()
     @State private var candidates: [Completion] = []
     @State private var selection = 0
-    /// Text for which the user closed the panel with Esc.
-    @State private var dismissedText: String?
+    /// The candidates panel opens only on Tab, so typing stays calm.
+    @State private var isPanelOpen = false
+    /// Running state as shown: lags `isRunning` by `Metrics.busyStateDelay`.
+    @State private var showsBusy = false
 
     private var phase: ShellSession.Phase { shell?.phase ?? .notStarted }
     private var isRunning: Bool { phase == .running || phase == .interactive }
@@ -45,8 +47,10 @@ struct ComposerView: View {
                             .padding(.horizontal, Metrics.composerControlSize + Metrics.composerSpacing)
                             .padding(.bottom, Metrics.composerSpacing)
                             .fixedSize(horizontal: false, vertical: true)
+                            .transition(.opacity)
                     }
                 }
+                .animation(.easeOut(duration: 0.12), value: showsPanel)
             controls
         }
         .padding(.leading, Metrics.contentInset)
@@ -55,6 +59,15 @@ struct ComposerView: View {
         .onAppear { isFocused = true }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .idle { isFocused = true }
+        }
+        .task(id: isRunning) {
+            guard isRunning else {
+                showsBusy = false
+                return
+            }
+            try? await Task.sleep(for: Metrics.busyStateDelay)
+            guard !Task.isCancelled, isRunning else { return }
+            withAnimation(.smooth(duration: 0.2)) { showsBusy = true }
         }
         .fileImporter(
             isPresented: $isImporting,
@@ -66,15 +79,17 @@ struct ComposerView: View {
     }
 
     private var controls: some View {
-        GlassEffectContainer(spacing: Metrics.composerSpacing) {
+        // Spacing 0 keeps each glass shape separate, so the send button changing
+        // color never ripples into the field next to it.
+        GlassEffectContainer(spacing: 0) {
             HStack(alignment: .bottom, spacing: Metrics.composerSpacing) {
                 actionsMenu
                 field
                     .padding(.horizontal, Metrics.composerFieldHorizontalPadding)
                     .padding(.vertical, Metrics.bubbleVerticalPadding)
                     .frame(minHeight: Metrics.composerControlSize)
-                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Metrics.composerControlSize / 2))
-                if isRunning {
+                    .glassEffect(.regular, in: .rect(cornerRadius: Metrics.composerControlSize / 2))
+                if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
                         .buttonStyle(.glassCircle(.destructive))
                         .help("Interrumpir el comando (⌘.)")
@@ -102,12 +117,12 @@ struct ComposerView: View {
                     .focused($isFocused)
                     .onSubmit(submitSecret)
             }
-            .font(.system(size: fontSize, design: .monospaced))
+            .font(.system(size: fontSize))
             .onAppear { isFocused = true }
         } else {
             TextField(placeholder, text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: fontSize, design: .monospaced))
+                .font(.system(size: fontSize))
                 .lineLimit(1...8)
                 .background(alignment: .topLeading) { ghost }
                 .focused($isFocused)
@@ -115,7 +130,10 @@ struct ComposerView: View {
                 .onSubmit(submit)
                 .onKeyPress(.upArrow) { moveUp() }
                 .onKeyPress(.downArrow) { moveDown() }
-                .onKeyPress(.tab) { completeWithTab() }
+                .onKeyPress(keys: [.tab], phases: .down) { press in
+                    press.modifiers.contains(.shift) ? moveUp() : completeWithTab()
+                }
+                .onKeyPress(.return) { acceptSelection() }
                 .onKeyPress(.escape) { dismissPanel() }
                 .onKeyPress(characters: ["c"], phases: .down) { press in
                     guard press.modifiers == .control, isRunning else { return .ignored }
@@ -131,6 +149,9 @@ struct ComposerView: View {
                     insert(urls)
                 }
                 .accessibilityLabel("Comando")
+                #if DEBUG
+                .onDebugAction("#tab") { _ in _ = completeWithTab() }
+                #endif
         }
     }
 
@@ -159,7 +180,8 @@ struct ComposerView: View {
     }
 
     private var placeholder: String {
-        switch phase {
+        if isRunning && !showsBusy { return String(localized: "Escribe un comando") }
+        return switch phase {
         case .running:
             String(localized: "Enviar entrada a \(shell?.live?.command ?? "")")
         case .interactive:
@@ -237,29 +259,33 @@ struct ComposerView: View {
 
     // MARK: - Completion
 
-    /// The rest of the selected candidate, drawn in gray after the typed text.
+    /// The rest of the suggested completion, drawn in gray after the typed text.
     private var ghost: some View {
         Text("\(Text(text).foregroundStyle(.clear))\(Text(ghostRemainder).foregroundStyle(.tertiary))")
-            .font(.system(size: fontSize, design: .monospaced))
+            .font(.system(size: fontSize))
             .lineLimit(1)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
 
     private var ghostRemainder: String {
-        guard isFocused, !text.isEmpty, !text.contains("\n"), candidates.indices.contains(selection) else { return "" }
-        let completion = candidates[selection].completion
-        guard completion.hasPrefix(text) else { return "" }
-        return String(completion.dropFirst(text.count))
+        guard isFocused, !text.contains("\n"), candidates.indices.contains(selection) else { return "" }
+        let candidate = candidates[selection]
+        // A single typed letter matches too much; wait for a second one,
+        // unless it's something the user ran before.
+        guard isPanelOpen || text.count >= 2 || candidate.kind == .history else { return "" }
+        guard candidate.completion.hasPrefix(text) else { return "" }
+        return String(candidate.completion.dropFirst(text.count))
     }
 
     private var showsPanel: Bool {
-        isFocused && !isRunning && dismissedText != text && candidates.count > 1
+        isPanelOpen && isFocused && !isRunning && candidates.count > 1
     }
 
     private func updateCandidates() {
         selection = 0
-        guard !isRunning, historyIndex == nil else {
+        isPanelOpen = false
+        guard !isRunning, historyIndex == nil, !text.isEmpty else {
             candidates = []
             return
         }
@@ -277,13 +303,35 @@ struct ComposerView: View {
         isFocused = true
     }
 
+    /// Tab completes like a shell: the only match, then the shared beginning,
+    /// then a panel to choose from; with the panel open it moves to the next one.
     private func completeWithTab() -> KeyPress.Result {
         guard !isRunning else { return .ignored }
-        if candidates.indices.contains(selection) {
-            accept(candidates[selection])
-        } else if let completed = completions.tabCompletion(for: text, directory: directory, pathEntries: shell?.pathEntries ?? []) {
-            text = completed
+        if showsPanel {
+            selection = (selection + 1) % candidates.count
+            return .handled
         }
+        switch candidates.count {
+        case 0:
+            if let completed = completions.tabCompletion(for: text, directory: directory, pathEntries: shell?.pathEntries ?? []) {
+                text = completed
+            }
+        case 1:
+            accept(candidates[0])
+        default:
+            let shared = candidates.dropFirst().reduce(candidates[0].completion) { String($0.commonPrefix(with: $1.completion)) }
+            if shared.count > text.count && candidates.allSatisfy({ $0.completion.hasPrefix(text) }) {
+                text = shared
+            } else {
+                isPanelOpen = true
+            }
+        }
+        return .handled
+    }
+
+    private func acceptSelection() -> KeyPress.Result {
+        guard showsPanel, candidates.indices.contains(selection) else { return .ignored }
+        accept(candidates[selection])
         return .handled
     }
 
@@ -301,7 +349,7 @@ struct ComposerView: View {
 
     private func dismissPanel() -> KeyPress.Result {
         guard showsPanel else { return .ignored }
-        dismissedText = text
+        isPanelOpen = false
         return .handled
     }
 }

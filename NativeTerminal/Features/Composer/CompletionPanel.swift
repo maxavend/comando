@@ -18,7 +18,7 @@ struct CompletionPanel: View {
                 }
                 .buttonStyle(.plain)
             }
-            Text("Tab para completar · ↑↓ para elegir · esc para cerrar")
+            Text("↩ para elegir · Tab o ↑↓ para moverte · esc para cerrar")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, Metrics.bubbleHorizontalPadding)
@@ -44,7 +44,7 @@ private struct CompletionRow: View {
                 .frame(width: 16)
                 .accessibilityHidden(true)
             Text(candidate.title)
-                .font(.system(size: fontSize, design: .monospaced))
+                .font(.system(size: fontSize))
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: Metrics.composerSpacing)

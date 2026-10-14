@@ -19,7 +19,7 @@ struct SessionRow: View {
                         .foregroundStyle(.secondary)
                 }
                 Text(session.lastCommand ?? FolderName.breadcrumb(session.directory))
-                    .font(session.lastCommand == nil ? .subheadline : .subheadline.monospaced())
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }

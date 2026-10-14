@@ -58,6 +58,40 @@ nonisolated enum ShellEscape {
         return result
     }
 
+    /// Splits a command line into words the way zsh would for simple cases:
+    /// honors backslash escapes and single or double quotes.
+    static func words(_ line: String) -> [String] {
+        var words: [String] = []
+        var current = ""
+        var inWord = false
+        var quote: Character?
+        var escaping = false
+        for character in line {
+            if escaping {
+                current.append(character)
+                escaping = false
+                inWord = true
+            } else if character == "\\" && quote != "'" {
+                escaping = true
+                inWord = true
+            } else if let open = quote {
+                if character == open { quote = nil } else { current.append(character) }
+            } else if character == "'" || character == "\"" {
+                quote = character
+                inWord = true
+            } else if character == " " || character == "\t" || character == "\n" {
+                if inWord { words.append(current) }
+                current = ""
+                inWord = false
+            } else {
+                current.append(character)
+                inWord = true
+            }
+        }
+        if inWord { words.append(current) }
+        return words
+    }
+
     /// Expands a leading `~` to the home folder.
     static func expandTilde(_ path: String) -> String {
         if path == "~" { return NSHomeDirectory() }
