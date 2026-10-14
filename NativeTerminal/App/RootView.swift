@@ -2,11 +2,6 @@ import AppKit
 import SwiftData
 import SwiftUI
 
-enum SearchScope: Hashable {
-    case session
-    case all
-}
-
 struct RootView: View {
     @Environment(TerminalController.self) private var controller
     @Query(sort: \TerminalSession.lastActivity, order: .reverse) private var sessions: [TerminalSession]
@@ -45,5 +40,8 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.markSelectedAsRead()
         }
+        #if DEBUG
+        .task { DebugAutomation.start(controller: controller) }
+        #endif
     }
 }

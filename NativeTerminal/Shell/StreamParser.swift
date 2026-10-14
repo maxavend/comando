@@ -1,38 +1,5 @@
 import Foundation
 
-/// A CSI (Control Sequence Introducer) escape sequence, e.g. `ESC [ 1 ; 31 m`.
-nonisolated struct CSISequence: Equatable, Sendable {
-    /// Private marker such as `?`, `>`, `<` or `=` (e.g. `ESC [ ? 1049 h`).
-    var marker: UInt8?
-    /// Numeric parameters. Missing parameters are `nil`.
-    var params: [Int?]
-    var intermediates: [UInt8]
-    var final: UInt8
-
-    func param(_ index: Int, default value: Int) -> Int {
-        guard index < params.count, let param = params[index] else { return value }
-        return param
-    }
-}
-
-nonisolated enum TerminalToken: Equatable, Sendable {
-    /// Printable text, already decoded from UTF-8.
-    case text(String)
-    /// A C0 control byte such as `\n`, `\r`, `\b` or `\t`.
-    case control(UInt8)
-    case csi(CSISequence)
-    /// Operating System Command payload, without the `ESC ]` prefix or terminator.
-    case osc(String)
-    /// A two-byte escape such as `ESC 7` (save cursor). Intermediates are dropped.
-    case escape(UInt8)
-}
-
-/// A token together with the exact bytes it was decoded from.
-nonisolated struct ParsedToken: Sendable {
-    var token: TerminalToken
-    var raw: [UInt8]
-}
-
 /// Incremental tokenizer for the byte stream coming out of the PTY.
 ///
 /// It is resilient to escape sequences and UTF-8 code points split across

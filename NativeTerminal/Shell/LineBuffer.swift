@@ -1,40 +1,5 @@
 import Foundation
 
-nonisolated enum TermColor: Hashable, Sendable {
-    /// One of the 16 standard ANSI colors (0–7 normal, 8–15 bright).
-    case ansi(UInt8)
-    /// xterm 256-color palette index (16–255).
-    case palette(UInt8)
-    case rgb(UInt8, UInt8, UInt8)
-}
-
-nonisolated struct TextStyle: Hashable, Sendable {
-    struct Flags: OptionSet, Hashable, Sendable {
-        let rawValue: UInt8
-        static let bold = Flags(rawValue: 1 << 0)
-        static let dim = Flags(rawValue: 1 << 1)
-        static let italic = Flags(rawValue: 1 << 2)
-        static let underline = Flags(rawValue: 1 << 3)
-        static let inverse = Flags(rawValue: 1 << 4)
-        static let strikethrough = Flags(rawValue: 1 << 5)
-    }
-
-    var foreground: TermColor?
-    var background: TermColor?
-    var flags: Flags = []
-
-    static let plain = TextStyle()
-
-    var isPlain: Bool { self == .plain }
-}
-
-nonisolated struct Cell: Hashable, Sendable {
-    var character: Character
-    var style: TextStyle
-
-    static let blank = Cell(character: " ", style: .plain)
-}
-
 /// A minimal line-oriented terminal model used to render command output as
 /// chat bubbles.
 ///

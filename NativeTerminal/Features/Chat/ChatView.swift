@@ -78,8 +78,13 @@ struct ChatView: View {
         .dropDestination(for: URL.self) { urls, _ in
             insertPaths(urls)
         }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .debugTypeDraft)) { note in
+            draft = note.object as? String ?? ""
+        }
+        #endif
         .navigationTitle(session.displayName)
-        .navigationSubtitle(ShellEscape.abbreviate(directory))
+        .navigationSubtitle(subtitle(for: directory))
         .toolbar { toolbar(directory: directory) }
         .task(id: session.id) {
             controller.shell(for: session)
@@ -128,6 +133,12 @@ struct ChatView: View {
         }
     }
 
+    /// The folder path, unless the title already says it (e.g. “~”).
+    private func subtitle(for directory: String) -> String {
+        let path = ShellEscape.abbreviate(directory)
+        return path == session.displayName ? "" : path
+    }
+
     // MARK: - Layout
 
     private func updateColumns(forWidth width: CGFloat) {
@@ -159,18 +170,5 @@ struct ChatView: View {
         controller.focusedEntryID = nil
         try? await Task.sleep(for: .seconds(2))
         withAnimation(.smooth) { highlightedEntryID = nil }
-    }
-}
-
-private struct EmptyChatView: View {
-    let directory: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label("Sesión nueva", systemImage: "apple.terminal")
-        } description: {
-            Text("Escribe un comando abajo para empezar.\nEstás en \(ShellEscape.abbreviate(directory)).")
-        }
-        .padding(.top, 80)
     }
 }
