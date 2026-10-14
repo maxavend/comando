@@ -1,0 +1,64 @@
+name: NativeTerminal
+options:
+  bundleIdPrefix: cl.native
+  deploymentTarget:
+    macOS: "27.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    MACOSX_DEPLOYMENT_TARGET: "27.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.11.2
+targets:
+  NativeTerminal:
+    type: application
+    platform: macOS
+    sources:
+      - path: NativeTerminal
+    dependencies:
+      - package: SwiftTerm
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cl.native.NativeTerminal
+        PRODUCT_NAME: NativeTerminal
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: NativeTerminal
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+  NativeTerminalTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: NativeTerminalTests
+    dependencies:
+      - target: NativeTerminal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cl.native.NativeTerminalTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NativeTerminal.app/Contents/MacOS/NativeTerminal"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  NativeTerminal:
+    build:
+      targets:
+        NativeTerminal: all
+        NativeTerminalTests: [test]
+    test:
+      targets:
+        - NativeTerminalTests
