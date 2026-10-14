@@ -205,6 +205,46 @@ final class TerminalController {
         submit(trash, in: session, confirmed: true)
     }
 
+    // MARK: - Assistant
+
+    /// Sends a plain-language request to the assistant, with any attached files.
+    func ask(_ text: String, attachments: [URL], in session: TerminalSession) {
+        let request = IntentDetector.request(from: text)
+        guard !request.isEmpty else { return }
+        let shell = shell(for: session)
+        let entry = CommandEntry(command: request, directory: shell.directory, session: session)
+        entry.kind = .assistant
+        entry.attachmentPaths = attachments.map { $0.path(percentEncoded: false) }
+        modelContext.insert(entry)
+        session.lastActivity = entry.startedAt
+        session.lastCommand = "✨ " + request
+        save()
+
+        let executables = Set(ExecutableIndex.shared.names(for: shell.pathEntries))
+        let directory = shell.directory
+        Task {
+            let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments)
+            let reply = await AssistantEngine.reply(to: request, inventory: inventory)
+            entry.assistantExplanation = reply.explanation
+            entry.proposals = reply.proposals
+            entry.assistantError = reply.error
+            entry.finishedAt = .now
+            save()
+        }
+    }
+
+    /// Runs what the assistant proposed, as one visible command.
+    func runProposals(of entry: CommandEntry) {
+        guard let session = entry.session, !entry.proposals.isEmpty else { return }
+        entry.assistantRanAt = .now
+        submit(entry.proposals.map(\.command).joined(separator: " && "), in: session)
+    }
+
+    func installPackage(_ package: String, for entry: CommandEntry) {
+        guard let session = entry.session else { return }
+        submit("brew install " + ShellEscape.quote(package), in: session)
+    }
+
     func rerun(_ entry: CommandEntry) {
         guard let session = entry.session else { return }
         selectedSessionID = session.id

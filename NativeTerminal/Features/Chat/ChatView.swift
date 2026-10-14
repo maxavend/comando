@@ -20,6 +20,7 @@ struct ChatView: View {
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var isDropTargeted = false
     @State private var gitInfo: GitInfo?
+    @State private var attachments: [URL] = []
     /// Whether the transcript follows new output. Only the user's own
     /// scrolling changes it; resizes and new output keep the last state.
     @State private var isPinnedToBottom = true
@@ -46,7 +47,9 @@ struct ChatView: View {
                 directory: directory,
                 history: entries.map(\.command),
                 trailingInset: max(0, lastWidth - contentWidth),
-                onSubmit: { controller.submit($0, in: session) }
+                attachments: $attachments,
+                onSubmit: { controller.submit($0, in: session) },
+                onAsk: { controller.ask($0, attachments: $1, in: session) }
             )
         }
         .dropDestination(for: URL.self) { urls, _ in
@@ -152,6 +155,7 @@ struct ChatView: View {
         }
         #if DEBUG
         .onDebugAction("#type") { draft = $0 }
+        .onDebugAction("#attach") { attachments.append(URL(filePath: $0)) }
         .onDebugAction("#rename") { _ in
             newName = session.customName ?? ""
             isRenaming = true
@@ -285,7 +289,11 @@ struct ChatView: View {
             controller.navigate(to: url.path(percentEncoded: false), in: session)
             return true
         }
-        insertPaths(urls)
+        // Files become attachments: ask the assistant what to do with them,
+        // or type a command and they're added as its arguments.
+        for url in urls where !attachments.contains(url) {
+            attachments.append(url)
+        }
         return true
     }
 

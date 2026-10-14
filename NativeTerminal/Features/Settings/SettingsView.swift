@@ -5,6 +5,7 @@ struct SettingsView: View {
     @AppStorage(AppSettings.notifyAfterKey) private var notifyAfter = AppSettings.defaultNotifyAfter
     @AppStorage(AppSettings.interactiveCommandsKey) private var interactiveCommands = AppSettings.defaultInteractiveCommands
     @AppStorage(AppSettings.confirmRiskyCommandsKey) private var confirmRiskyCommands = true
+    @AppStorage(AppSettings.assistantEnabledKey) private var assistantEnabled = true
 
     var body: some View {
         Form {
@@ -40,6 +41,16 @@ struct SettingsView: View {
                 Text("Notificaciones")
             } footer: {
                 Text("Solo se avisa si NativeTerminal no está en primer plano o estás en otra sesión.")
+            }
+
+            Section {
+                Toggle("Entender pedidos con tus palabras", isOn: $assistantEnabled)
+                    .disabled(!AssistantEngine.isAvailable)
+            } header: {
+                Text("Asistente")
+            } footer: {
+                Text(AssistantEngine.unavailableReason
+                     ?? String(localized: "Usa Apple Intelligence en este Mac para elegir el comando y la herramienta instalada que mejor sirven. Siempre te muestra el comando antes de ejecutarlo."))
             }
 
             Section {

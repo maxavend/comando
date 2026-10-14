@@ -15,7 +15,10 @@ struct ComposerView: View {
     let history: [String]
     /// Extra trailing space matching an always-visible scroller in the transcript.
     var trailingInset: CGFloat = 0
+    /// Files dropped on the chat, sent with the next request to the assistant.
+    @Binding var attachments: [URL]
     let onSubmit: (String) -> Void
+    let onAsk: (String, [URL]) -> Void
 
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @Environment(TerminalController.self) private var controller
@@ -31,6 +34,8 @@ struct ComposerView: View {
     @State private var isPanelOpen = false
     /// Running state as shown: lags `isRunning` by `Metrics.busyStateDelay`.
     @State private var showsBusy = false
+    @State private var knownCommands: Set<String> = []
+    @AppStorage(AppSettings.assistantEnabledKey) private var assistantEnabled = true
 
     private var phase: ShellSession.Phase { shell?.phase ?? .notStarted }
     private var isRunning: Bool { phase == .running || phase == .interactive }
@@ -121,40 +126,70 @@ struct ComposerView: View {
             .font(.system(size: fontSize))
             .onAppear { isFocused = true }
         } else {
-            TextField(placeholder, text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: fontSize))
-                .lineLimit(1...8)
-                .background(alignment: .topLeading) { ghost }
-                .focused($isFocused)
-                .disabled(phase == .interactive)
-                .onSubmit(submit)
-                .onKeyPress(.upArrow) { moveUp() }
-                .onKeyPress(.downArrow) { moveDown() }
-                .onKeyPress(keys: [.tab], phases: .down) { press in
-                    press.modifiers.contains(.shift) ? moveUp() : completeWithTab()
+            VStack(alignment: .leading, spacing: Metrics.statusSpacing + 2) {
+                if !attachments.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: Metrics.statusSpacing) {
+                            ForEach(attachments, id: \.self) { url in
+                                AttachmentChip(path: url.path(percentEncoded: false)) {
+                                    attachments.removeAll { $0 == url }
+                                }
+                            }
+                        }
+                    }
+                    .scrollIndicators(.never)
                 }
-                .onKeyPress(.return) { acceptSelection() }
-                .onKeyPress(.escape) { dismissPanel() }
-                .onKeyPress(characters: ["c"], phases: .down) { press in
-                    guard press.modifiers == .control, isRunning else { return .ignored }
-                    shell?.interrupt()
-                    return .handled
+                HStack(alignment: .firstTextBaseline, spacing: Metrics.statusSpacing + 2) {
+                    if isAskingAssistant {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.tint)
+                            .help("Se lo pediré al asistente")
+                            .transition(.opacity)
+                    }
+                    textField
                 }
-                .onChange(of: text, initial: true) {
-                    if historyIndex != nil, text != currentHistoryText { historyIndex = nil }
-                    updateCandidates()
-                }
-                .onChange(of: directory) { updateCandidates() }
-                .dropDestination(for: URL.self) { urls, _ in
-                    insert(urls)
-                }
-                .accessibilityLabel("Comando")
-                .accessibilityIdentifier("composer")
-                #if DEBUG
-                .onDebugAction("#tab") { _ in _ = completeWithTab() }
-                #endif
+                .animation(.easeOut(duration: 0.12), value: isAskingAssistant)
+            }
+            .task(id: shell?.pathEntries ?? []) {
+                knownCommands = Set(ExecutableIndex.shared.names(for: shell?.pathEntries ?? []))
+            }
         }
+    }
+
+    private var textField: some View {
+        TextField(placeholder, text: $text, axis: .vertical)
+            .textFieldStyle(.plain)
+            .font(.system(size: fontSize))
+            .lineLimit(1...8)
+            .background(alignment: .topLeading) { ghost }
+            .focused($isFocused)
+            .disabled(phase == .interactive)
+            .onSubmit(submit)
+            .onKeyPress(.upArrow) { moveUp() }
+            .onKeyPress(.downArrow) { moveDown() }
+            .onKeyPress(keys: [.tab], phases: .down) { press in
+                press.modifiers.contains(.shift) ? moveUp() : completeWithTab()
+            }
+            .onKeyPress(.return) { acceptSelection() }
+            .onKeyPress(.escape) { dismissPanel() }
+            .onKeyPress(characters: ["c"], phases: .down) { press in
+                guard press.modifiers == .control, isRunning else { return .ignored }
+                shell?.interrupt()
+                return .handled
+            }
+            .onChange(of: text, initial: true) {
+                if historyIndex != nil, text != currentHistoryText { historyIndex = nil }
+                updateCandidates()
+            }
+            .onChange(of: directory) { updateCandidates() }
+            .dropDestination(for: URL.self) { urls, _ in
+                insert(urls)
+            }
+            .accessibilityLabel("Comando")
+            .accessibilityIdentifier("composer")
+            #if DEBUG
+            .onDebugAction("#tab") { _ in _ = completeWithTab() }
+            #endif
     }
 
     private var actionsMenu: some View {
@@ -200,7 +235,9 @@ struct ComposerView: View {
         case .exited:
             String(localized: "El shell terminó · escribe para reiniciarlo")
         default:
-            String(localized: "Escribe un comando")
+            assistantEnabled && AssistantEngine.isAvailable
+                ? String(localized: "Escribe un comando o pide algo con tus palabras")
+                : String(localized: "Escribe un comando")
         }
     }
 
@@ -220,9 +257,24 @@ struct ComposerView: View {
         }
         guard canSubmit else { return }
         let value = text
+        let asking = isAskingAssistant
         text = ""
         historyIndex = nil
-        onSubmit(value)
+        if asking {
+            onAsk(value, attachments)
+        } else if !attachments.isEmpty && !isRunning {
+            // A real command with files attached: the files become its arguments.
+            onSubmit(value + " " + attachments.map(ShellEscape.path).joined(separator: " "))
+        } else {
+            onSubmit(value)
+        }
+        attachments = []
+    }
+
+    /// Plain words (not a command) go to the assistant when it's available.
+    private var isAskingAssistant: Bool {
+        guard assistantEnabled, !isRunning, AssistantEngine.isAvailable else { return false }
+        return IntentDetector.isPlainLanguage(text, knownCommands: knownCommands)
     }
 
     private func interrupt() {

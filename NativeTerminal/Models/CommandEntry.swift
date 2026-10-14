@@ -7,6 +7,8 @@ final class CommandEntry {
     enum Kind: String, Codable {
         case command
         case interactive
+        /// A request in plain words answered by the assistant.
+        case assistant
     }
 
     var id: UUID = UUID()
@@ -28,6 +30,12 @@ final class CommandEntry {
     /// Plain-language explanation of a failure, and a command to try instead.
     var hintMessage: String?
     var hintSuggestion: String?
+    /// Assistant replies (kind == .assistant).
+    var assistantExplanation: String?
+    var assistantError: String?
+    var assistantProposalsJSON: String?
+    var attachmentPathsJSON: String?
+    var assistantRanAt: Date?
     var session: TerminalSession?
 
     init(command: String, directory: String, session: TerminalSession) {
@@ -63,4 +71,22 @@ final class CommandEntry {
     }
 
     static let plainOutputLimit = 64 * 1024
+
+    var proposals: [AssistantProposal] {
+        get { Self.decode(assistantProposalsJSON) ?? [] }
+        set { assistantProposalsJSON = Self.encode(newValue) }
+    }
+
+    var attachmentPaths: [String] {
+        get { Self.decode(attachmentPathsJSON) ?? [] }
+        set { attachmentPathsJSON = newValue.isEmpty ? nil : Self.encode(newValue) }
+    }
+
+    private static func decode<T: Decodable>(_ json: String?) -> T? {
+        json.flatMap { try? JSONDecoder().decode(T.self, from: Data($0.utf8)) }
+    }
+
+    private static func encode<T: Encodable>(_ value: T) -> String? {
+        (try? JSONEncoder().encode(value)).map { String(decoding: $0, as: UTF8.self) }
+    }
 }

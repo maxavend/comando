@@ -20,26 +20,10 @@ struct EntryView: View {
                     directory: showsDirectory ? entry.directory : nil
                 )
             }
-            VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
-                CommandBubble(command: entry.command)
-                    .contextMenu { commandMenu }
-                    .popover(isPresented: $isExplaining, arrowEdge: .leading) {
-                        CommandBreakdownView(command: entry.command)
-                    }
-                if let description = CommandGlossary.describe(entry.command) {
-                    CommandDescription(text: description, command: entry.command)
-                }
-            }
-            .padding(.leading, Metrics.bubbleOppositeInset)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-
-            if let shell, let live, live.entryID == entry.id {
-                LiveResponseView(live: live, shell: shell)
+            if entry.kind == .assistant {
+                AssistantExchangeView(entry: entry, shell: shell, onEdit: onEdit)
             } else {
-                FinishedResponseView(entry: entry, onRerun: rerun, onEdit: onEdit, onOpenFolder: openFolder)
-                if let folder = entry.movedTo {
-                    LocationNotice(folder: folder)
-                }
+                commandExchange(live: live)
             }
         }
         .padding(.top, Metrics.exchangeSpacing)
@@ -55,6 +39,31 @@ struct EntryView: View {
                 .padding(.top, Metrics.exchangeSpacing / 2)
                 .padding(.bottom, -Metrics.exchangeSpacing / 2)
                 .opacity(isHighlighted ? 1 : 0)
+        }
+    }
+
+    @ViewBuilder
+    private func commandExchange(live: LiveOutput?) -> some View {
+        VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
+            CommandBubble(command: entry.command)
+                .contextMenu { commandMenu }
+                .popover(isPresented: $isExplaining, arrowEdge: .leading) {
+                    CommandBreakdownView(command: entry.command)
+                }
+            if let description = CommandGlossary.describe(entry.command) {
+                CommandDescription(text: description, command: entry.command)
+            }
+        }
+        .padding(.leading, Metrics.bubbleOppositeInset)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+
+        if let shell, let live, live.entryID == entry.id {
+            LiveResponseView(live: live, shell: shell)
+        } else {
+            FinishedResponseView(entry: entry, onRerun: rerun, onEdit: onEdit, onOpenFolder: openFolder)
+            if let folder = entry.movedTo {
+                LocationNotice(folder: folder)
+            }
         }
     }
 

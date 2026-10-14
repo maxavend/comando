@@ -7,6 +7,7 @@ nonisolated enum AppSettings {
     static let interactiveCommandsKey = "interactiveCommands"
     static let confirmRiskyCommandsKey = "confirmRiskyCommands"
     static let hasSeenWelcomeKey = "hasSeenWelcome"
+    static let assistantEnabledKey = "assistantEnabled"
 
     static let defaultFontSize = 13.0
     static let defaultNotifyAfter = 10.0
@@ -20,6 +21,11 @@ nonisolated enum AppSettings {
     /// Ask before commands that are hard to undo. On unless turned off.
     static var confirmRiskyCommands: Bool {
         UserDefaults.standard.object(forKey: confirmRiskyCommandsKey) as? Bool ?? true
+    }
+
+    /// Plain-language requests go to the assistant. On unless turned off.
+    static var assistantEnabled: Bool {
+        UserDefaults.standard.object(forKey: assistantEnabledKey) as? Bool ?? true
     }
 
     static var interactiveCommands: Set<String> {
