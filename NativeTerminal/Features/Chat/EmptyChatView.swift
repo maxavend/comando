@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// The start of a session: where you are and a few things to try.
@@ -9,11 +8,7 @@ struct EmptyChatView: View {
 
     var body: some View {
         VStack(spacing: Metrics.exchangeSpacing) {
-            // The app icon, rendered by the system with its Liquid Glass layers.
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 64, height: 64)
-                .accessibilityHidden(true)
+            SymbolBadge(systemImage: "bubble.left.and.text.bubble.right", size: 72)
 
             VStack(spacing: Metrics.statusSpacing) {
                 Text("¿Qué quieres hacer?")
