@@ -72,8 +72,16 @@ nonisolated enum RecipeBook {
             "sw_vers"
         },
         Recipe("cpu", title: "Ver qué está usando más CPU", detail: "Los 10 programas que más procesador usan.",
-               systemImage: "gauge.with.dots.needle.67percent", category: .system, keywords: ["lento", "procesos", "cpu", "memoria"]) { _ in
+               systemImage: "gauge.with.dots.needle.67percent", category: .system, keywords: ["lento", "procesos", "cpu", "procesador"]) { _ in
             "ps -Ao pid,pcpu,pmem,comm -r | head -11"
+        },
+        Recipe("memory", title: "Ver qué está usando más memoria", detail: "Los 10 programas que más RAM ocupan.",
+               systemImage: "memorychip", category: .system, keywords: ["ram", "memoria", "procesos", "lento"]) { _ in
+            "ps -Ao pid,pmem,rss,comm -m | head -11"
+        },
+        Recipe("date", title: "Ver la fecha y la hora", detail: "La fecha y hora de este Mac.",
+               systemImage: "clock", category: .system, keywords: ["hora", "fecha", "dia", "hoy"]) { _ in
+            "date"
         },
         Recipe("battery", title: "Ver el estado de la batería", detail: "Porcentaje y si está cargando.",
                systemImage: "battery.75percent", category: .system, keywords: ["batería", "carga"]) { _ in

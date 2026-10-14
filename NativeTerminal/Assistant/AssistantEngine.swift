@@ -1,5 +1,6 @@
 import Foundation
 import FoundationModels
+import ImageIO
 
 /// A command the assistant proposes, with where its tool comes from.
 nonisolated struct AssistantProposal: Codable, Hashable, Sendable {
@@ -8,6 +9,8 @@ nonisolated struct AssistantProposal: Codable, Hashable, Sendable {
     var tool: String
     /// A tool the command needs that isn't installed (Homebrew package name).
     var missingPackage: String?
+    /// Written by the model rather than built by the app: worth a second look.
+    var isGenerated: Bool?
 }
 
 /// A tool worth installing for the request, shown with an Install button.
@@ -42,6 +45,26 @@ nonisolated struct FileRequest: Codable, Hashable, Sendable {
 nonisolated struct AssistantExtras: Codable, Hashable, Sendable {
     var fileRequest: FileRequest?
     var suggestions: [ToolSuggestion] = []
+    /// Requests to try, shown as buttons (after a greeting or a miss).
+    var examples: [String] = []
+    /// A usage example to complete before running (“yt-dlp 'URL'”).
+    var template: String?
+
+    init(fileRequest: FileRequest? = nil, suggestions: [ToolSuggestion] = [], examples: [String] = [], template: String? = nil) {
+        self.fileRequest = fileRequest
+        self.suggestions = suggestions
+        self.examples = examples
+        self.template = template
+    }
+
+    // Tolerates replies saved before a field existed.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fileRequest = try container.decodeIfPresent(FileRequest.self, forKey: .fileRequest)
+        suggestions = try container.decodeIfPresent([ToolSuggestion].self, forKey: .suggestions) ?? []
+        examples = try container.decodeIfPresent([String].self, forKey: .examples) ?? []
+        template = try container.decodeIfPresent(String.self, forKey: .template)
+    }
 }
 
 nonisolated struct AssistantReply: Sendable {
@@ -76,23 +99,261 @@ nonisolated enum AssistantEngine {
         }
     }
 
+    /// Answers in steps, from the most reliable to the most open: small talk,
+    /// known actions, a recipe or tool the model picks, a command the model
+    /// writes (checked twice), and finally a short answer in words.
     @concurrent
     static func reply(to request: String, inventory: ToolInventory) async -> AssistantReply {
         if let reason = unavailableReason { return .failure(reason) }
-        let session = LanguageModelSession(instructions: instructions)
-        let plan: AssistantPlan
-        do {
-            // Greedy sampling: the same request always gets the same answer.
-            plan = try await session.respond(
-                to: prompt(request, inventory: inventory),
-                generating: AssistantPlan.self,
-                options: GenerationOptions(samplingMode: .greedy)
-            ).content
-        } catch {
-            return .failure(String(localized: "No pude procesar el pedido. Intenta decirlo de otra forma."))
+        let words = normalized(request)
+        if let smallTalk = smallTalkReply(to: words, inventory: inventory) { return smallTalk }
+
+        let plan = await ask(prompt(request, inventory: inventory), instructions: instructions, generating: AssistantPlan.self)
+        let steps = validate(plan?.steps ?? [], request: request, inventory: inventory)
+        if !steps.isEmpty {
+            return build(steps: steps, request: request, inventory: inventory)
         }
-        return build(steps: validate(plan.steps, request: request, inventory: inventory), request: request, inventory: inventory)
+        if let trash = trashReply(for: request, inventory: inventory) {
+            return trash
+        }
+        // “¿Qué es npm?” wants an explanation, not a command.
+        if asksForMeaning(words), let answer = await explain(request) {
+            return AssistantReply(explanation: answer, proposals: [])
+        }
+        if let chosen = await pickOption(for: request, inventory: inventory) {
+            return chosen
+        }
+        if let written = await writeCommand(for: request, inventory: inventory) {
+            return written
+        }
+        if isQuestion(request), let answer = await explain(request) {
+            return AssistantReply(explanation: answer, proposals: [])
+        }
+        return build(steps: [], request: request, inventory: inventory)
     }
+
+    /// One focused model call; nil if the model fails.
+    private static func ask<Content: Generable>(_ prompt: String, instructions: String, generating type: Content.Type) async -> Content? {
+        let session = LanguageModelSession(instructions: instructions)
+        // Greedy sampling: the same request always gets the same answer.
+        return try? await session.respond(to: prompt, generating: type, options: GenerationOptions(samplingMode: .greedy)).content
+    }
+
+    // MARK: - Small talk
+
+    /// Greetings, thanks and “what can you do?”, answered instantly.
+    static func smallTalkReply(to words: String, inventory: ToolInventory) -> AssistantReply? {
+        let explanation: String
+        if isThanks(words) {
+            explanation = String(localized: "¡De nada! Cuando quieras, pídeme otra cosa.")
+        } else if isGreeting(words) {
+            explanation = String(localized: "¡Hola! Cuéntame qué quieres hacer, con tus palabras, y te propongo el comando. Por ejemplo:")
+        } else {
+            return nil
+        }
+        var reply = AssistantReply(explanation: explanation, proposals: [])
+        reply.extras.examples = examples(for: inventory)
+        return reply
+    }
+
+    private static let greetingPhrases = [
+        "que puedes hacer", "que sabes hacer", "en que me ayudas", "como funciona", "quien eres", "que eres",
+        "buenos dias", "buenas tardes", "buenas noches", "que tal", "como estas", "como te va",
+        "hola", "holi", "buenas", "hey", "hello", "hi", "ayuda", "ayudame",
+    ]
+    private static let thanksPhrases = ["muchas gracias", "gracias", "thanks", "genial", "perfecto", "buenisimo", "excelente"]
+    /// Words that can sit around a greeting without asking for anything.
+    private static let filler: Set<String> = ["y", "tu", "todo", "bien", "como", "que", "me", "te", "a", "ti", "por", "eso", "ok", "oye", "amigo", "crack"]
+
+    /// Only small talk: once the phrases and filler are gone, nothing is left.
+    private static func isOnly(_ phrases: [String], in words: String) -> Bool {
+        var text = " " + words.map { $0.isLetter ? $0 : " " }.reduce(into: "") { $0.append($1) } + " "
+        var found = false
+        for phrase in phrases where text.contains(" \(phrase) ") {
+            text = text.replacingOccurrences(of: " \(phrase) ", with: " ")
+            found = true
+        }
+        return found && text.split(separator: " ").allSatisfy { filler.contains(String($0)) }
+    }
+
+    static func isGreeting(_ words: String) -> Bool { isOnly(greetingPhrases, in: words) }
+    static func isThanks(_ words: String) -> Bool { isOnly(thanksPhrases, in: words) }
+
+    static func asksForMeaning(_ words: String) -> Bool {
+        ["que es ", "que son ", "que significa", "para que sirve", "explicame", "diferencia entre", "what is "].contains { words.contains($0) }
+    }
+
+    static func isQuestion(_ request: String) -> Bool {
+        let words = normalized(request).trimmingCharacters(in: .whitespaces)
+        return request.contains("?") || ["que ", "como ", "cual ", "por que ", "cuando ", "donde "].contains { words.hasPrefix($0) }
+    }
+
+    // MARK: - Deleting
+
+    /// “Borra notas.md” moves it to the Trash instead, where it can be recovered.
+    static func trashReply(for request: String, inventory: ToolInventory) -> AssistantReply? {
+        let words = normalized(request)
+        guard ["borra", "elimina", "quita", "deshazte", "delete", "remove"].contains(where: words.contains) else { return nil }
+        let targets = (inventory.attachments + inventory.files).filter { mentionsFile($0, in: words) }
+        guard !targets.isEmpty else { return nil }
+        // “Todo lo que hay en src” empties the folder but keeps it.
+        let contentsOnly = ["lo que hay en", "contenido de", "dentro de", "todo en"].contains(where: words.contains)
+        let paths = targets.map { file in
+            contentsOnly && file.kind == .folder ? ShellEscape.quote(file.path) + "/*" : ShellEscape.quote(file.path)
+        }
+        let names = targets.map { "“\($0.name)”" }.formatted(.list(type: .and))
+        let explanation = contentsOnly
+            ? String(localized: "Voy a mover lo que hay en \(names) a la Papelera. Si te arrepientes, lo recuperas desde ahí.")
+            : String(localized: "Voy a mover \(names) a la Papelera. Si te arrepientes, lo recuperas desde ahí.")
+        return AssistantReply(
+            explanation: explanation,
+            proposals: [AssistantProposal(command: "trash " + paths.joined(separator: " "), tool: "trash · incluida en macOS")]
+        )
+    }
+
+    // MARK: - Explaining
+
+    private static let explainInstructions = """
+    Explicas temas de la terminal, la programación y macOS a personas que no son expertas. \
+    Responde en español, en dos oraciones como máximo, con palabras simples. No uses listas ni código.
+    """
+
+    @concurrent
+    static func explain(_ request: String) async -> String? {
+        let session = LanguageModelSession(instructions: explainInstructions)
+        guard let text = try? await session.respond(to: request, options: GenerationOptions(samplingMode: .greedy)).content else { return nil }
+        return cleanMessage(text)
+    }
+
+    // MARK: - Recipes and tools
+
+    /// Recipes and tools whose words overlap the request, for the model to choose from.
+    static func candidates(for request: String) -> (recipes: [Recipe], tools: [CatalogTool]) {
+        let words = normalized(request)
+        let recipes = RecipeBook.all.map { ($0, overlap(words, $0)) }.filter { $0.1 > 0 }
+            .sorted { $0.1 > $1.1 }.prefix(5).map(\.0)
+        let tools = ToolCatalog.all.map { ($0, ToolCatalog.score($0, for: words)) }.filter { $0.1 >= 2 }
+            .sorted { $0.1 > $1.1 }.prefix(3).map(\.0)
+        return (recipes, tools)
+    }
+
+    private static let pickInstructions = """
+    Eliges cuál de las opciones numeradas cumple el pedido de una persona en una terminal de macOS. \
+    Elige una opción solo si hace lo que se pide; si ninguna lo hace, responde 0.
+    """
+
+    @concurrent
+    static func pickOption(for request: String, inventory: ToolInventory) async -> AssistantReply? {
+        let (recipes, tools) = candidates(for: request)
+        guard !recipes.isEmpty || !tools.isEmpty else { return nil }
+        var options: [String] = recipes.map { "\($0.title): \($0.detail)" }
+        options += tools.map { "Instalar o usar \($0.title): \($0.detail)" }
+        let prompt = "PEDIDO: \(request)\n\nOPCIONES:\n" + options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        guard let choice = await ask(prompt, instructions: pickInstructions, generating: OptionChoice.self),
+              choice.option >= 1, choice.option <= options.count else { return nil }
+        let index = choice.option - 1
+        if index < recipes.count {
+            return useRecipe(recipes[index], request: request, inventory: inventory)
+        }
+        // An exact command (perhaps with what's already installed) beats a
+        // pointer to the tool.
+        if let written = await writeCommand(for: request, inventory: inventory) {
+            return written
+        }
+        return recommend(tools[index - recipes.count], inventory: inventory)
+    }
+
+    static func isInstalled(_ tool: CatalogTool, inventory: ToolInventory) -> Bool {
+        inventory.has(tool.command) || inventory.brew.contains { $0.name == tool.id }
+    }
+
+    // MARK: - Commands the model writes
+
+    private static let writeInstructions = """
+    Escribes un solo comando de zsh para macOS que cumple el pedido de una persona. \
+    Usa programas que vienen con macOS cuando se pueda. Nunca uses sudo ni borres archivos. \
+    Usa solo nombres de archivos que aparecen en ARCHIVOS. Si no sabes un comando que lo haga, deja el comando vacío.
+    Ejemplos:
+    cuántas líneas tiene notas.md → wc -l notas.md
+    los archivos más pesados de esta carpeta → du -sh * | sort -rh | head -10
+    en qué rama estoy → git branch --show-current
+    convierte foto.png a jpg → sips -s format jpeg foto.png --out foto.jpg
+    busca la palabra hola en el proyecto → grep -rn "hola" .
+    """
+
+    private static let checkInstructions = """
+    Revisas si un comando de terminal de macOS hace exactamente lo que pide una persona. Sé estricto.
+    """
+
+    @concurrent
+    static func writeCommand(for request: String, inventory: ToolInventory) async -> AssistantReply? {
+        var context = ["CARPETA: \(FolderName.display(inventory.directory))"]
+        if !inventory.files.isEmpty {
+            context.append("ARCHIVOS: \(inventory.files.prefix(30).map(\.name).joined(separator: ", "))")
+        }
+        let prompt = context.joined(separator: "\n") + "\n\nPEDIDO: \(request)"
+        guard let written = await ask(prompt, instructions: writeInstructions, generating: WrittenCommand.self),
+              let proposal = checkCommand(written.command, request: request, inventory: inventory) else { return nil }
+        // A second, independent look catches commands that run but miss the point.
+        let review = "PEDIDO: \(request)\nCOMANDO: \(proposal.command)"
+        guard let check = await ask(review, instructions: checkInstructions, generating: CommandCheck.self), check.matches else { return nil }
+        let explanation = cleanMessage(written.explanation).map { sentence($0) }
+            ?? CommandGlossary.describe(proposal.command).map { $0 + "." }
+            ?? String(localized: "Este comando debería hacerlo.")
+        return AssistantReply(explanation: explanation, proposals: [proposal])
+    }
+
+    /// Capitalized and ending with a period.
+    static func sentence(_ text: String) -> String {
+        var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let first = text.first { text = first.uppercased() + text.dropFirst() }
+        if let last = text.last, !".!?".contains(last) { text += "." }
+        return text
+    }
+
+    /// The model's own words, if they are short enough to be a reply.
+    static func cleanMessage(_ message: String?) -> String? {
+        guard let text = message?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty, text.count <= 500 else { return nil }
+        return text
+    }
+
+    /// Accepts a command the model wrote only if every program in it exists
+    /// (or can be installed), the syntax is valid, nothing in it is risky, and
+    /// it doesn't make up web addresses or write files nobody asked for.
+    static func checkCommand(_ command: String, request: String, inventory: ToolInventory) -> AssistantProposal? {
+        var line = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        line = line.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
+        if line.hasPrefix("$ ") { line.removeFirst(2) }
+        let words = normalized(request)
+        guard !line.isEmpty, !line.contains("\n"), line.count <= 300,
+              !ShellEscape.words(line).contains("sudo"),
+              DangerDetector.risk(of: line) == nil,
+              !ShellEscape.words(line).contains(where: { ["rm", "rmdir", "trash", "kill", "killall", "shutdown", "reboot"].contains($0) }),
+              !line.contains("http") || request.contains("http"),
+              !line.contains(">") || ["guard", "export", "escrib", "archivo"].contains(where: words.contains),
+              !line.contains("<") else { return nil }
+
+        var programs: [String] = []
+        for segment in line.split(separator: /\|\||&&|\||;/) {
+            let segmentWords = ShellEscape.words(String(segment)).drop { $0.contains("=") && !$0.hasPrefix("-") }
+            guard let program = segmentWords.first else { return nil }
+            programs.append(program)
+        }
+        guard let first = programs.first else { return nil }
+        var missing: String?
+        for program in programs where !inventory.has(program) && !shellBuiltins.contains(program) {
+            // An unknown program is fine only if it's a known tool to install.
+            guard missing == nil, let tool = ToolCatalog.tool(named: program) else { return nil }
+            missing = tool.id
+        }
+        guard ToolInventory.run(["zsh", "-n", "-c", line]) != nil else { return nil }
+        return AssistantProposal(command: line, tool: "\(first) · \(inventory.source(of: first))",
+                                 missingPackage: missing, isGenerated: true)
+    }
+
+    private static let shellBuiltins: Set<String> = [
+        "cd", "echo", "printf", "export", "test", "[", "pwd", "for", "while", "if", "read", "true", "false", "type", "which", "time",
+    ]
 
     // MARK: - Prompt
 
@@ -139,9 +400,10 @@ nonisolated enum AssistantEngine {
         for step in candidates where step.action != .unknown {
             guard !result.contains(where: { $0.action == step.action && $0.script == step.script }) else { continue }
             guard var checked = check(step, words: words, inventory: inventory) else { continue }
-            if checked.action == .resizeImage, checked.width == nil {
-                // Without a number, a common size that can be edited before running.
-                checked.width = request.firstMatch(of: /(\d{2,5})/).flatMap { Int($0.1) } ?? defaultImageWidth
+            if checked.action == .resizeImage {
+                // Only a width the person wrote, or a fraction of the real one;
+                // otherwise a common size they can edit.
+                checked.width = requestedWidth(request, file: checked.file, inventory: inventory) ?? defaultImageWidth
             }
             result.append(checked)
             if !allowsSeveral { break }
@@ -173,7 +435,15 @@ nonisolated enum AssistantEngine {
             let available = inventory.scripts + inventory.makeTargets
             let script = step.script.flatMap { name in available.first { $0.caseInsensitiveCompare(name) == .orderedSame } }
                 ?? available.first { words.contains(normalized($0)) }
-            guard let script else { return nil }
+                // “Corre el proyecto” means its development server.
+                ?? (mentions(["proyecto", "servidor", "server", "app", "sitio", "web"])
+                    ? ["dev", "start", "serve"].first(where: available.contains) : nil)
+            guard var script else { return nil }
+            // “Corre el proyecto” names no script: the dev server beats a guess like “build”.
+            if !words.contains(normalized(script)), mentions(["proyecto", "servidor", "server", "app", "sitio", "web"]),
+               let server = ["dev", "start", "serve"].first(where: available.contains) {
+                script = server
+            }
             guard words.contains(normalized(script))
                     || mentions(["corre", "ejecuta", "inicia", "levanta", "arranca", "run", "start", "servidor", "server", "test", "prueba", "build", "compila"])
             else { return nil }
@@ -190,8 +460,9 @@ nonisolated enum AssistantEngine {
                   mentions(shrinkWords + ["720"]),
                   resolveFile([.video]) else { return nil }
         case .resizeImage:
-            guard mentions(imageWords + ["ancho", "px", "achica", "redimension", "tamano", "agranda"])
-                    || inventory.attachments.contains(where: { $0.kind == .image }),
+            // “Convierte a jpg” is not a resize: it needs words about size.
+            guard mentions(imageWords) || inventory.attachments.contains(where: { $0.kind == .image }),
+                  mentions(sizeWords) || words.contains(/\d{2,5}/),
                   resolveFile([.image]) else { return nil }
         case .zipFiles:
             // “Comprimir un audio” means a smaller audio, not a .zip.
@@ -214,13 +485,63 @@ nonisolated enum AssistantEngine {
         return step
     }
 
+    /// How many meaningful words of the request a recipe shares (“carpetas”
+    /// matches “carpeta”).
+    static func overlap(_ words: String, _ recipe: Recipe) -> Int {
+        let haystack = keywords(in: ([recipe.title, recipe.detail, recipe.id] + recipe.keywords).joined(separator: " "))
+        return keywords(in: words).count { word in
+            haystack.contains { $0 == word || (min($0.count, word.count) >= 4 && ($0.hasPrefix(word) || word.hasPrefix($0))) }
+        }
+    }
+
+    /// Words that carry meaning: no punctuation, accents or Spanish filler.
+    static func keywords(in text: String) -> Set<String> {
+        let cleaned = normalized(text).map { $0.isLetter || $0.isNumber ? $0 : " " }
+        return Set(String(cleaned).split(separator: " ").map(String.init).filter { $0.count >= 2 && !stopwords.contains($0) })
+    }
+
+    private static let stopwords: Set<String> = [
+        "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "al", "en", "con", "por", "para", "que", "y", "o",
+        "mi", "mis", "tu", "tus", "su", "sus", "me", "te", "se", "lo", "le", "es", "son", "esta", "este", "esto", "eso",
+        "hay", "como", "cual", "quiero", "quisiera", "puedo", "puedes", "hacer", "hago", "ver", "muestra", "muestrame",
+        "dime", "favor", "porfa", "hola", "aqui", "ahora", "todo", "todos", "mas", "muy", "the", "a", "an", "to", "of", "my",
+    ]
+
     static let defaultImageWidth = 1200
+
+    /// “800 px” → 800; “a la mitad” or “al 25 %” → that share of the image's width.
+    static func requestedWidth(_ request: String, file: String?, inventory: ToolInventory) -> Int? {
+        let words = normalized(request)
+        var fraction: Double?
+        if let percent = words.firstMatch(of: /(\d{1,3})\s*(%|por ?ciento)/), let value = Double(percent.1) {
+            fraction = value / 100
+        } else if words.contains("mitad") {
+            fraction = 0.5
+        } else if words.contains("tercio") {
+            fraction = 1.0 / 3
+        } else if words.contains("cuarta parte") || words.contains("un cuarto") {
+            fraction = 0.25
+        }
+        if let fraction {
+            guard let file, let width = imageWidth(of: file, in: inventory.directory) else { return nil }
+            return max(1, Int((Double(width) * fraction).rounded()))
+        }
+        return words.firstMatch(of: /(\d{2,5})/).flatMap { Int($0.1) }
+    }
+
+    static func imageWidth(of file: String, in directory: String) -> Int? {
+        let url = file.hasPrefix("/") ? URL(filePath: file) : URL(filePath: directory, directoryHint: .isDirectory).appending(path: file)
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return nil }
+        return properties[kCGImagePropertyPixelWidth] as? Int
+    }
 
     private static let audioWords = ["audio", "sonido", "voz", "grabacion", "mp3", "m4a", "wav", "whatsapp", "podcast", "cancion", "musica"]
     private static let videoWords = ["video", "mov", "mp4", "clip", "pelicula", "grabacion de pantalla"]
     /// Words that ask for a smaller or converted file, or one ready to send.
     private static let shrinkWords = ["comprim", "achic", "reduc", "liviano", "pesa", "peso", "convert", "pasar a", "chico",
                                       "mp3", "m4a", "whatsapp", "mandar", "enviar", "correo", "mail"]
+    private static let sizeWords = ["mitad", "tercio", "%", "por ciento", "achic", "redimension", "tamano", "ancho", "px", "agrand", "reduc", "pequen", "mas chica", "mas grande"]
     private static let imageWords = ["imagen", "foto", "logo", "png", "jpg", "jpeg", "heic"]
 
     /// The action a request clearly asks for by its words alone.
@@ -228,7 +549,7 @@ nonisolated enum AssistantEngine {
         func mentions(_ keys: [String]) -> Bool { keys.contains { words.contains($0) } }
         if mentions(audioWords), mentions(shrinkWords) { return .compressAudio }
         if mentions(videoWords), mentions(shrinkWords + ["720"]) { return .compressVideo }
-        if mentions(imageWords), mentions(["achic", "redimension", "tamano", "ancho", "px", "agranda"]) { return .resizeImage }
+        if mentions(imageWords), mentions(sizeWords) { return .resizeImage }
         if mentions(["zip", "empaquet"]) { return .zipFiles }
         return nil
     }
@@ -255,16 +576,18 @@ nonisolated enum AssistantEngine {
 
     static func build(steps: [AssistantStep], request: String, inventory: ToolInventory) -> AssistantReply {
         guard !steps.isEmpty else {
-            if let tool = ToolCatalog.match(request) {
+            if let smallTalk = smallTalkReply(to: normalized(request), inventory: inventory) {
+                return smallTalk
+            }
+            if let recipe = bestRecipe(for: request) {
+                return useRecipe(recipe, request: request, inventory: inventory)
+            }
+            if let tool = ToolCatalog.match(request, minimumScore: 4) {
                 return recommend(tool, inventory: inventory)
             }
-            if let recipe = bestRecipe(for: request), recipe.parameters.isEmpty {
-                return AssistantReply(
-                    explanation: String(localized: "Puedo hacerlo con la receta “\(recipe.title)”."),
-                    proposals: [AssistantProposal(command: recipe.command(with: [:]), tool: String(localized: "receta"))]
-                )
-            }
-            return .failure(String(localized: "No encontré una herramienta para eso. Cuéntame qué quieres lograr, por ejemplo “comprimir este audio” o “descargar un video de YouTube”, o busca en Recetas (⌘K)."))
+            var reply = AssistantReply.failure(String(localized: "Todavía no sé hacer eso. Prueba con algo como:"))
+            reply.extras.examples = examples(for: inventory)
+            return reply
         }
         if let step = steps.first(where: { $0.needsFile && $0.file == nil }) {
             return askForFile(for: step, inventory: inventory)
@@ -317,16 +640,13 @@ nonisolated enum AssistantEngine {
 
     /// Nothing built-in fits: recommend a well-known tool, installing it if needed.
     static func recommend(_ tool: CatalogTool, inventory: ToolInventory) -> AssistantReply {
-        let installed = inventory.has(tool.command) || inventory.brew.contains { $0.name == tool.id }
-        if installed {
-            var explanation = String(localized: "Para eso sirve \(tool.title), y ya la tienes instalada: \(tool.detail.lowercasedFirst)")
-            if let example = tool.example {
-                explanation += " " + String(localized: "Por ejemplo: \(example)")
-            }
-            return AssistantReply(
-                explanation: explanation,
-                proposals: [AssistantProposal(command: "\(tool.command) --help", tool: "\(tool.title) · \(inventory.source(of: tool.command))")]
+        if isInstalled(tool, inventory: inventory) {
+            var reply = AssistantReply(
+                explanation: String(localized: "Para eso sirve \(tool.title), que ya tienes: \(tool.detail.lowercasedFirst) Se usa así; edítalo con tus datos:"),
+                proposals: []
             )
+            reply.extras.template = tool.example ?? "\(tool.command) --help"
+            return reply
         }
         let explanation = String(localized: "Para eso sirve \(tool.title): \(tool.detail.lowercasedFirst) No la tienes; puedo instalarla con Homebrew.")
         return AssistantReply(
@@ -451,13 +771,78 @@ nonisolated enum AssistantEngine {
         return "\(base)-\(suffix).\(ext)"
     }
 
-    static func bestRecipe(for request: String) -> Recipe? {
-        let words = Set(normalized(request).split(separator: " ").map(String.init).filter { $0.count > 3 })
-        let scored = RecipeBook.all.map { recipe -> (Recipe, Int) in
-            let haystack = normalized(([recipe.title, recipe.detail] + recipe.keywords).joined(separator: " "))
-            return (recipe, words.count { haystack.contains($0) })
+    /// A recipe that matches, filled with what the request says (“llamada
+    /// Fotos”, “la palabra TODO”, “el puerto 3000”).
+    static func useRecipe(_ recipe: Recipe, request: String, inventory: ToolInventory) -> AssistantReply {
+        var values: [String: String] = [:]
+        if let text = requestedText(in: request), let parameter = recipe.parameters.first(where: { $0.kind == .text }) {
+            values[parameter.id] = text
         }
-        return scored.filter { $0.1 >= 2 }.max { $0.1 < $1.1 }?.0
+        if let parameter = recipe.parameters.first(where: { $0.kind == .number }),
+           let number = request.firstMatch(of: /\b(\d{1,6})\b/) {
+            values[parameter.id] = String(number.1)
+        }
+        let words = normalized(request)
+        for parameter in recipe.parameters where values[parameter.id] == nil && (parameter.kind == .file || parameter.kind == .folder) {
+            if let file = inventory.files.first(where: { mentionsFile($0, in: words) }) { values[parameter.id] = file.path }
+        }
+        let command = recipe.command(with: values)
+        let tool = String(command.prefix { $0 != " " })
+        var explanation = String(localized: "Voy a \(recipe.title.lowercasedFirst).")
+        if let example = recipe.parameters.first(where: { values[$0.id] == nil && $0.defaultValue == nil }) {
+            explanation += " " + String(localized: "Puse “\(example.placeholder)” de ejemplo; cámbialo con Editar si quieres otro.")
+        }
+        return AssistantReply(
+            explanation: explanation,
+            proposals: [AssistantProposal(command: command, tool: "\(tool) · \(inventory.source(of: tool))")]
+        )
+    }
+
+    /// The name or text a request gives: “llamada Fotos 2026”, “la palabra
+    /// TODO”, or anything in quotes.
+    static func requestedText(in request: String) -> String? {
+        let quoted = /["“'«]([^"”'»]+)["”'»]/
+        let named = /(?i)(?:llamad[oa]|que se llame|con el nombre(?: de)?|de nombre|named|called)\s+([^?.!,]+)/
+        // “la palabra TODO en el proyecto” → “TODO”.
+        let text = /(?i)(?:la palabra|el texto|la frase)\s+(\S+(?:\s+\S+)*?)(?:\s+(?:en|dentro de|del|de la)\s+.*)?[?.!]?$/
+        let found = request.firstMatch(of: quoted).map { String($0.1) }
+            ?? request.firstMatch(of: named).map { String($0.1) }
+            ?? request.firstMatch(of: text).map { String($0.1) }
+        let value = found?.trimmingCharacters(in: .whitespaces)
+        return value?.isEmpty == false ? value : nil
+    }
+
+    /// Requests to try, picked for what this folder has.
+    static func examples(for inventory: ToolInventory) -> [String] {
+        var examples: [String] = []
+        if let script = ["dev", "start", "storybook"].first(where: inventory.scripts.contains) {
+            examples.append(script == "storybook"
+                ? String(localized: "Corre storybook")
+                : String(localized: "Corre el servidor de desarrollo"))
+        }
+        if let git = inventory.git, git.changes > 0 {
+            examples.append(String(localized: "Sube mis cambios a GitHub"))
+        }
+        if inventory.files.contains(where: { $0.kind == .audio || $0.kind == .video }) {
+            examples.append(String(localized: "Comprime un audio"))
+        }
+        examples += [
+            String(localized: "¿Qué ocupa espacio en esta carpeta?"),
+            String(localized: "Crea una carpeta llamada Proyectos"),
+            String(localized: "Descarga un video de YouTube"),
+            String(localized: "Comprime un audio"),
+        ]
+        var seen = Set<String>()
+        return examples.filter { seen.insert($0).inserted }.prefix(4).map { $0 }
+    }
+
+    /// The recipe that clearly matches by words alone (used without the model).
+    static func bestRecipe(for request: String) -> Recipe? {
+        let words = normalized(request)
+        // Two shared words, or every word of a short request (“¿cuál es mi ip?”).
+        let needed = min(2, max(1, keywords(in: words).count))
+        let scored = RecipeBook.all.map { ($0, overlap(words, $0)) }
+        return scored.filter { $0.1 >= needed }.max { $0.1 < $1.1 }?.0
     }
 
     static func normalized(_ text: String) -> String {

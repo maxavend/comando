@@ -32,7 +32,9 @@ struct IntentDetectorTests {
         #expect(!IntentDetector.isPlainLanguage("./build.sh release", knownCommands: known))
         #expect(!IntentDetector.isPlainLanguage("cd Documentos", knownCommands: known))
         #expect(!IntentDetector.isPlainLanguage("foo --bar", knownCommands: known))
-        #expect(!IntentDetector.isPlainLanguage("hola", knownCommands: known))
+        #expect(!IntentDetector.isPlainLanguage("htop", knownCommands: known))
+        #expect(IntentDetector.isPlainLanguage("Hola", knownCommands: known))
+        #expect(IntentDetector.isPlainLanguage("gracias!", knownCommands: known))
     }
 
     @Test func plainWordsGoToTheAssistant() {
@@ -140,8 +142,10 @@ struct AssistantBuilderTests {
 
         let installed = AssistantEngine.build(steps: [], request: "quiero descargar un video de youtube",
                                               inventory: inventory(executables: ["yt-dlp", "brew"]))
-        #expect(installed.proposals.map(\.command) == ["yt-dlp --help"])
-        #expect(installed.explanation.contains("ya la tienes"))
+        // Already installed: how to use it, to complete before running.
+        #expect(installed.proposals.isEmpty)
+        #expect(installed.extras.template == "yt-dlp 'https://youtu.be/…'")
+        #expect(installed.explanation.contains("ya tienes"))
     }
 
     @Test func installUsesTheCatalogPackageName() {
@@ -154,6 +158,51 @@ struct AssistantBuilderTests {
         #expect(TerminalController.changesInstalledTools("cd x && npm uninstall -g foo"))
         #expect(!TerminalController.changesInstalledTools("brew info ffmpeg"))
         #expect(!TerminalController.changesInstalledTools("ls install"))
+    }
+
+    @Test func smallTalkIsAnsweredWithoutTheModel() {
+        #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("Hola, ¿qué tal?"), inventory: inventory())?.extras.examples.count == 4)
+        #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("¡Muchas gracias!"), inventory: inventory()) != nil)
+        // A greeting followed by a request is a request.
+        #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("Hola, ¿cómo comprimo un audio?"), inventory: inventory()) == nil)
+    }
+
+    @Test func recipesTakeNamesAndNumbersFromTheRequest() {
+        #expect(AssistantEngine.requestedText(in: "crea una carpeta llamada Fotos 2026") == "Fotos 2026")
+        #expect(AssistantEngine.requestedText(in: "busca la palabra TODO en el proyecto") == "TODO")
+        #expect(AssistantEngine.requestedText(in: "busca “hola mundo”") == "hola mundo")
+        let mkdir = RecipeBook.all.first { $0.id == "mkdir" }!
+        #expect(AssistantEngine.useRecipe(mkdir, request: "crea una carpeta llamada Fotos", inventory: inventory()).proposals.first?.command == "mkdir Fotos")
+        let port = RecipeBook.all.first { $0.id == "port" }!
+        #expect(AssistantEngine.useRecipe(port, request: "¿qué usa el puerto 5173?", inventory: inventory()).proposals.first?.command.contains("5173") == true)
+        #expect(AssistantEngine.bestRecipe(for: "¿cuál es mi ip?")?.id == "ip")
+    }
+
+    @Test func deletingMovesToTheTrash() {
+        let src = ToolInventory.FileInfo(name: "src", path: "src", kind: .folder, size: 0)
+        let reply = AssistantEngine.trashReply(for: "borra todo lo que hay en src", inventory: inventory(files: [src]))
+        #expect(reply?.proposals.first?.command == "trash src/*")
+        #expect(AssistantEngine.trashReply(for: "borra el archivo fantasma.txt", inventory: inventory(files: [src])) == nil)
+    }
+
+    @Test func writtenCommandsAreChecked() {
+        let context = inventory(executables: ["wc", "git", "du", "sort", "head", "curl"])
+        #expect(AssistantEngine.checkCommand("wc -l notas.md", request: "líneas de notas.md", inventory: context)?.isGenerated == true)
+        #expect(AssistantEngine.checkCommand("du -sh * | sort -rh | head -5", request: "lo más pesado", inventory: context) != nil)
+        #expect(AssistantEngine.checkCommand("sudo du -sh /", request: "espacio", inventory: context) == nil)
+        #expect(AssistantEngine.checkCommand("rm -rf build", request: "limpia", inventory: context) == nil)
+        #expect(AssistantEngine.checkCommand("inventado --flag", request: "algo", inventory: context) == nil)
+        #expect(AssistantEngine.checkCommand("curl https://youtu.be/x", request: "descarga un video", inventory: context) == nil)
+        #expect(AssistantEngine.checkCommand("echo hola > README.md", request: "qué es npm", inventory: context) == nil)
+        #expect(AssistantEngine.checkCommand("git log --oneline | head -", request: "historial", inventory: context) != nil)
+        #expect(AssistantEngine.checkCommand("echo 'sin cerrar", request: "algo", inventory: context) == nil)
+        // A known tool that isn't installed comes with an Install button.
+        #expect(AssistantEngine.checkCommand("gs -o chico.pdf grande.pdf", request: "comprime el pdf", inventory: context)?.missingPackage == "ghostscript")
+    }
+
+    @Test func catalogMatchesWordForms() {
+        #expect(ToolCatalog.match("comprime un pdf")?.id == "ghostscript")
+        #expect(ToolCatalog.match("descarga un archivo de internet")?.id == "wget")
     }
 
     @Test func onlyOneStepUnlessAskedForSeveral() {

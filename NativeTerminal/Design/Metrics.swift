@@ -29,6 +29,14 @@ nonisolated enum Metrics {
     static let bubbleCornerRadius: CGFloat = 16
     /// Space kept free beside a bubble, so commands and replies read as two sides.
     static let bubbleOppositeInset: CGFloat = 64
+    /// Space between the blocks of a rich reply (text, command, buttons).
+    static let replyBlockSpacing: CGFloat = 10
+    /// A command shown inside a reply, set in a recessed “well”.
+    static let wellCornerRadius: CGFloat = 8
+    static let wellHorizontalPadding: CGFloat = 10
+    static let wellVerticalPadding: CGFloat = 6
+    /// Space between small buttons and chips laid out in a row.
+    static let chipSpacing: CGFloat = 6
     /// Larger surfaces in the transcript, such as the embedded terminal.
     static let cardCornerRadius: CGFloat = 16
     static let embeddedTerminalHeight: CGFloat = 440

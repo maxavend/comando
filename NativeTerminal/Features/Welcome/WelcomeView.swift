@@ -79,6 +79,11 @@ struct WelcomeStep {
             message: "Escribe un comando como si enviaras un mensaje. La respuesta llega en una burbuja, con una explicación de lo que hizo el comando."
         ),
         WelcomeStep(
+            symbol: "apple.intelligence",
+            title: "Pídelo con tus palabras",
+            message: "¿No sabes el comando? Escribe lo que quieres, como “comprime este audio”, y Apple Intelligence te propone cómo hacerlo, aquí en tu Mac."
+        ),
+        WelcomeStep(
             symbol: "folder",
             title: "Siempre sabes dónde estás",
             message: "Arriba ves la carpeta en la que trabajas. Cámbiala con el botón de carpeta, arrastrando una carpeta al chat o haciendo clic en una carpeta de la lista."

@@ -40,10 +40,19 @@ nonisolated struct ToolInventory: Sendable {
 
     func has(_ tool: String) -> Bool { executables.contains(tool) }
 
+    /// Commands that come with macOS.
+    static let builtIn: Set<String> = [
+        "afconvert", "avconvert", "sips", "zip", "unzip", "git", "open", "networkQuality", "mkdir", "touch", "ls",
+        "find", "grep", "du", "df", "pbcopy", "ping", "ipconfig", "top", "ps", "pmset", "sw_vers", "caffeinate",
+        "lsof", "python3", "cd", "pwd", "cat", "cp", "mv", "trash",
+    ]
+
     /// Where a tool comes from, for the reply (“incluida en macOS”, “Homebrew”…).
     func source(of tool: String) -> String {
-        if ["afconvert", "avconvert", "sips", "zip", "unzip", "git", "open", "networkQuality"].contains(tool),
-           !brew.contains(where: { $0.name == tool }) {
+        if !brew.contains(where: { $0.name == tool }),
+           Self.builtIn.contains(tool) || ["/usr/bin", "/bin", "/usr/sbin", "/sbin"].contains(where: {
+               FileManager.default.isExecutableFile(atPath: "\($0)/\(tool)")
+           }) {
             return String(localized: "incluida en macOS")
         }
         if brew.contains(where: { $0.name == tool }) { return "Homebrew" }

@@ -153,17 +153,32 @@ nonisolated enum ToolCatalog {
     }
 
     /// The tool that best fits a request, if one clearly does.
-    static func match(_ request: String) -> CatalogTool? {
-        let words = " " + AssistantEngine.normalized(request) + " "
-        let scored = all.map { tool -> (CatalogTool, Int) in
-            var score = tool.keywords.reduce(0) { total, keyword in
-                // Phrases weigh more than single words.
-                words.contains(keyword) ? total + (keyword.contains(" ") ? 3 : 2) : total
-            }
-            if words.contains(" \(tool.id) ") || words.contains(" \(tool.command) ") { score += 4 }
-            return (tool, score)
+    static func match(_ request: String, minimumScore: Int = 2) -> CatalogTool? {
+        let words = AssistantEngine.normalized(request)
+        let scored = all.map { ($0, score($0, for: words)) }
+        return scored.filter { $0.1 >= minimumScore }.max { $0.1 < $1.1 }?.0
+    }
+
+    /// How strongly normalized request words point at a tool. Phrases weigh
+    /// more than single words, and naming the tool weighs most.
+    static func score(_ tool: CatalogTool, for normalizedWords: String) -> Int {
+        let request = AssistantEngine.keywords(in: normalizedWords)
+        var score = tool.keywords.reduce(0) { total, keyword in
+            // Every meaningful word of the keyword must be in the request, in
+            // any form (“comprime un pdf” matches “comprimir pdf”).
+            let parts = AssistantEngine.keywords(in: keyword)
+            guard !parts.isEmpty, parts.allSatisfy({ part in request.contains { sameStem($0, part) } }) else { return total }
+            return total + (parts.count > 1 ? 3 : 2)
         }
-        return scored.filter { $0.1 >= 2 }.max { $0.1 < $1.1 }?.0
+        if request.contains(tool.id) || request.contains(tool.command) { score += 4 }
+        return score
+    }
+
+    /// “comprime” and “comprimir” share a stem; short words must match exactly.
+    static func sameStem(_ a: String, _ b: String) -> Bool {
+        if a == b { return true }
+        let common = zip(a, b).prefix { $0 == $1 }.count
+        return common >= 5 || (common >= 4 && min(a.count, b.count) <= 5 && common == min(a.count, b.count))
     }
 
     /// A more capable tool to mention next to a built-in one.

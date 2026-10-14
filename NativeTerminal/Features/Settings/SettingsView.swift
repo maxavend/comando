@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -50,7 +51,7 @@ struct SettingsView: View {
                 Text("Asistente")
             } footer: {
                 Text(AssistantEngine.unavailableReason
-                     ?? String(localized: "Usa Apple Intelligence en este Mac para elegir el comando y la herramienta instalada que mejor sirven. Siempre te muestra el comando antes de ejecutarlo."))
+                     ?? String(localized: "Usa Apple Intelligence en este Mac para proponerte comandos, recetas y herramientas, y para responder tus preguntas. Nada se ejecuta sin que lo apruebes."))
             }
 
             Section {
@@ -74,6 +75,13 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        // Opens with nothing focused, so the commands field isn't selected.
+        .task {
+            try? await Task.sleep(for: .milliseconds(50))
+            NSApp.windows
+                .first { $0.identifier?.rawValue.localizedCaseInsensitiveContains("settings") == true }?
+                .makeFirstResponder(nil)
+        }
         // With scrolling off, the grouped form reports its full height and the
         // settings window fits it exactly.
         .scrollDisabled(true)
