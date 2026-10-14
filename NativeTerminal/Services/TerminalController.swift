@@ -15,6 +15,8 @@ final class TerminalController {
     }
     /// An entry the chat should scroll to (from search results).
     var focusedEntryID: UUID?
+    /// Presents the folder picker of the selected session (“Ir a una carpeta…”).
+    var isPickingFolder = false
 
     private(set) var shells: [UUID: ShellSession] = [:]
 
@@ -171,6 +173,21 @@ final class TerminalController {
         submit(entry.command, in: session)
     }
 
+    // MARK: - Folders
+
+    /// Moves the session's shell to `folder` by running a visible `cd`, so
+    /// people see (and learn) the command behind the action.
+    func navigate(to folder: String, in session: TerminalSession) {
+        guard !(shells[session.id]?.isBusy ?? false) else { return }
+        submit("cd " + ShellEscape.path(URL(filePath: folder, directoryHint: .isDirectory)), in: session)
+    }
+
+    func navigateUp(in session: TerminalSession) {
+        let current = shells[session.id]?.directory ?? session.directory
+        guard current != "/" else { return }
+        submit("cd ..", in: session)
+    }
+
     // MARK: - Search
 
     func search(_ text: String, in sessionID: UUID?) -> [CommandEntry] {
@@ -238,6 +255,12 @@ extension TerminalController: ShellSessionDelegate {
     func shellSession(_ shell: ShellSession, didChangeDirectory directory: String) {
         guard let session = session(withID: shell.id) else { return }
         session.directory = directory
+        session.remember(directory)
+        // The shell reports the new folder right after the command that changed it.
+        if let latest = session.entries.max(by: { $0.startedAt < $1.startedAt }),
+           latest.isFinished, latest.endDirectory == nil, latest.directory != directory {
+            latest.endDirectory = directory
+        }
         save()
     }
 
@@ -253,6 +276,15 @@ extension TerminalController: ShellSessionDelegate {
         let rendered = OutputRenderer.render(raw: result.output)
         RenderCache.shared[entry] = rendered
         entry.plainOutput = String(rendered.plainText.prefix(CommandEntry.plainOutputLimit))
+        if let hint = ErrorExplainer.hint(
+            command: entry.command,
+            output: rendered.plainText,
+            exitCode: entry.exitCode,
+            knownCommands: ExecutableIndex.shared.names(for: shell.pathEntries)
+        ) {
+            entry.hintMessage = hint.message
+            entry.hintSuggestion = hint.suggestion
+        }
 
         guard let session = entry.session else { return }
         session.lastActivity = result.finishedAt

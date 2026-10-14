@@ -24,12 +24,48 @@ struct ComposerView: View {
     @State private var savedDraft = ""
     @State private var isImporting = false
     @State private var completions = CompletionProvider()
+    @State private var candidates: [Completion] = []
+    @State private var selection = 0
+    /// Text for which the user closed the panel with Esc.
+    @State private var dismissedText: String?
 
     private var phase: ShellSession.Phase { shell?.phase ?? .notStarted }
     private var isRunning: Bool { phase == .running || phase == .interactive }
     private var isPasswordPrompt: Bool { phase == .running && (shell?.echoDisabled ?? false) }
 
     var body: some View {
+        VStack(spacing: 0) {
+            // A zero-height anchor: the panel grows upward from the composer's top
+            // edge without changing the composer's height, so nothing moves while typing.
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: 0)
+                .overlay(alignment: .bottom) {
+                    if showsPanel {
+                        CompletionPanel(candidates: candidates, selection: selection, onSelect: accept)
+                            .padding(.horizontal, Metrics.composerControlSize + Metrics.composerSpacing)
+                            .padding(.bottom, Metrics.composerSpacing)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            controls
+        }
+        .padding(.leading, Metrics.contentInset)
+        .padding(.trailing, Metrics.contentInset + trailingInset)
+        .padding(.vertical, Metrics.composerVerticalPadding)
+        .onAppear { isFocused = true }
+        .onChange(of: phase) { _, newPhase in
+            if newPhase == .idle { isFocused = true }
+        }
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [.item, .folder],
+            allowsMultipleSelection: true
+        ) { result in
+            if case .success(let urls) = result { insert(urls) }
+        }
+    }
+
+    private var controls: some View {
         GlassEffectContainer(spacing: Metrics.composerSpacing) {
             HStack(alignment: .bottom, spacing: Metrics.composerSpacing) {
                 actionsMenu
@@ -49,20 +85,6 @@ struct ComposerView: View {
                     .keyboardShortcut(.return, modifiers: .command)
                     .help("Enviar (↩)")
             }
-        }
-        .padding(.leading, Metrics.contentInset)
-        .padding(.trailing, Metrics.contentInset + trailingInset)
-        .padding(.vertical, Metrics.composerVerticalPadding)
-        .onAppear { isFocused = true }
-        .onChange(of: phase) { _, newPhase in
-            if newPhase == .idle { isFocused = true }
-        }
-        .fileImporter(
-            isPresented: $isImporting,
-            allowedContentTypes: [.item, .folder],
-            allowsMultipleSelection: true
-        ) { result in
-            if case .success(let urls) = result { insert(urls) }
         }
     }
 
@@ -87,24 +109,24 @@ struct ComposerView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: fontSize, design: .monospaced))
                 .lineLimit(1...8)
+                .background(alignment: .topLeading) { ghost }
                 .focused($isFocused)
                 .disabled(phase == .interactive)
                 .onSubmit(submit)
-                .textInputSuggestions(suggestions) { completion in
-                    Label(completion.title, systemImage: completion.systemImage)
-                        .textInputCompletion(completion.completion)
-                }
-                .onKeyPress(.upArrow) { browseHistory(by: -1) }
-                .onKeyPress(.downArrow) { browseHistory(by: 1) }
+                .onKeyPress(.upArrow) { moveUp() }
+                .onKeyPress(.downArrow) { moveDown() }
                 .onKeyPress(.tab) { completeWithTab() }
+                .onKeyPress(.escape) { dismissPanel() }
                 .onKeyPress(characters: ["c"], phases: .down) { press in
                     guard press.modifiers == .control, isRunning else { return .ignored }
                     shell?.interrupt()
                     return .handled
                 }
-                .onChange(of: text) {
+                .onChange(of: text, initial: true) {
                     if historyIndex != nil, text != currentHistoryText { historyIndex = nil }
+                    updateCandidates()
                 }
+                .onChange(of: directory) { updateCandidates() }
                 .dropDestination(for: URL.self) { urls, _ in
                     insert(urls)
                 }
@@ -195,7 +217,7 @@ struct ComposerView: View {
 
     private func browseHistory(by offset: Int) -> KeyPress.Result {
         // Only take over the arrows on a single line, when not editing a draft.
-        guard !history.isEmpty, !text.contains("\n"), suggestions.isEmpty || historyIndex != nil else { return .ignored }
+        guard !history.isEmpty, !text.contains("\n") else { return .ignored }
         guard text.isEmpty || historyIndex != nil else { return .ignored }
         if historyIndex == nil {
             guard offset < 0 else { return .ignored }
@@ -215,21 +237,71 @@ struct ComposerView: View {
 
     // MARK: - Completion
 
-    private var suggestions: [Completion] {
-        guard !isRunning, historyIndex == nil else { return [] }
-        return completions.suggestions(
+    /// The rest of the selected candidate, drawn in gray after the typed text.
+    private var ghost: some View {
+        Text("\(Text(text).foregroundStyle(.clear))\(Text(ghostRemainder).foregroundStyle(.tertiary))")
+            .font(.system(size: fontSize, design: .monospaced))
+            .lineLimit(1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private var ghostRemainder: String {
+        guard isFocused, !text.isEmpty, !text.contains("\n"), candidates.indices.contains(selection) else { return "" }
+        let completion = candidates[selection].completion
+        guard completion.hasPrefix(text) else { return "" }
+        return String(completion.dropFirst(text.count))
+    }
+
+    private var showsPanel: Bool {
+        isFocused && !isRunning && dismissedText != text && candidates.count > 1
+    }
+
+    private func updateCandidates() {
+        selection = 0
+        guard !isRunning, historyIndex == nil else {
+            candidates = []
+            return
+        }
+        candidates = completions.suggestions(
             for: text,
             directory: directory,
             pathEntries: shell?.pathEntries ?? [],
-            history: history
+            history: history,
+            limit: 6
         )
+    }
+
+    private func accept(_ candidate: Completion) {
+        text = candidate.completion
+        isFocused = true
     }
 
     private func completeWithTab() -> KeyPress.Result {
         guard !isRunning else { return .ignored }
-        if let completed = completions.tabCompletion(for: text, directory: directory, pathEntries: shell?.pathEntries ?? []) {
+        if candidates.indices.contains(selection) {
+            accept(candidates[selection])
+        } else if let completed = completions.tabCompletion(for: text, directory: directory, pathEntries: shell?.pathEntries ?? []) {
             text = completed
         }
+        return .handled
+    }
+
+    private func moveUp() -> KeyPress.Result {
+        guard showsPanel else { return browseHistory(by: -1) }
+        selection = (selection - 1 + candidates.count) % candidates.count
+        return .handled
+    }
+
+    private func moveDown() -> KeyPress.Result {
+        guard showsPanel else { return browseHistory(by: 1) }
+        selection = (selection + 1) % candidates.count
+        return .handled
+    }
+
+    private func dismissPanel() -> KeyPress.Result {
+        guard showsPanel else { return .ignored }
+        dismissedText = text
         return .handled
     }
 }

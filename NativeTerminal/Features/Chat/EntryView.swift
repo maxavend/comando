@@ -19,15 +19,23 @@ struct EntryView: View {
                     directory: showsDirectory ? entry.directory : nil
                 )
             }
-            CommandBubble(command: entry.command)
-                .contextMenu { commandMenu }
-                .padding(.leading, Metrics.bubbleOppositeInset)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
+                CommandBubble(command: entry.command)
+                    .contextMenu { commandMenu }
+                if let description = CommandGlossary.describe(entry.command) {
+                    CommandDescription(text: description)
+                }
+            }
+            .padding(.leading, Metrics.bubbleOppositeInset)
+            .frame(maxWidth: .infinity, alignment: .trailing)
 
             if let shell, let live, live.entryID == entry.id {
                 LiveResponseView(live: live, shell: shell)
             } else {
-                FinishedResponseView(entry: entry, onRerun: rerun)
+                FinishedResponseView(entry: entry, onRerun: rerun, onEdit: onEdit)
+                if let folder = entry.movedTo {
+                    LocationNotice(folder: folder)
+                }
             }
         }
         .padding(.top, Metrics.exchangeSpacing)
@@ -59,8 +67,9 @@ struct EntryView: View {
         return entry.startedAt.timeIntervalSince(previous.startedAt) > 15 * 60
     }
 
+    /// Shown when the folder differs from where the previous exchange left off.
     private var showsDirectory: Bool {
         guard let previous else { return true }
-        return previous.directory != entry.directory
+        return (previous.endDirectory ?? previous.directory) != entry.directory
     }
 }

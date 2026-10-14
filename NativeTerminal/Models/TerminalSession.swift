@@ -12,9 +12,17 @@ final class TerminalSession {
     var lastActivity: Date = Date.now
     var lastCommand: String?
     var unreadCount: Int = 0
+    /// Folders visited in this session, most recent first.
+    var recentDirectories: [String] = []
 
     @Relationship(deleteRule: .cascade, inverse: \CommandEntry.session)
     var entries: [CommandEntry] = []
+
+    func remember(_ folder: String) {
+        recentDirectories.removeAll { $0 == folder }
+        recentDirectories.insert(folder, at: 0)
+        if recentDirectories.count > 8 { recentDirectories.removeLast(recentDirectories.count - 8) }
+    }
 
     init(directory: String) {
         self.directory = directory
@@ -22,8 +30,6 @@ final class TerminalSession {
 
     var displayName: String {
         if let customName, !customName.isEmpty { return customName }
-        let abbreviated = ShellEscape.abbreviate(directory)
-        if abbreviated == "~" || abbreviated == "/" { return abbreviated }
-        return URL(filePath: directory).lastPathComponent
+        return FolderName.display(directory)
     }
 }

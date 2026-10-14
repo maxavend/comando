@@ -2,13 +2,8 @@ import Foundation
 
 /// Suggests history, executables and paths for the command being typed.
 final class CompletionProvider {
-    private static let builtins = [
-        "alias", "bg", "cd", "echo", "exit", "export", "fg", "history", "jobs", "popd",
-        "pushd", "pwd", "source", "type", "unalias", "unset", "which",
-    ]
     private static let directoryCommands: Set<String> = ["cd", "pushd", "rmdir"]
 
-    private var executables: (path: [String], names: [String]) = ([], [])
     private var listings: [String: (date: Date, entries: [(name: String, isDirectory: Bool)])] = [:]
 
     func suggestions(
@@ -114,15 +109,7 @@ final class CompletionProvider {
     }
 
     private func commandNames(pathEntries: [String]) -> [String] {
-        if executables.path != pathEntries || executables.names.isEmpty {
-            var names = Set(Self.builtins)
-            for folder in pathEntries {
-                let items = (try? FileManager.default.contentsOfDirectory(atPath: folder)) ?? []
-                names.formUnion(items)
-            }
-            executables = (pathEntries, Array(names))
-        }
-        return executables.names
+        ExecutableIndex.shared.names(for: pathEntries)
     }
 
     private func listing(of folder: String) -> [(name: String, isDirectory: Bool)] {

@@ -12,10 +12,11 @@ struct ExchangeHeader: View {
                 Text(date.formatted(.dateTime.weekday(.wide).day().month().hour().minute()))
             }
             if let directory {
-                Label(ShellEscape.abbreviate(directory), systemImage: "folder")
+                Label(FolderName.breadcrumb(directory), systemImage: FolderName.systemImage(directory))
                     .lineLimit(1)
                     .truncationMode(.head)
-                    .accessibilityLabel("Carpeta \(ShellEscape.abbreviate(directory))")
+                    .help(ShellEscape.abbreviate(directory))
+                    .accessibilityLabel("Carpeta \(FolderName.display(directory))")
             }
         }
         .font(.caption)

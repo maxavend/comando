@@ -1,6 +1,7 @@
 import AppKit
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     let session: TerminalSession
@@ -58,7 +59,11 @@ struct ChatView: View {
         }
         .overlay {
             if entries.isEmpty {
-                EmptyChatView(directory: directory)
+                EmptyChatView(
+                    directory: directory,
+                    onRun: { controller.submit($0, in: session) },
+                    onPickFolder: { controller.isPickingFolder = true }
+                )
             }
         }
         .scrollPosition($position)
@@ -119,6 +124,11 @@ struct ChatView: View {
             controller.shell(for: session)
             updateColumns()
         }
+        .fileImporter(isPresented: pickingFolder, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                controller.navigate(to: url.path(percentEncoded: false), in: session)
+            }
+        }
         .alert("Renombrar sesión", isPresented: $isRenaming) {
             TextField("Nombre", text: $newName)
             Button("Renombrar") { controller.rename(session, to: newName) }
@@ -136,10 +146,7 @@ struct ChatView: View {
     @ToolbarContentBuilder
     private func toolbar(directory: String) -> some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button("Mostrar en Finder", systemImage: "folder") {
-                NSWorkspace.shared.open(URL(filePath: directory, directoryHint: .isDirectory))
-            }
-            .help("Mostrar la carpeta actual en Finder")
+            FolderMenu(session: session, directory: directory)
         }
         ToolbarItem(placement: .primaryAction) {
             Menu("Más", systemImage: "ellipsis") {
@@ -162,10 +169,18 @@ struct ChatView: View {
         }
     }
 
-    /// The folder path, unless the title already says it (e.g. “~”).
+    /// Where the session is, as Finder names it (“Inicio › Documentos”),
+    /// unless the title already says it all.
     private func subtitle(for directory: String) -> String {
-        let path = ShellEscape.abbreviate(directory)
-        return path == session.displayName ? "" : path
+        let breadcrumb = FolderName.breadcrumb(directory)
+        return breadcrumb == session.displayName ? "" : breadcrumb
+    }
+
+    private var pickingFolder: Binding<Bool> {
+        Binding(
+            get: { controller.isPickingFolder && controller.selectedSessionID == session.id },
+            set: { controller.isPickingFolder = $0 }
+        )
     }
 
     // MARK: - Layout

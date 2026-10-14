@@ -18,15 +18,15 @@ struct SessionRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Text(session.lastCommand ?? ShellEscape.abbreviate(session.directory))
-                    .font(.subheadline.monospaced())
+                Text(session.lastCommand ?? FolderName.breadcrumb(session.directory))
+                    .font(session.lastCommand == nil ? .subheadline : .subheadline.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }
         .padding(.vertical, Metrics.sidebarRowVerticalPadding)
         .badge(session.unreadCount)
-        .help(ShellEscape.abbreviate(session.directory))
+        .help(FolderName.breadcrumb(session.directory))
         .accessibilityElement(children: .combine)
         .accessibilityValue(isRunning ? Text("En ejecución") : Text(""))
     }

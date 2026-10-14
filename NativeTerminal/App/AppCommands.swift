@@ -16,6 +16,26 @@ struct AppCommands: Commands {
             .keyboardShortcut("t", modifiers: [.command, .option])
         }
 
+        CommandMenu("Ir") {
+            Group {
+                Button("Subir un nivel") { withSession { controller.navigateUp(in: $0) } }
+                    .keyboardShortcut(.upArrow, modifiers: .command)
+                Divider()
+                Button("Inicio") { go(to: NSHomeDirectory()) }
+                    .keyboardShortcut("h", modifiers: [.command, .shift])
+                Button("Escritorio") { go(to: NSHomeDirectory() + "/Desktop") }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Documentos") { go(to: NSHomeDirectory() + "/Documents") }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+                Button("Descargas") { go(to: NSHomeDirectory() + "/Downloads") }
+                    .keyboardShortcut("l", modifiers: [.command, .option])
+                Divider()
+                Button("Ir a una carpeta…") { controller.isPickingFolder = true }
+                    .keyboardShortcut("g", modifiers: [.command, .shift])
+            }
+            .disabled(controller.selectedShell?.isBusy ?? false)
+        }
+
         CommandMenu("Shell") {
             Button("Detener comando") {
                 controller.selectedShell?.interrupt()
@@ -60,5 +80,13 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("[", modifiers: [.command, .shift])
         }
+    }
+
+    private func withSession(_ action: (TerminalSession) -> Void) {
+        if let session = controller.selectedSession { action(session) }
+    }
+
+    private func go(to folder: String) {
+        withSession { controller.navigate(to: folder, in: $0) }
     }
 }

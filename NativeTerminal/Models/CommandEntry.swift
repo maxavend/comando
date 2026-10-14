@@ -23,6 +23,11 @@ final class CommandEntry {
     /// Final text of an embedded-terminal program (e.g. an ssh or python session).
     var transcript: String?
     var truncated: Bool = false
+    /// Folder the shell was in after the command, when the command changed it.
+    var endDirectory: String?
+    /// Plain-language explanation of a failure, and a command to try instead.
+    var hintMessage: String?
+    var hintSuggestion: String?
     var session: TerminalSession?
 
     init(command: String, directory: String, session: TerminalSession) {
@@ -42,6 +47,15 @@ final class CommandEntry {
     var wasInterrupted: Bool { finishedAt != nil && exitCode == nil }
 
     var succeeded: Bool { exitCode == 0 }
+
+    /// Stopped with ⌃C or the Stop button.
+    var wasStopped: Bool { exitCode == ErrorExplainer.interruptedStatus }
+
+    /// The folder change this command caused, if any.
+    var movedTo: String? {
+        guard let endDirectory, endDirectory != directory else { return nil }
+        return endDirectory
+    }
 
     var duration: Duration? {
         guard let finishedAt else { return nil }

@@ -15,6 +15,16 @@ struct Completion: Identifiable, Hashable {
 
     var id: String { completion }
 
+    /// What the candidate is, in plain words.
+    var detail: String {
+        switch kind {
+        case .history: String(localized: "Usado antes")
+        case .command: CommandGlossary.describe(title) ?? String(localized: "Comando")
+        case .directory: String(localized: "Carpeta")
+        case .file: String(localized: "Archivo")
+        }
+    }
+
     var systemImage: String {
         switch kind {
         case .history: "clock.arrow.circlepath"

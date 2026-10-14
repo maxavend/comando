@@ -4,6 +4,7 @@ import SwiftUI
 struct FinishedResponseView: View {
     let entry: CommandEntry
     let onRerun: () -> Void
+    let onEdit: (String) -> Void
 
     @State private var rendered: RenderedOutput?
     @State private var isShowingAll = false
@@ -32,6 +33,9 @@ struct FinishedResponseView: View {
                 }
             }
             ReceiptView(entry: entry)
+            if let message = entry.hintMessage {
+                HintView(message: message, suggestion: entry.hintSuggestion, onUseSuggestion: onEdit)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: entry.finishedAt) {
