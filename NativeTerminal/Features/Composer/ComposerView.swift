@@ -43,7 +43,7 @@ struct ComposerView: View {
                     .labelStyle(.iconOnly)
                     .buttonStyle(.glass)
                     .buttonBorderShape(.circle)
-                    .controlSize(.large)
+                    .controlSize(.extraLarge)
                     .tint(.red)
                     .help("Interrumpir el comando (⌘.)")
                 }
@@ -53,7 +53,7 @@ struct ComposerView: View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
-                .controlSize(.large)
+                .controlSize(.extraLarge)
                 .disabled(!canSubmit)
                 .keyboardShortcut(.return, modifiers: .command)
                 .help("Enviar (↩)")
@@ -139,10 +139,11 @@ struct ComposerView: View {
             Label("Acciones", systemImage: "plus")
         }
         .labelStyle(.iconOnly)
+        .menuStyle(.button)
         .menuIndicator(.hidden)
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
-        .controlSize(.large)
+        .controlSize(.extraLarge)
         .help("Acciones")
     }
 
