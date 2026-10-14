@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Chat bubble with its tail at the bottom right, like a sent message. -->
+  <path fill="#1A7CFF" d="M382 230 H642 A210 210 0 0 1 852 440 V540 A210 210 0 0 1 803 675 C815 735 845 775 878 795 C805 802 752 778 714 737 A210 210 0 0 1 642 750 H382 A210 210 0 0 1 172 540 V440 A210 210 0 0 1 382 230 Z"/>
+</svg>

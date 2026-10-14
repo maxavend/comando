@@ -5,6 +5,10 @@ options:
     macOS: "27.0"
   createIntermediateGroups: true
   developmentLanguage: es
+  fileTypes:
+    icon:
+      file: true
+      buildPhase: resources
 settings:
   base:
     SWIFT_VERSION: "6.0"
