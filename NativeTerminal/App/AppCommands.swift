@@ -22,6 +22,13 @@ struct AppCommands: Commands {
             }
         }
 
+        CommandGroup(after: .newItem) {
+            Button("Recetas…") {
+                controller.isShowingRecipes = true
+            }
+            .keyboardShortcut("k")
+        }
+
         CommandMenu("Ir") {
             Group {
                 Button("Subir un nivel") { withSession { controller.navigateUp(in: $0) } }
@@ -66,7 +73,7 @@ struct AppCommands: Commands {
                     controller.clearHistory(of: session)
                 }
             }
-            .keyboardShortcut("k")
+            .keyboardShortcut("k", modifiers: [.command, .shift])
 
             Button("Reiniciar shell") {
                 if let session = controller.selectedSession {

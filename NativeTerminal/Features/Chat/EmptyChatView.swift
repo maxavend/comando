@@ -5,6 +5,7 @@ struct EmptyChatView: View {
     let directory: String
     let onRun: (String) -> Void
     let onPickFolder: () -> Void
+    let onShowRecipes: () -> Void
 
     var body: some View {
         VStack(spacing: Metrics.exchangeSpacing) {
@@ -41,6 +42,10 @@ struct EmptyChatView: View {
                 }
             }
             .frame(maxWidth: 480)
+
+            Button("Ver más ideas en Recetas (⌘K)", systemImage: "wand.and.sparkles", action: onShowRecipes)
+                .buttonStyle(.link)
+                .foregroundStyle(.tint)
         }
         .padding(Metrics.contentInset)
     }

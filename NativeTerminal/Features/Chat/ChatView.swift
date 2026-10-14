@@ -37,6 +37,32 @@ struct ChatView: View {
         let shell = controller.shells[session.id]
         let directory = shell?.directory ?? session.directory
 
+        presentations(of: transcript(shell: shell, directory: directory), directory: directory)
+        .safeAreaBar(edge: .bottom) {
+            ComposerView(
+                text: $draft,
+                shell: shell,
+                directory: directory,
+                history: entries.map(\.command),
+                trailingInset: max(0, lastWidth - contentWidth),
+                onSubmit: { controller.submit($0, in: session) }
+            )
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            handleDrop(urls)
+        } isTargeted: { isDropTargeted = $0 }
+        .overlay(alignment: .top) {
+            if isDropTargeted {
+                DropHint()
+                    .padding(.top, Metrics.contentInset)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: isDropTargeted)
+    }
+
+    /// The scrolling list of exchanges, pinned to the newest output.
+    private func transcript(shell: ShellSession?, directory: String) -> some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(entries.enumerated(), id: \.element.id) { index, entry in
@@ -63,7 +89,8 @@ struct ChatView: View {
                 EmptyChatView(
                     directory: directory,
                     onRun: { controller.submit($0, in: session) },
-                    onPickFolder: { controller.isPickingFolder = true }
+                    onPickFolder: { controller.isPickingFolder = true },
+                    onShowRecipes: { controller.isShowingRecipes = true }
                 )
             }
         }
@@ -101,27 +128,11 @@ struct ChatView: View {
         .onChange(of: fontSize) {
             updateColumns()
         }
-        .safeAreaBar(edge: .bottom) {
-            ComposerView(
-                text: $draft,
-                shell: shell,
-                directory: directory,
-                history: entries.map(\.command),
-                trailingInset: max(0, lastWidth - contentWidth),
-                onSubmit: { controller.submit($0, in: session) }
-            )
-        }
-        .dropDestination(for: URL.self) { urls, _ in
-            handleDrop(urls)
-        } isTargeted: { isDropTargeted = $0 }
-        .overlay(alignment: .top) {
-            if isDropTargeted {
-                DropHint()
-                    .padding(.top, Metrics.contentInset)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeOut(duration: 0.12), value: isDropTargeted)
+    }
+
+    /// Title, toolbar, alerts and sheets of the session.
+    private func presentations(of content: some View, directory: String) -> some View {
+        content
         .alert(
             controller.pendingCommand?.risk.title ?? "",
             isPresented: confirmingRisk,
@@ -147,6 +158,18 @@ struct ChatView: View {
             controller.shell(for: session)
             updateColumns()
         }
+        .sheet(isPresented: showingRecipes) {
+            RecipesView(
+                directory: directory,
+                onRun: { controller.submit($0, in: session) },
+                onInsert: { draft = $0 }
+            )
+        }
+        .onChange(of: controller.draftRequest) { _, request in
+            guard let request, controller.selectedSessionID == session.id else { return }
+            draft = request
+            controller.draftRequest = nil
+        }
         .fileImporter(isPresented: pickingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
                 controller.navigate(to: url.path(percentEncoded: false), in: session)
@@ -168,6 +191,12 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private func toolbar(directory: String) -> some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button("Recetas", systemImage: "wand.and.sparkles") {
+                controller.isShowingRecipes = true
+            }
+            .help("Buscar qué hacer (⌘K)")
+        }
         ToolbarItem(placement: .primaryAction) {
             FolderMenu(session: session, directory: directory)
         }
@@ -197,6 +226,13 @@ struct ChatView: View {
     private func subtitle(for directory: String) -> String {
         let breadcrumb = FolderName.breadcrumb(directory)
         return breadcrumb == session.displayName ? "" : breadcrumb
+    }
+
+    private var showingRecipes: Binding<Bool> {
+        Binding(
+            get: { controller.isShowingRecipes && controller.selectedSessionID == session.id },
+            set: { controller.isShowingRecipes = $0 }
+        )
     }
 
     private var pickingFolder: Binding<Bool> {

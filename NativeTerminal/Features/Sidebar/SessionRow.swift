@@ -2,9 +2,12 @@ import SwiftUI
 
 struct SessionRow: View {
     let session: TerminalSession
-    let isRunning: Bool
+    let shell: ShellSession?
+
+    private var isRunning: Bool { shell?.isBusy ?? false }
 
     var body: some View {
+        let live = shell?.live
         HStack(spacing: Metrics.sidebarRowSpacing) {
             SessionAvatar(isRunning: isRunning)
             VStack(alignment: .leading, spacing: 2) {
@@ -13,15 +16,28 @@ struct SessionRow: View {
                         .font(.headline)
                         .lineLimit(1)
                     Spacer(minLength: 4)
-                    // Running state is shown on the avatar, so the row never changes shape.
-                    Text(Self.timestamp(for: session.lastActivity))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    // Both trailing items use the caption size, so the row never changes shape.
+                    if isRunning {
+                        Button("Detener", systemImage: "stop.circle.fill", action: stop)
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .help("Detener el comando")
+                    } else {
+                        Text(Self.timestamp(for: session.lastActivity))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                Text(session.lastCommand ?? FolderName.breadcrumb(session.directory))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if let live {
+                    ActivityLine(live: live)
+                } else {
+                    Text(session.lastCommand ?? FolderName.breadcrumb(session.directory))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(.vertical, Metrics.sidebarRowVerticalPadding)
@@ -29,6 +45,10 @@ struct SessionRow: View {
         .help(FolderName.breadcrumb(session.directory))
         .accessibilityElement(children: .combine)
         .accessibilityValue(isRunning ? Text("En ejecución") : Text(""))
+    }
+
+    private func stop() {
+        shell?.interrupt()
     }
 
     /// Messages-style timestamps: time today, “Ayer”, then the date.
@@ -44,5 +64,32 @@ struct SessionRow: View {
             return date.formatted(.dateTime.weekday(.wide))
         }
         return date.formatted(date: .numeric, time: .omitted)
+    }
+}
+
+/// What a running session is doing, in place of its last command.
+private struct ActivityLine: View {
+    let live: LiveOutput
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(.green)
+                .frame(width: 6, height: 6)
+                .accessibilityHidden(true)
+            Text(activity)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+
+    private var activity: String {
+        if let url = live.localURL, let host = url.host {
+            let port = url.port.map { ":\($0)" } ?? ""
+            return String(localized: "Activo · \(host)\(port)")
+        }
+        return String(localized: "Ejecutando: \(live.command)")
     }
 }

@@ -14,7 +14,7 @@ struct SessionListView: View {
 
         List(selection: $controller.selectedSessionID) {
             ForEach(sessions) { session in
-                SessionRow(session: session, isRunning: shells[session.id]?.isBusy ?? false)
+                SessionRow(session: session, shell: shells[session.id])
                     .tag(session.id)
                     .contextMenu {
                         contextMenu(for: session)
@@ -50,6 +50,13 @@ struct SessionListView: View {
 
     @ViewBuilder
     private func contextMenu(for session: TerminalSession) -> some View {
+        if let shell = controller.shells[session.id], shell.isBusy {
+            Button("Detener comando", systemImage: "stop.circle") { shell.interrupt() }
+            if let url = shell.live?.localURL {
+                Button("Abrir en el navegador", systemImage: "safari") { NSWorkspace.shared.open(url) }
+            }
+            Divider()
+        }
         Button("Renombrar…", systemImage: "pencil") {
             newName = session.customName ?? ""
             renaming = session

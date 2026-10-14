@@ -18,6 +18,7 @@ struct ComposerView: View {
     let onSubmit: (String) -> Void
 
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
+    @Environment(TerminalController.self) private var controller
     @FocusState private var isFocused: Bool
     @State private var secret = ""
     @State private var historyIndex: Int?
@@ -157,6 +158,10 @@ struct ComposerView: View {
 
     private var actionsMenu: some View {
         Menu {
+            Button("Recetas…", systemImage: "wand.and.sparkles") {
+                controller.isShowingRecipes = true
+            }
+            Divider()
             Button("Insertar ruta de archivo…", systemImage: "doc.badge.plus") {
                 isImporting = true
             }

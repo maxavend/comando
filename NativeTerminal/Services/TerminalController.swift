@@ -21,6 +21,10 @@ final class TerminalController {
     var pendingCommand: PendingCommand?
     /// Presents the welcome guide.
     var isShowingWelcome = false
+    /// Presents the recipes finder (⌘K) for the selected session.
+    var isShowingRecipes = false
+    /// Text to place in the selected session's composer (from a recipe or hint).
+    var draftRequest: String?
 
     private(set) var shells: [UUID: ShellSession] = [:]
 
