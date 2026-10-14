@@ -11,7 +11,16 @@ struct RootView: View {
     @Environment(\.openSettings) private var openSettings
     #endif
 
+    private static var isAutomated: Bool {
+        #if DEBUG
+        DebugAutomation.environment["NATIVETERM_SCRIPT"] != nil
+        #else
+        false
+        #endif
+    }
+
     var body: some View {
+        @Bindable var controller = controller
         let selectedID = controller.selectedSessionID
         let selected = sessions.first { $0.id == selectedID }
 
@@ -42,6 +51,14 @@ struct RootView: View {
         .frame(minWidth: 680, minHeight: 440)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.markSelectedAsRead()
+        }
+        .sheet(isPresented: $controller.isShowingWelcome) {
+            WelcomeView()
+        }
+        .task {
+            if !UserDefaults.standard.bool(forKey: AppSettings.hasSeenWelcomeKey), !Self.isAutomated {
+                controller.isShowingWelcome = true
+            }
         }
         #if DEBUG
         .task { DebugAutomation.start(controller: controller) }

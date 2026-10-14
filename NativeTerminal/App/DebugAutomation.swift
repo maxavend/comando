@@ -42,7 +42,10 @@ enum DebugAutomation {
             await requestSnapshot(named: argument, in: folder)
         case "#sleep":
             try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
-        case "#type", "#rename", "#delete", "#search", "#scope", "#showall", "#tab":
+        case "#welcome":
+            controller.isShowingWelcome = true
+            try? await Task.sleep(for: .seconds(1))
+        case "#type", "#rename", "#delete", "#search", "#scope", "#showall", "#tab", "#next":
             var object = argument
             if action == "#showall" { object = lastEntryID(controller)?.uuidString ?? "" }
             NotificationCenter.default.post(name: .debugAction, object: "\(action) \(object)")

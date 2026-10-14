@@ -5,6 +5,8 @@ nonisolated enum AppSettings {
     static let fontSizeKey = "fontSize"
     static let notifyAfterKey = "notifyAfterSeconds"
     static let interactiveCommandsKey = "interactiveCommands"
+    static let confirmRiskyCommandsKey = "confirmRiskyCommands"
+    static let hasSeenWelcomeKey = "hasSeenWelcome"
 
     static let defaultFontSize = 13.0
     static let defaultNotifyAfter = 10.0
@@ -13,6 +15,11 @@ nonisolated enum AppSettings {
     static var notifyAfter: Double {
         let value = UserDefaults.standard.double(forKey: notifyAfterKey)
         return value > 0 ? value : defaultNotifyAfter
+    }
+
+    /// Ask before commands that are hard to undo. On unless turned off.
+    static var confirmRiskyCommands: Bool {
+        UserDefaults.standard.object(forKey: confirmRiskyCommandsKey) as? Bool ?? true
     }
 
     static var interactiveCommands: Set<String> {

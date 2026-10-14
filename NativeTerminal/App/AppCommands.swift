@@ -16,6 +16,12 @@ struct AppCommands: Commands {
             .keyboardShortcut("t", modifiers: [.command, .option])
         }
 
+        CommandGroup(replacing: .help) {
+            Button("Bienvenida a NativeTerminal") {
+                controller.isShowingWelcome = true
+            }
+        }
+
         CommandMenu("Ir") {
             Group {
                 Button("Subir un nivel") { withSession { controller.navigateUp(in: $0) } }

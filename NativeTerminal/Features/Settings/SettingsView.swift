@@ -4,6 +4,7 @@ struct SettingsView: View {
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @AppStorage(AppSettings.notifyAfterKey) private var notifyAfter = AppSettings.defaultNotifyAfter
     @AppStorage(AppSettings.interactiveCommandsKey) private var interactiveCommands = AppSettings.defaultInteractiveCommands
+    @AppStorage(AppSettings.confirmRiskyCommandsKey) private var confirmRiskyCommands = true
 
     var body: some View {
         Form {
@@ -39,6 +40,14 @@ struct SettingsView: View {
                 Text("Notificaciones")
             } footer: {
                 Text("Solo se avisa si NativeTerminal no está en primer plano o estás en otra sesión.")
+            }
+
+            Section {
+                Toggle("Pedir confirmación antes de comandos riesgosos", isOn: $confirmRiskyCommands)
+            } header: {
+                Text("Seguridad")
+            } footer: {
+                Text("Por ejemplo, borrar carpetas completas, usar sudo o descartar cambios de Git.")
             }
 
             Section {

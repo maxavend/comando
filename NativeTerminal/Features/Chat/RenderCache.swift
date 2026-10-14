@@ -31,9 +31,17 @@ final class RenderCache {
     func immediate(for entry: CommandEntry) -> RenderedOutput? {
         if let cached = self[entry] { return cached }
         guard entry.output.count <= Self.synchronousLimit else { return nil }
-        let rendered = OutputRenderer.render(raw: [UInt8](entry.output))
+        let rendered = Self.linked(OutputRenderer.render(raw: [UInt8](entry.output)), for: entry)
         self[entry] = rendered
         return rendered
+    }
+
+    /// Makes the names in `ls` output clickable links to the files.
+    static func linked(_ rendered: RenderedOutput, for entry: CommandEntry) -> RenderedOutput {
+        guard let folder = OutputLinker.listedFolder(command: entry.command, directory: entry.directory) else { return rendered }
+        var linked = rendered
+        linked.preview = OutputLinker.linkify(rendered.preview, folder: folder)
+        return linked
     }
 
     private static func key(_ entry: CommandEntry) -> NSString {

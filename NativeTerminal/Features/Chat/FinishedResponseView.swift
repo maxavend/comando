@@ -1,13 +1,17 @@
 import AppKit
+import QuickLook
 import SwiftUI
 
 struct FinishedResponseView: View {
     let entry: CommandEntry
     let onRerun: () -> Void
     let onEdit: (String) -> Void
+    /// Opens a folder from a clicked file name (runs `cd`).
+    let onOpenFolder: (String) -> Void
 
     @State private var rendered: RenderedOutput?
     @State private var isShowingAll = false
+    @State private var quickLookURL: URL?
 
     var body: some View {
         let rendered = rendered ?? RenderCache.shared.immediate(for: entry)
@@ -38,10 +42,12 @@ struct FinishedResponseView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .environment(\.openURL, OpenURLAction(handler: open))
+        .quickLookPreview($quickLookURL)
         .task(id: entry.finishedAt) {
             guard RenderCache.shared[entry] == nil else { return }
             let output = entry.output
-            let result = await RenderCache.render(output)
+            let result = RenderCache.linked(await RenderCache.render(output), for: entry)
             RenderCache.shared[entry] = result
             self.rendered = result
         }
@@ -53,5 +59,22 @@ struct FinishedResponseView: View {
         .sheet(isPresented: $isShowingAll) {
             FullOutputSheet(command: entry.command, output: entry.output, lineCount: rendered?.totalLines ?? 0)
         }
+    }
+
+    /// File names in `ls` output: a folder opens in the session, a file shows
+    /// in Quick Look, and ⌘-click opens it in its app, like Finder.
+    private func open(_ url: URL) -> OpenURLAction.Result {
+        guard url.isFileURL else { return .systemAction }
+        var isDirectory: ObjCBool = false
+        let path = url.path(percentEncoded: false)
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else { return .discarded }
+        if isDirectory.boolValue && !path.hasSuffix(".app") {
+            onOpenFolder(path)
+        } else if NSEvent.modifierFlags.contains(.command) {
+            NSWorkspace.shared.open(url)
+        } else {
+            quickLookURL = url
+        }
+        return .handled
     }
 }

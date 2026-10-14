@@ -18,6 +18,7 @@ struct ChatView: View {
     /// Width of the transcript content; less than the view when a scroller takes space.
     @State private var contentWidth: CGFloat = 800
     @State private var position = ScrollPosition(edge: .bottom)
+    @State private var isDropTargeted = false
     /// Whether the transcript follows new output. Only the user's own
     /// scrolling changes it; resizes and new output keep the last state.
     @State private var isPinnedToBottom = true
@@ -111,7 +112,25 @@ struct ChatView: View {
             )
         }
         .dropDestination(for: URL.self) { urls, _ in
-            insertPaths(urls)
+            handleDrop(urls)
+        } isTargeted: { isDropTargeted = $0 }
+        .overlay(alignment: .top) {
+            if isDropTargeted {
+                DropHint()
+                    .padding(.top, Metrics.contentInset)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: isDropTargeted)
+        .alert(
+            controller.pendingCommand?.risk.title ?? "",
+            isPresented: confirmingRisk,
+            presenting: controller.pendingCommand
+        ) { pending in
+            Button("Ejecutar", role: .destructive) { controller.confirmPendingCommand() }
+            Button("Cancelar", role: .cancel) { draft = pending.command }
+        } message: { pending in
+            Text("\(pending.risk.explanation)\n\n\(pending.command)")
         }
         #if DEBUG
         .onDebugAction("#type") { draft = $0 }
@@ -200,6 +219,32 @@ struct ChatView: View {
         let characterWidth = ("M" as NSString).size(withAttributes: [.font: font]).width
         let textWidth = width - Metrics.contentInset * 2 - Metrics.bubbleOppositeInset - Metrics.bubbleHorizontalPadding * 2
         return max(20, Int(textWidth / max(characterWidth, 1)))
+    }
+
+    /// A single folder dropped on the chat opens it; anything else is typed
+    /// into the composer as paths.
+    @discardableResult
+    private func handleDrop(_ urls: [URL]) -> Bool {
+        if urls.count == 1, let url = urls.first, url.hasDirectoryPath || isFolder(url),
+           !(controller.shells[session.id]?.isBusy ?? false) {
+            controller.navigate(to: url.path(percentEncoded: false), in: session)
+            return true
+        }
+        insertPaths(urls)
+        return true
+    }
+
+    private func isFolder(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDirectory)
+        return exists && isDirectory.boolValue && url.pathExtension != "app"
+    }
+
+    private var confirmingRisk: Binding<Bool> {
+        Binding(
+            get: { controller.pendingCommand?.sessionID == session.id },
+            set: { if !$0 { controller.pendingCommand = nil } }
+        )
     }
 
     private func insertPaths(_ urls: [URL]) {

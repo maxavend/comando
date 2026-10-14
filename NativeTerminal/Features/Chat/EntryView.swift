@@ -32,7 +32,7 @@ struct EntryView: View {
             if let shell, let live, live.entryID == entry.id {
                 LiveResponseView(live: live, shell: shell)
             } else {
-                FinishedResponseView(entry: entry, onRerun: rerun, onEdit: onEdit)
+                FinishedResponseView(entry: entry, onRerun: rerun, onEdit: onEdit, onOpenFolder: openFolder)
                 if let folder = entry.movedTo {
                     LocationNotice(folder: folder)
                 }
@@ -60,6 +60,11 @@ struct EntryView: View {
     private func copyCommand() { Pasteboard.copy(entry.command) }
     private func edit() { onEdit(entry.command) }
     private func rerun() { controller.rerun(entry) }
+
+    private func openFolder(_ path: String) {
+        guard let session = entry.session else { return }
+        controller.navigate(to: path, in: session)
+    }
 
     /// Like Messages: a timestamp when there's a pause of more than 15 minutes.
     private var showsTimestamp: Bool {

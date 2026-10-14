@@ -17,6 +17,10 @@ final class TerminalController {
     var focusedEntryID: UUID?
     /// Presents the folder picker of the selected session (“Ir a una carpeta…”).
     var isPickingFolder = false
+    /// A risky command shown in a confirmation alert before it runs.
+    var pendingCommand: PendingCommand?
+    /// Presents the welcome guide.
+    var isShowingWelcome = false
 
     private(set) var shells: [UUID: ShellSession] = [:]
 
@@ -143,7 +147,7 @@ final class TerminalController {
     // MARK: - Commands
 
     /// Handles text from the composer: a new command, or input for the running one.
-    func submit(_ text: String, in session: TerminalSession) {
+    func submit(_ text: String, in session: TerminalSession, confirmed: Bool = false) {
         let shell = shell(for: session)
         if shell.isBusy {
             shell.sendLine(text)
@@ -151,6 +155,11 @@ final class TerminalController {
         }
         let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !command.isEmpty else { return }
+
+        if !confirmed, AppSettings.confirmRiskyCommands, let risk = DangerDetector.risk(of: command) {
+            pendingCommand = PendingCommand(command: command, sessionID: session.id, risk: risk)
+            return
+        }
 
         if command == "clear" || command == "reset" {
             clearHistory(of: session)
@@ -165,6 +174,13 @@ final class TerminalController {
         shell.interactiveCommands = AppSettings.interactiveCommands
         shell.run(command, entryID: entry.id)
         schedulePermissionPrompt(for: entry.id, in: shell)
+    }
+
+    /// Runs the command the user confirmed in the risk alert.
+    func confirmPendingCommand() {
+        guard let pending = pendingCommand, let session = session(withID: pending.sessionID) else { return }
+        pendingCommand = nil
+        submit(pending.command, in: session, confirmed: true)
     }
 
     func rerun(_ entry: CommandEntry) {
@@ -274,7 +290,7 @@ extension TerminalController: ShellSessionDelegate {
         entry.kind = result.wasInteractive ? .interactive : .command
         entry.transcript = result.transcript
         let rendered = OutputRenderer.render(raw: result.output)
-        RenderCache.shared[entry] = rendered
+        RenderCache.shared[entry] = RenderCache.linked(rendered, for: entry)
         entry.plainOutput = String(rendered.plainText.prefix(CommandEntry.plainOutputLimit))
         if let hint = ErrorExplainer.hint(
             command: entry.command,
