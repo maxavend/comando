@@ -13,19 +13,13 @@ struct AssistantExchangeView: View {
     var body: some View {
         VStack(spacing: Metrics.replySpacing) {
             request
-            VStack(alignment: .leading, spacing: Metrics.statusSpacing) {
-                reply
-                    // Replies with commands or buttons read as a card: the same
-                    // inset on all four sides.
-                    .padding(.vertical, isRich ? Metrics.bubbleHorizontalPadding - Metrics.bubbleVerticalPadding : 0)
-                    .bubble(.reply)
-                    .padding(.trailing, Metrics.bubbleOppositeInset)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                StatusLine {
-                    IntelligenceGlyph()
-                    Text("Apple Intelligence · en este Mac")
-                }
-            }
+            reply
+                // Replies with commands or buttons read as a card: the same
+                // inset on all four sides.
+                .padding(.vertical, isRich ? Metrics.bubbleHorizontalPadding - Metrics.bubbleVerticalPadding : 0)
+                .bubble(.reply)
+                .padding(.trailing, Metrics.bubbleOppositeInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
