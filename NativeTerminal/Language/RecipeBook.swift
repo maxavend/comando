@@ -102,6 +102,10 @@ nonisolated enum RecipeBook {
                systemImage: "wifi", category: .network, keywords: ["ip", "dirección", "red"]) { _ in
             "ipconfig getifaddr en0"
         },
+        Recipe("speed", title: "Medir la velocidad de internet", detail: "Mide la bajada, la subida y la respuesta con la herramienta de macOS.",
+               systemImage: "speedometer", category: .network, keywords: ["velocidad", "internet", "conexion", "lento", "speedtest", "wifi"]) { _ in
+            "networkQuality"
+        },
         Recipe("ping", title: "Probar la conexión a internet", detail: "Envía 4 mensajes de prueba a apple.com.",
                systemImage: "antenna.radiowaves.left.and.right", category: .network, keywords: ["internet", "conexión", "ping"]) { _ in
             "ping -c 4 apple.com"

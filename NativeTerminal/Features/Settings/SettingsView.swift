@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @AppStorage(AppSettings.notifyAfterKey) private var notifyAfter = AppSettings.defaultNotifyAfter
+    @AppStorage(AppSettings.searchesToolsOnlineKey) private var searchesToolsOnline = true
     @AppStorage(AppSettings.interactiveCommandsKey) private var interactiveCommands = AppSettings.defaultInteractiveCommands
     @AppStorage(AppSettings.confirmRiskyCommandsKey) private var confirmRiskyCommands = true
     @AppStorage(AppSettings.assistantEnabledKey) private var assistantEnabled = true
@@ -47,11 +48,13 @@ struct SettingsView: View {
             Section {
                 Toggle("Entender pedidos con tus palabras", isOn: $assistantEnabled)
                     .disabled(!AssistantEngine.isAvailable)
+                Toggle("Buscar herramientas de terminal en internet", isOn: $searchesToolsOnline)
+                    .disabled(!AssistantEngine.isAvailable || !assistantEnabled)
             } header: {
                 Text("Asistente")
             } footer: {
                 Text(AssistantEngine.unavailableReason
-                     ?? String(localized: "Usa Apple Intelligence en este Mac para proponerte comandos, recetas y herramientas, y para responder tus preguntas. Nada se ejecuta sin que lo apruebes."))
+                     ?? String(localized: "Usa Apple Intelligence en este Mac para proponerte comandos, recetas y herramientas, y para responder tus preguntas. Nada se ejecuta sin que lo apruebes.\n\nPara encontrar herramientas, descarga el catálogo de Homebrew y ejemplos de uso de tldr, y busca en npm. Solo salen las palabras de búsqueda, nunca tus archivos."))
             }
 
             Section {

@@ -39,6 +39,10 @@ final class TerminalController {
         self.modelContext = modelContext
         try? ShellIntegration.install()
         repairInterruptedEntries()
+        // The tool catalogs download in the background; tests stay offline.
+        if AppSettings.searchesToolsOnline, ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            Task.detached(priority: .utility) { await ToolKnowledge.shared.prepare() }
+        }
         notifications.onOpenSession = { [weak self] id in
             self?.selectedSessionID = id
         }
@@ -265,8 +269,14 @@ final class TerminalController {
     }
 
     func installPackage(_ package: String, for entry: CommandEntry) {
-        guard let session = entry.session else { return }
         let command = ToolCatalog.tool(named: package)?.installCommand ?? "brew install " + ShellEscape.quote(package)
+        runInstall(command, for: entry)
+    }
+
+    /// Runs an install command (`brew install …`, `npm install -g …`) next to
+    /// the entry that suggested it.
+    func runInstall(_ command: String, for entry: CommandEntry) {
+        guard let session = entry.session else { return }
         submit(command, in: idleSession(preferring: session))
     }
 

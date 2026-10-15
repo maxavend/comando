@@ -351,7 +351,11 @@ struct AssistantModelTests {
 
     @Test func installsWithHomebrew() async {
         let reply = await AssistantEngine.reply(to: "instala yt-dlp", inventory: inventory())
-        #expect(reply.proposals.map(\.command) == ["brew install yt-dlp"], "\(reply)")
+        // Either a ready command with an Install button, or the tool and how to use it.
+        let mentions = reply.proposals.contains { $0.command.contains("yt-dlp") || $0.install?.contains("yt-dlp") == true }
+            || reply.extras.template?.contains("yt-dlp") == true
+            || reply.extras.suggestions.contains { $0.package == "yt-dlp" }
+        #expect(mentions, "\(reply)")
     }
 
     @Test func asksWhichAudioWhenNoneIsAttached() async {
@@ -362,7 +366,11 @@ struct AssistantModelTests {
 
     @Test func recommendsYtDlp() async {
         let reply = await AssistantEngine.reply(to: "¿cómo descargo un video de youtube?", inventory: inventory())
-        #expect(reply.proposals.map(\.command) == ["brew install yt-dlp"], "\(reply)")
+        // Either a ready command with an Install button, or the tool and how to use it.
+        let mentions = reply.proposals.contains { $0.command.contains("yt-dlp") || $0.install?.contains("yt-dlp") == true }
+            || reply.extras.template?.contains("yt-dlp") == true
+            || reply.extras.suggestions.contains { $0.package == "yt-dlp" }
+        #expect(mentions, "\(reply)")
     }
 
     @Test func saysWhenItCannotHelp() async {

@@ -64,3 +64,17 @@ struct CommandCheck {
     @Guide(description: "true solo si el comando hace exactamente lo que pide el pedido")
     var matches: Bool
 }
+
+/// English words to search tool catalogs with (they're written in English).
+@Generable
+struct SearchTerms {
+    @Guide(description: "De 2 a 5 palabras clave en inglés que describen la tarea, sin nombres de archivos. Ejemplo para “quitar páginas de un pdf”: pdf, pages, remove", .count(1...6))
+    var keywords: [String]
+}
+
+/// Short Spanish versions of tool descriptions.
+@Generable
+struct Translations {
+    @Guide(description: "Cada descripción traducida al español, en el mismo orden, en menos de 12 palabras y empezando con un verbo")
+    var lines: [String]
+}

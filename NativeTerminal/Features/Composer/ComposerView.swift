@@ -100,11 +100,18 @@ struct ComposerView: View {
                         .buttonStyle(.glassCircle(.destructive))
                         .help("Interrumpir el comando (⌘.)")
                 }
-                Button("Enviar", systemImage: "arrow.up", action: submit)
-                    .buttonStyle(.glassCircle(.prominent))
-                    .disabled(!canSubmit)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .help("Enviar (↩)")
+                // Plain words go to the assistant: the arrow turns into ✨ in
+                // place, so nothing in the field shifts.
+                Button(action: submit) {
+                    Label(isAskingAssistant ? "Pedir al asistente" : "Enviar",
+                          systemImage: isAskingAssistant ? "sparkles" : "arrow.up")
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.glassCircle(.prominent))
+                .disabled(!canSubmit)
+                .keyboardShortcut(.return, modifiers: .command)
+                .help(isAskingAssistant ? "Pedir al asistente (↩)" : "Enviar (↩)")
+                .animation(.smooth(duration: 0.2), value: isAskingAssistant)
             }
         }
     }
@@ -139,16 +146,8 @@ struct ComposerView: View {
                     }
                     .scrollIndicators(.never)
                 }
-                HStack(alignment: .firstTextBaseline, spacing: Metrics.statusSpacing + 2) {
-                    if isAskingAssistant {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(.tint)
-                            .help("Se lo pediré al asistente")
-                            .transition(.opacity)
-                    }
-                    textField
-                }
-                .animation(.easeOut(duration: 0.12), value: isAskingAssistant)
+                // The text never moves: the send button shows ✨ instead.
+                textField
             }
             .task(id: shell?.pathEntries ?? []) {
                 knownCommands = Set(ExecutableIndex.shared.names(for: shell?.pathEntries ?? []))

@@ -1,6 +1,7 @@
 import Foundation
 import FoundationModels
 import ImageIO
+import NaturalLanguage
 
 /// A command the assistant proposes, with where its tool comes from.
 nonisolated struct AssistantProposal: Codable, Hashable, Sendable {
@@ -11,6 +12,10 @@ nonisolated struct AssistantProposal: Codable, Hashable, Sendable {
     var missingPackage: String?
     /// Written by the model rather than built by the app: worth a second look.
     var isGenerated: Bool?
+    /// What the tool does, in plain Spanish.
+    var about: String?
+    /// The command that installs a missing tool (`brew install …`, `npm install -g …`).
+    var install: String?
 }
 
 /// A tool worth installing for the request, shown with an Install button.
@@ -29,8 +34,21 @@ nonisolated struct ToolSuggestion: Codable, Hashable, Sendable {
         self.isInstalled = isInstalled
     }
 
+    /// A custom install command (npm), and where the tool comes from.
+    var install: String?
+    var origin: String?
+
+    init(_ tool: DiscoveredTool, detail: String) {
+        package = tool.package
+        title = tool.command
+        self.detail = detail
+        isInstalled = tool.isInstalled
+        install = tool.installCommand
+        origin = tool.origin
+    }
+
     var installCommand: String {
-        isCask ? "brew install --cask \(package)" : "brew install \(package)"
+        install ?? (isCask ? "brew install --cask \(package)" : "brew install \(package)")
     }
 }
 
@@ -117,6 +135,9 @@ nonisolated enum AssistantEngine {
         if let installed = installedReply(for: request, inventory: inventory) {
             return installed
         }
+        if let refusal = destructiveRefusal(for: words) {
+            return refusal
+        }
         // “¿Qué es npm?” or “¿para qué sirve git?” want an explanation, not a command.
         if asksForMeaning(words), let answer = await explain(request) {
             return AssistantReply(explanation: answer, proposals: [])
@@ -132,8 +153,15 @@ nonisolated enum AssistantEngine {
         if !steps.isEmpty {
             return build(steps: steps, request: request, inventory: inventory)
         }
+        // The open-ended steps need a request in words, not a keyboard smash.
+        guard looksLikeWords(request) else {
+            return build(steps: [], request: request, inventory: inventory)
+        }
         if let chosen = await pickOption(for: request, inventory: inventory) {
             return chosen
+        }
+        if let discovered = await discoverTool(for: request, inventory: inventory) {
+            return discovered
         }
         if let written = await writeCommand(for: request, inventory: inventory) {
             return written
@@ -248,6 +276,14 @@ nonisolated enum AssistantEngine {
                 proposals: [AssistantProposal(command: "open " + q(file.path), tool: "open · incluida en macOS")]
             )
         }
+        // “abre borrador.md” when there's no such file here.
+        if !asksIfInstalled, let missing = target_.split(separator: " ").map(String.init)
+            .first(where: { $0.firstMatch(of: /^[\w.-]+\.[a-z0-9]{1,5}$/) != nil }) {
+            return AssistantReply(
+                explanation: String(localized: "No encontré “\(missing)” en esta carpeta. Revisa el nombre o arrástralo a la ventana."),
+                proposals: []
+            )
+        }
         let app = InstalledApps.findApp(target_, in: inventory.apps)
         let command = InstalledApps.findCommand(target_, app: app, executables: inventory.executables)
         guard app != nil || command != nil else {
@@ -285,6 +321,30 @@ nonisolated enum AssistantEngine {
         }
         return AssistantReply(explanation: explanation,
                               proposals: [AssistantProposal(command: "open -a " + q(app.name), tool: "\(app.displayName) · app instalada")])
+    }
+
+    // MARK: - Requests that can't be acted on
+
+    /// Text in Spanish, English or a close language; “asdfghjkl qwerty” isn't.
+    static func looksLikeWords(_ request: String) -> Bool {
+        guard request.split(separator: " ").count >= 2 else { return true }
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(request)
+        let close: Set<String> = ["es", "en", "pt", "ca", "gl", "it", "fr"]
+        let share = recognizer.languageHypotheses(withMaximum: 5)
+            .filter { close.contains($0.key.rawValue) }.values.reduce(0, +)
+        return share >= 0.5
+    }
+
+    /// “Borra todo el disco”: deleting without a named file is never proposed.
+    static func destructiveRefusal(for words: String) -> AssistantReply? {
+        let deletes = ["borra", "elimina", "formatea", "destruye", "delete", "wipe", "erase", "format "].contains(where: words.contains)
+        let broad = ["todo", "disco", "sistema", "computador", "mac", "everything", "disk", "system"].contains(where: words.contains)
+        guard deletes, broad else { return nil }
+        return AssistantReply(
+            explanation: String(localized: "Por seguridad no propongo borrar cosas en general. Dime qué archivo o carpeta quieres quitar y lo mando a la Papelera, donde puedes recuperarlo."),
+            proposals: []
+        )
     }
 
     // MARK: - Deleting
@@ -335,7 +395,9 @@ nonisolated enum AssistantEngine {
     /// Recipes and tools whose words overlap the request, for the model to choose from.
     static func candidates(for request: String) -> (recipes: [Recipe], tools: [CatalogTool]) {
         let words = normalized(request)
-        let recipes = RecipeBook.all.map { ($0, overlap(words, $0)) }.filter { $0.1 > 0 }
+        // Two shared words, or every word of a short request.
+        let needed = min(2, max(1, keywords(in: words).count))
+        let recipes = RecipeBook.all.map { ($0, overlap(words, $0)) }.filter { $0.1 >= needed }
             .sorted { $0.1 > $1.1 }.prefix(5).map(\.0)
         let tools = ToolCatalog.all.map { ($0, ToolCatalog.score($0, for: words)) }.filter { $0.1 >= 2 }
             .sorted { $0.1 > $1.1 }.prefix(3).map(\.0)
@@ -349,27 +411,187 @@ nonisolated enum AssistantEngine {
 
     @concurrent
     static func pickOption(for request: String, inventory: ToolInventory) async -> AssistantReply? {
-        let (recipes, tools) = candidates(for: request)
-        guard !recipes.isEmpty || !tools.isEmpty else { return nil }
-        var options: [String] = recipes.map { "\($0.title): \($0.detail)" }
-        options += tools.map { "Instalar o usar \($0.title): \($0.detail)" }
+        // Only recipes: tools are found by discoverTool, with real examples.
+        let recipes = candidates(for: request).recipes
+        guard !recipes.isEmpty else { return nil }
+        let options = recipes.map { "\($0.title): \($0.detail)" }
         let prompt = "PEDIDO: \(request)\n\nOPCIONES:\n" + options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
         guard let choice = await ask(prompt, instructions: pickInstructions, generating: OptionChoice.self, maximumTokens: 10),
               choice.option >= 1, choice.option <= options.count else { return nil }
-        let index = choice.option - 1
-        if index < recipes.count {
-            return useRecipe(recipes[index], request: request, inventory: inventory)
-        }
-        // An exact command (perhaps with what's already installed) beats a
-        // pointer to the tool.
-        if let written = await writeCommand(for: request, inventory: inventory) {
-            return written
-        }
-        return recommend(tools[index - recipes.count], inventory: inventory)
+        return useRecipe(recipes[choice.option - 1], request: request, inventory: inventory)
     }
+
 
     static func isInstalled(_ tool: CatalogTool, inventory: ToolInventory) -> Bool {
         inventory.has(tool.command) || inventory.brew.contains { $0.name == tool.id }
+    }
+
+    // MARK: - Finding a tool for the job
+
+    /// Prints each step of tool discovery, for tests and debugging.
+    nonisolated(unsafe) static var trace: ((String) -> Void)?
+
+    private static let termsInstructions = """
+    Conviertes el pedido de una persona en palabras clave en inglés para buscar herramientas de terminal.
+    """
+
+    private static let discoverInstructions = """
+    Escribes un solo comando de zsh para macOS que cumple el pedido usando una de las HERRAMIENTAS. \
+    Adapta uno de sus EJEMPLOS; usa ARCHIVOS o ADJUNTOS solo si aparecen. \
+    Nunca copies valores de los ejemplos que el pedido no menciona (ciudades, números, nombres): quita esas opciones. \
+    Si hay que inventar un archivo de salida, nómbralo a partir del de entrada. \
+    Nunca uses sudo ni borres archivos. Si ninguna herramienta sirve, deja el comando vacío.
+    """
+
+    /// Looks for a terminal tool that does the job (installed, in Homebrew or
+    /// on npm), shows the model real examples of it, and has it write the
+    /// command. Says what each tool does, in Spanish.
+    @concurrent
+    static func discoverTool(for request: String, inventory: ToolInventory) async -> AssistantReply? {
+        guard AppSettings.searchesToolsOnline,
+              let terms = await ask(request, instructions: termsInstructions, generating: SearchTerms.self, maximumTokens: 40, timeout: .seconds(6)),
+              !terms.keywords.isEmpty else { return nil }
+        let keywords = Array(terms.keywords.prefix(6))
+        let ranked = await candidateTools(for: request, keywords: keywords, inventory: inventory)
+        let tools = ranked.map(\.tool)
+        trace?("keywords \(keywords) → \(ranked.map { "\($0.tool.command)\($0.tool.isInstalled ? "✓" : "") \($0.score)" })")
+        guard !tools.isEmpty else { return nil }
+
+        var examples: [String: ToolExamples] = [:]
+        for tool in tools {
+            examples[tool.command] = await ToolKnowledge.shared.examples(for: tool.command)
+        }
+        var context = ["HERRAMIENTAS:"]
+        for tool in tools {
+            let page = examples[tool.command]
+            context.append("- \(tool.command) (\(tool.isInstalled ? "instalada" : "no instalada")): \(page?.description ?? tool.summary)")
+            for (what, command) in page?.examples.prefix(4) ?? [] {
+                context.append("  EJEMPLO \(what): \(command)")
+            }
+        }
+        // Only the files the request is about: a list of every file in the
+        // folder tempts the model to stuff them into the command.
+        let named = inventory.files.filter { mentionsFile($0, in: normalized(request)) }
+        if !named.isEmpty {
+            context.append("ARCHIVOS: \(named.map(\.name).joined(separator: ", "))")
+        }
+        if !inventory.attachments.isEmpty {
+            context.append("ADJUNTOS: \(inventory.attachments.map(\.path).joined(separator: ", "))")
+        }
+        let prompt = context.joined(separator: "\n") + "\n\nPEDIDO: \(request)"
+        let written = await ask(prompt, instructions: discoverInstructions, generating: WrittenCommand.self, maximumTokens: 120)
+        trace?("escribió: \(written?.command ?? "nada")")
+        // The command must be built on one of the tools found: those come with
+        // real examples, unlike whatever the model remembers.
+        var proposal = written.flatMap { checkCommand($0.command, request: request, inventory: inventory, tools: tools) }
+        let programs = proposal.map { $0.command.split(separator: /\|\||&&|\||;/).compactMap { ShellEscape.words(String($0)).first } } ?? []
+        let used = tools.first { programs.first == $0.command }
+        // Built on a found tool, or on one already installed (“git branch”).
+        if used == nil, !(programs.first.map(inventory.has) ?? false) { proposal = nil }
+        trace?("aceptado: \(proposal?.command ?? "no")")
+
+        // What each tool does, in Spanish: the one used (or the best one) and
+        // up to two others.
+        if proposal != nil, used == nil, let written, var proposal {
+            // An installed program the search didn't need to find.
+            proposal.isGenerated = true
+            return AssistantReply(explanation: sentence(written.explanation), proposals: [proposal])
+        }
+        // Without a command, only point to a tool that clearly fits.
+        if proposal == nil, (ranked.first?.score ?? 0) < 6 { return nil }
+        let chosen = used ?? tools[0]
+        let others = Array(tools.filter { $0 != chosen }.prefix(2))
+        let descriptions = await spanishDescriptions(for: [chosen] + others, examples: examples)
+        let about = descriptions[chosen.command] ?? chosen.summary
+        var reply: AssistantReply
+        if var proposal, let written, !usesMadeUpFiles(proposal.command, request: request, inventory: inventory) {
+            proposal.about = about
+            reply = AssistantReply(explanation: sentence(written.explanation), proposals: [proposal])
+        } else if let proposal, let written {
+            // “input.mp4” is an example, not a file: show it to be completed.
+            reply = AssistantReply(explanation: sentence(written.explanation) + " " + String(localized: "Cambia los nombres de archivo por los tuyos:"), proposals: [])
+            reply.extras.template = proposal.command
+            if !chosen.isInstalled { reply.extras.suggestions.append(ToolSuggestion(chosen, detail: about)) }
+        } else {
+            // No usable command: say which tool fits and how it's used.
+            let state = chosen.isInstalled ? String(localized: "ya la tienes") : String(localized: "no la tienes instalada")
+            reply = AssistantReply(
+                explanation: String(localized: "Para eso sirve \(chosen.command) (\(state)): \(about.lowercasedFirst)") + " "
+                    + String(localized: "Se usa así; edítalo con tus datos:"),
+                proposals: []
+            )
+            reply.extras.template = examples[chosen.command]?.examples.first?.1 ?? "\(chosen.command) --help"
+            if !chosen.isInstalled {
+                reply.extras.suggestions.append(ToolSuggestion(chosen, detail: about))
+            }
+        }
+        reply.extras.suggestions += others.map { ToolSuggestion($0, detail: descriptions[$0.command] ?? $0.summary) }
+        return reply
+    }
+
+    /// Tools that may do the job: installed ones first, then the curated
+    /// catalog, Homebrew, and npm when the rest isn't enough.
+    static func candidateTools(for request: String, keywords: [String], inventory: ToolInventory) async -> [(tool: DiscoveredTool, score: Int)] {
+        var scored: [(tool: DiscoveredTool, score: Int)] = []
+        func add(_ tool: DiscoveredTool, score: Int) {
+            if let index = scored.firstIndex(where: { $0.tool.command == tool.command || $0.tool.package == tool.package }) {
+                scored[index].score = max(scored[index].score, score)
+            } else {
+                scored.append((tool, score))
+            }
+        }
+        // The curated catalog knows Spanish words, so it scores high.
+        let words = normalized(request)
+        for tool in ToolCatalog.all {
+            let score = ToolCatalog.score(tool, for: words)
+            guard score >= 2 else { continue }
+            add(DiscoveredTool(package: tool.id, command: tool.command, summary: tool.detail, source: .homebrew,
+                               isInstalled: isInstalled(tool, inventory: inventory)), score: score + 4)
+        }
+        for formula in await ToolKnowledge.shared.searchHomebrew(keywords, limit: 8) {
+            let command = ToolCatalog.tool(named: formula.name)?.command ?? formula.name
+            add(DiscoveredTool(package: formula.name, command: command, summary: formula.summary, source: .homebrew,
+                               isInstalled: inventory.has(command) || inventory.brew.contains { $0.name == formula.name }),
+                score: formula.score)
+        }
+        if scored.filter({ $0.score >= 4 }).count < 2 {
+            for var tool in await ToolKnowledge.shared.searchNPM(keywords) {
+                tool.isInstalled = inventory.has(tool.command)
+                add(tool, score: 3)
+            }
+        }
+        // How well it matches comes first; being installed helps break ties.
+        let ranked = scored.sorted { ($0.score + ($0.tool.isInstalled ? 2 : 0)) > ($1.score + ($1.tool.isInstalled ? 2 : 0)) }
+        // A single loose word in common is chance, not a match (“sándwich” → bfs).
+        let best = ranked.first?.score ?? 0
+        guard best >= 4 else { return [] }
+        return Array(ranked.filter { $0.score * 2 >= best }.prefix(4))
+    }
+
+    /// Spanish one-liners: tldr's own when it has a Spanish page, the curated
+    /// catalog's, or a short translation by the model.
+    static func spanishDescriptions(for tools: [DiscoveredTool], examples: [String: ToolExamples]) async -> [String: String] {
+        var result: [String: String] = [:]
+        var pending: [DiscoveredTool] = []
+        for tool in tools {
+            if let page = examples[tool.command], page.isSpanish, !page.description.isEmpty {
+                result[tool.command] = firstSentence(page.description)
+            } else if let curated = ToolCatalog.tool(named: tool.command) ?? ToolCatalog.tool(named: tool.package) {
+                result[tool.command] = curated.detail
+            } else {
+                pending.append(tool)
+            }
+        }
+        guard !pending.isEmpty else { return result }
+        let english = pending.map { firstSentence(examples[$0.command]?.description ?? $0.summary) }
+        let prompt = english.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        if let translated = await ask(prompt, instructions: "Traduces descripciones de herramientas al español.", generating: Translations.self, maximumTokens: 120),
+           translated.lines.count == pending.count {
+            for (tool, line) in zip(pending, translated.lines) { result[tool.command] = sentence(line) }
+        } else {
+            for (tool, line) in zip(pending, english) { result[tool.command] = line }
+        }
+        return result
     }
 
     // MARK: - Commands the model writes
@@ -415,6 +637,22 @@ nonisolated enum AssistantEngine {
         return AssistantReply(explanation: explanation, proposals: [proposal])
     }
 
+    /// Reads files the request never gave (“input.mp4”), so it's an example.
+    static func usesMadeUpFiles(_ command: String, request: String, inventory: ToolInventory) -> Bool {
+        guard inventory.attachments.isEmpty else { return false }
+        let words = normalized(request)
+        if inventory.files.contains(where: { mentionsFile($0, in: words) }) { return false }
+        let fileLike = ShellEscape.words(command).dropFirst().filter { $0.firstMatch(of: /^[\w.\/-]+\.[a-zA-Z0-9]{2,5}$/) != nil }
+        return !fileLike.isEmpty
+    }
+
+    /// The first sentence of a description, without “See also” notes.
+    static func firstSentence(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard let end = trimmed.firstMatch(of: /[.!?](\s|$)/) else { return sentence(trimmed) }
+        return String(trimmed[..<end.range.lowerBound]) + "."
+    }
+
     /// Capitalized and ending with a period.
     static func sentence(_ text: String) -> String {
         var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -432,7 +670,7 @@ nonisolated enum AssistantEngine {
     /// Accepts a command the model wrote only if every program in it exists
     /// (or can be installed), the syntax is valid, nothing in it is risky, and
     /// it doesn't make up web addresses or write files nobody asked for.
-    static func checkCommand(_ command: String, request: String, inventory: ToolInventory) -> AssistantProposal? {
+    static func checkCommand(_ command: String, request: String, inventory: ToolInventory, tools: [DiscoveredTool] = []) -> AssistantProposal? {
         var line = command.trimmingCharacters(in: .whitespacesAndNewlines)
         line = line.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
         if line.hasPrefix("$ ") { line.removeFirst(2) }
@@ -459,14 +697,24 @@ nonisolated enum AssistantEngine {
         }
         guard let first = programs.first else { return nil }
         var missing: String?
+        var install: String?
         for program in programs where !inventory.has(program) && !shellBuiltins.contains(program) {
             // An unknown program is fine only if it's a known tool to install.
-            guard missing == nil, let tool = ToolCatalog.tool(named: program) else { return nil }
-            missing = tool.id
+            guard missing == nil else { return nil }
+            if let tool = tools.first(where: { $0.command == program }), let command = tool.installCommand {
+                missing = tool.package
+                install = command
+            } else if let tool = ToolCatalog.tool(named: program) {
+                missing = tool.id
+                install = tool.installCommand
+            } else {
+                return nil
+            }
         }
         guard ToolInventory.run(["zsh", "-n", "-c", line]) != nil else { return nil }
-        return AssistantProposal(command: line, tool: "\(first) · \(inventory.source(of: first))",
-                                 missingPackage: missing, isGenerated: true)
+        let source = tools.first { $0.command == first }.map(\.origin) ?? inventory.source(of: first)
+        return AssistantProposal(command: line, tool: "\(first) · \(source)",
+                                 missingPackage: missing, isGenerated: true, install: install)
     }
 
     private static let forbiddenWords: Set<String> = [
@@ -630,6 +878,9 @@ nonisolated enum AssistantEngine {
                 step.action = .compressPDF
             }
             if step.action == .compressPDF, !mentions(shrinkWords) { return nil }
+            // “Convierte notas.md a pdf”: Pages can't open that, another tool can.
+            if step.action == .convertToPDF, !hasDocument,
+               inventory.files.contains(where: { $0.kind != .document && $0.kind != .pdf && mentionsFile($0, in: words) }) { return nil }
             _ = resolveFile(step.action == .convertToPDF ? [.document] : [.pdf])
         case .zipFiles:
             // “Comprimir un audio” means a smaller audio, not a .zip.

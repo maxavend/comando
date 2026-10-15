@@ -8,6 +8,7 @@ nonisolated enum AppSettings {
     static let confirmRiskyCommandsKey = "confirmRiskyCommands"
     static let hasSeenWelcomeKey = "hasSeenWelcome"
     static let assistantEnabledKey = "assistantEnabled"
+    static let searchesToolsOnlineKey = "searchesToolsOnline"
 
     static let defaultFontSize = 13.0
     static let defaultNotifyAfter = 10.0
@@ -26,6 +27,12 @@ nonisolated enum AppSettings {
     /// Plain-language requests go to the assistant. On unless turned off.
     static var assistantEnabled: Bool {
         UserDefaults.standard.object(forKey: assistantEnabledKey) as? Bool ?? true
+    }
+
+    /// The assistant may download the Homebrew catalog and tldr examples, and
+    /// search npm. On unless turned off.
+    static var searchesToolsOnline: Bool {
+        UserDefaults.standard.object(forKey: searchesToolsOnlineKey) as? Bool ?? true
     }
 
     static var interactiveCommands: Set<String> {

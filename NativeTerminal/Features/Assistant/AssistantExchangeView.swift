@@ -80,7 +80,11 @@ struct AssistantExchangeView: View {
             }
             ForEach(entry.proposals, id: \.self) { proposal in
                 ProposalBlock(proposal: proposal, fontSize: fontSize, isBusy: isBusy) { package in
-                    controller.installPackage(package, for: entry)
+                    if let install = proposal.install {
+                        controller.runInstall(install, for: entry)
+                    } else {
+                        controller.installPackage(package, for: entry)
+                    }
                 }
             }
             if let template = extras.template {
@@ -102,7 +106,7 @@ struct AssistantExchangeView: View {
             }
             ForEach(extras.suggestions, id: \.self) { suggestion in
                 SuggestionRow(suggestion: suggestion, isBusy: isBusy) {
-                    controller.installPackage(suggestion.package, for: entry)
+                    controller.runInstall(suggestion.installCommand, for: entry)
                 }
             }
         }
@@ -156,11 +160,15 @@ private struct ProposalBlock: View {
         VStack(alignment: .leading, spacing: Metrics.statusSpacing) {
             CommandWell(command: proposal.command, fontSize: fontSize)
             Group {
+                if let about = proposal.about {
+                    // What the tool does, so the command isn't a mystery.
+                    Caption(systemImage: "wrench.and.screwdriver", text: "\(proposal.tool) — \(about)")
+                } else if proposal.isGenerated != true {
+                    Caption(systemImage: "wrench.and.screwdriver", text: proposal.tool)
+                }
                 if proposal.isGenerated == true {
                     Caption(systemImage: "apple.intelligence",
                             text: String(localized: "Sugerido por Apple Intelligence · revísalo antes de ejecutar"))
-                } else {
-                    Caption(systemImage: "wrench.and.screwdriver", text: proposal.tool)
                 }
             }
             .padding(.leading, Metrics.wellHorizontalPadding)
@@ -293,14 +301,23 @@ private struct SuggestionRow: View {
                     .foregroundStyle(.tint)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("¿Necesitas más? Prueba \(suggestion.title)")
+                    if let origin = suggestion.origin {
+                        Text("También sirve \(Text(suggestion.title).bold()) · \(Text(origin).foregroundStyle(.secondary))")
+                    } else {
+                        Text("¿Necesitas más? Prueba \(suggestion.title)")
+                    }
                     Text(suggestion.detail)
                         .foregroundStyle(.secondary)
                 }
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Metrics.composerSpacing)
-                if didInstall {
+                if suggestion.isInstalled {
+                    Label("Instalada", systemImage: "checkmark.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.green)
+                        .help("Ya la tienes")
+                } else if didInstall {
                     Label("Instalando…", systemImage: "arrow.down.circle")
                         .font(.callout)
                         .foregroundStyle(.secondary)
