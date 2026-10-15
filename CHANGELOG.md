@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.3 (15 de octubre de 2026)
+
+- La bienvenida y la pantalla de inicio muestran la burbuja del ícono de Comando.
+- La bienvenida explica que puedes presionar “Estás en…” para cambiar de carpeta o abrirla en Finder.
+- “Acerca de Comando” incluye la firma maxavend.
+
 ## 1.2 (15 de octubre de 2026)
 
 - Guía integrada: pregúntale al asistente “¿qué hace?”, “¿para qué sirve?”, “¿cómo cambio de carpeta?”, “¿qué atajos hay?” o “¿es privado?” y responde al instante con un mini tutorial, aunque Apple Intelligence no esté activado.
