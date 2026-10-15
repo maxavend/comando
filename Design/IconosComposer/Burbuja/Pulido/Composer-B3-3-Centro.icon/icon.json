@@ -1,0 +1,77 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.07843,0.08627,0.10196,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.04706,0.05098,0.06275,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Prompt",
+      "layers": [
+        {
+          "name": "prompt",
+          "image-name": "prompt.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true
+    },
+    {
+      "name": "Burbuja",
+      "layers": [
+        {
+          "name": "burbuja",
+          "image-name": "bubble.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.22745,0.22745,0.23529,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.25
+      }
+    },
+    {
+      "name": "Piso",
+      "layers": [
+        {
+          "name": "sombra",
+          "image-name": "floor.svg",
+          "glass": false
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "specular": false
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

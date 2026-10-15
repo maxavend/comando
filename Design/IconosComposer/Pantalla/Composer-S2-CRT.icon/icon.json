@@ -1,0 +1,55 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.93333,0.90588,0.83137,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.29020,0.25882,0.19608,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Marca",
+      "layers": [
+        {
+          "name": "marca",
+          "image-name": "mark.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true
+    },
+    {
+      "name": "Pantalla",
+      "layers": [
+        {
+          "name": "barrido",
+          "image-name": "scan.svg",
+          "glass": false
+        },
+        {
+          "name": "pantalla",
+          "image-name": "screen.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

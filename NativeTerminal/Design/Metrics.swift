@@ -61,7 +61,9 @@ nonisolated enum Metrics {
     /// Height of the message field and its circular buttons.
     static let composerControlSize: CGFloat = 36
     static let composerSpacing: CGFloat = 8
-    static let composerVerticalPadding: CGFloat = 12
+    static let composerVerticalPadding: CGFloat = 8
+    /// Space between the composer and the window's sides and bottom.
+    static let composerEdgeInset: CGFloat = 10
     static let composerFieldHorizontalPadding: CGFloat = 14
 
     // MARK: Sidebar

@@ -1,0 +1,54 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.12157,0.41961,1.00000,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.04314,0.16471,0.40000,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Prompt",
+      "layers": [
+        {
+          "name": "prompt",
+          "image-name": "prompt.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.45
+      }
+    },
+    {
+      "name": "C",
+      "layers": [
+        {
+          "name": "c",
+          "image-name": "c.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:1.00000,1.00000,1.00000,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.08627,0.09020,0.10196,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Cursor",
+      "layers": [
+        {
+          "name": "cursor",
+          "image-name": "cursor.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          -4,
+          0
+        ]
+      }
+    },
+    {
+      "name": "Letras",
+      "layers": [
+        {
+          "name": "letras",
+          "image-name": "letras.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          -4,
+          0
+        ]
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.10588,0.13725,0.27843,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.06275,0.07843,0.16471,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Nota",
+      "layers": [
+        {
+          "name": "nota",
+          "image-name": "note.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "Clave",
+      "layers": [
+        {
+          "name": "clave",
+          "image-name": "clef.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "Pentagrama",
+      "layers": [
+        {
+          "name": "lineas",
+          "image-name": "staff.svg",
+          "glass": false,
+          "opacity": 0.28
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "specular": false,
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

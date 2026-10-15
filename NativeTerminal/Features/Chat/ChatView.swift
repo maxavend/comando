@@ -54,7 +54,6 @@ struct ChatView: View {
                 shell: shell,
                 directory: directory,
                 history: entries.map(\.command),
-                trailingInset: max(0, lastWidth - contentWidth),
                 attachments: $attachments,
                 onSubmit: { controller.submit($0, in: session) },
                 onAsk: { controller.ask($0, attachments: $1, in: session) }

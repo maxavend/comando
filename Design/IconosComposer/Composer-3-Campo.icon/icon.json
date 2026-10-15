@@ -1,0 +1,95 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.12157,0.48235,1.00000,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.04314,0.16471,0.40000,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Contenido",
+      "layers": [
+        {
+          "name": "contenido",
+          "image-name": "content.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "Campo",
+      "layers": [
+        {
+          "name": "campo",
+          "image-name": "field.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.15
+      },
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "Mensaje",
+      "layers": [
+        {
+          "name": "mensaje",
+          "image-name": "bubble.svg",
+          "glass": true,
+          "opacity": 0.55
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      },
+      "position": {
+        "scale": 1.12,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

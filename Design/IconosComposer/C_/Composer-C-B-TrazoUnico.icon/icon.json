@@ -1,0 +1,42 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.23137,0.24706,0.89412,1.00000"
+  },
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.07843,0.08627,0.24706,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Trazo",
+      "layers": [
+        {
+          "name": "trazo",
+          "image-name": "trazo.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "position": {
+        "scale": 1.1,
+        "translation-in-points": [
+          -12,
+          -8
+        ]
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

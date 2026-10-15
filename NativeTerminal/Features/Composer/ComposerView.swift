@@ -13,8 +13,6 @@ struct ComposerView: View {
     let directory: String
     /// Commands of this session, oldest first.
     let history: [String]
-    /// Extra trailing space matching an always-visible scroller in the transcript.
-    var trailingInset: CGFloat = 0
     /// Files dropped on the chat, sent with the next request to the assistant.
     @Binding var attachments: [URL]
     let onSubmit: (String) -> Void
@@ -59,9 +57,11 @@ struct ComposerView: View {
                 .animation(.easeOut(duration: 0.12), value: showsPanel)
             controls
         }
-        .padding(.leading, Metrics.contentInset)
-        .padding(.trailing, Metrics.contentInset + trailingInset)
-        .padding(.vertical, Metrics.composerVerticalPadding)
+        // Close to the window's edges, like Messages: the field spans the
+        // whole bottom instead of floating in the middle.
+        .padding(.horizontal, Metrics.composerEdgeInset)
+        .padding(.top, Metrics.composerVerticalPadding)
+        .padding(.bottom, Metrics.composerEdgeInset)
         .onAppear { isFocused = true }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .idle { isFocused = true }
@@ -106,7 +106,7 @@ struct ComposerView: View {
                     .overlay {
                         // Also while the assistant answers, so the field shows it's working.
                         IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
-                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0, spread: 0.55)
+                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0)
                     }
                 if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
