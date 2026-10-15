@@ -24,7 +24,6 @@ struct AppBubble: View {
                             lineWidth: size * 0.02
                         )
                 }
-                .shadow(color: Self.blue.opacity(0.35), radius: size * 0.12, y: size * 0.06)
             PromptGlyph()
                 .stroke(.white, style: StrokeStyle(lineWidth: size * Self.scale * 44, lineCap: .round, lineJoin: .round))
         }
