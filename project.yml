@@ -40,7 +40,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Comando
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
-        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Maximiliano Avendaño"
+        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Maximiliano Avendaño (maxavend)"
         MARKETING_VERSION: "1.2"
         CURRENT_PROJECT_VERSION: "5"
         ENABLE_APP_SANDBOX: NO

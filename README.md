@@ -98,4 +98,4 @@ xcodebuild -scheme NativeTerminalUI test
 
 ## Licencia
 
-[MIT](LICENSE). Incluye una copia de [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (MIT) en `Vendor/SwiftTerm`.
+[MIT](LICENSE) © 2026 Maximiliano Avendaño ([@maxavend](https://github.com/maxavend)). Incluye una copia de [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (MIT) en `Vendor/SwiftTerm`.
