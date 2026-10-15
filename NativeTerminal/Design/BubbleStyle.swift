@@ -5,6 +5,9 @@ enum BubbleRole {
     case command
     /// What the shell answered: neutral fill, on the leading side.
     case reply
+    /// A request in words for the assistant: on the trailing side, filled
+    /// with a blue-to-violet blend so it reads apart from commands.
+    case request
 }
 
 extension View {
@@ -13,10 +16,7 @@ extension View {
     func bubble(_ role: BubbleRole, tail: Bool = false) -> some View {
         padding(.horizontal, Metrics.bubbleHorizontalPadding)
             .padding(.vertical, Metrics.bubbleVerticalPadding)
-            .background(
-                role == .command ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.secondary),
-                in: BubbleShape(side: role == .command ? .trailing : .leading, hasTail: tail)
-            )
+            .background(fill(for: role), in: BubbleShape(side: role == .reply ? .leading : .trailing, hasTail: tail))
     }
 
     /// Caps a bubble's width at a share of the transcript, so long text wraps
@@ -24,6 +24,15 @@ extension View {
     func bubbleWidth(_ fraction: CGFloat, alignment: Alignment) -> some View {
         containerRelativeFrame(.horizontal, alignment: alignment) { length, _ in length * fraction }
             .frame(maxWidth: .infinity, alignment: alignment)
+    }
+}
+
+private func fill(for role: BubbleRole) -> AnyShapeStyle {
+    switch role {
+    case .command: AnyShapeStyle(.tint)
+    case .reply: AnyShapeStyle(.fill.secondary)
+    case .request: AnyShapeStyle(LinearGradient(colors: [.accentColor, IntelligenceGlyph.violet],
+                                                startPoint: .leading, endPoint: .trailing))
     }
 }
 

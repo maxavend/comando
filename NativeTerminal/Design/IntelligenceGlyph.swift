@@ -10,7 +10,10 @@ struct IntelligenceGlyph: View {
 
     /// Seconds per full turn of the colors.
     private static let period = 2.4
-    private static let spectrum: [Color] = [
+    /// The violet of the Apple Intelligence spectrum, for accents.
+    static let violet = Color(red: 0.55, green: 0.36, blue: 0.96)
+
+    static let spectrum: [Color] = [
         Color(red: 0.18, green: 0.55, blue: 1.00), // blue
         Color(red: 0.64, green: 0.36, blue: 1.00), // purple
         Color(red: 1.00, green: 0.31, blue: 0.64), // pink

@@ -35,15 +35,17 @@ struct AssistantExchangeView: View {
                     ForEach(entry.attachmentPaths, id: \.self) { AttachmentChip(path: $0) }
                 }
             }
-            Label {
-                Text(entry.command)
-            } icon: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "sparkles")
+                    .font(.system(size: fontSize * 0.82, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .accessibilityHidden(true)
+                Text(entry.command)
+                    .textSelection(.enabled)
             }
             .font(.system(size: fontSize))
             .foregroundStyle(.white)
-            .textSelection(.enabled)
-            .bubble(.command)
+            .bubble(.request)
         }
         .bubbleWidth(Metrics.textBubbleFraction, alignment: .trailing)
     }

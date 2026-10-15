@@ -94,7 +94,13 @@ struct ComposerView: View {
                     .padding(.horizontal, Metrics.composerFieldHorizontalPadding)
                     .padding(.vertical, Metrics.bubbleVerticalPadding)
                     .frame(minHeight: Metrics.composerControlSize)
-                    .glassEffect(.regular, in: .rect(cornerRadius: Metrics.composerControlSize / 2))
+                    // Plain words tint the glass violet, with ✨ on the send
+                    // button: this goes to the assistant, not to the shell.
+                    .glassEffect(
+                        isAskingAssistant ? .regular.tint(IntelligenceGlyph.violet.opacity(0.35)) : .regular,
+                        in: .rect(cornerRadius: Metrics.composerControlSize / 2)
+                    )
+                    .animation(.smooth(duration: 0.25), value: isAskingAssistant)
                 if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
                         .buttonStyle(.glassCircle(.destructive))

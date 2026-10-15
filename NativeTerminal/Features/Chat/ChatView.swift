@@ -41,6 +41,13 @@ struct ChatView: View {
         let directory = shell?.directory ?? session.directory
 
         presentations(of: transcript(shell: shell, directory: directory), directory: directory)
+        // Floats over the title bar and the top of the chat, like the contact
+        // in Messages; too tall to fit inside the toolbar.
+        .overlay(alignment: .top) {
+            SessionHeader(session: session, directory: directory, isRunning: shell?.isBusy ?? false)
+                .padding(.top, SessionHeader.topInset)
+                .ignoresSafeArea(.container, edges: .top)
+        }
         .safeAreaBar(edge: .bottom) {
             ComposerView(
                 text: $draft,
@@ -82,7 +89,8 @@ struct ChatView: View {
                 }
             }
             .padding(.horizontal, Metrics.contentInset)
-            .padding(.top, Metrics.transcriptVerticalInset - Metrics.exchangeSpacing)
+            // Clear of the floating header's name, which hangs below the bar.
+            .padding(.top, Metrics.transcriptVerticalInset + SessionHeader.overhang)
             .padding(.bottom, Metrics.transcriptVerticalInset)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
                 contentWidth = width
@@ -213,11 +221,14 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private func toolbar(directory: String) -> some ToolbarContent {
+        // Keeps the middle of the bar free for the floating session header, and
+        // the buttons on the trailing side.
         ToolbarItem(placement: .principal) {
-            SessionHeader(session: session, directory: directory, isRunning: controller.shells[session.id]?.isBusy ?? false)
+            Color.clear.frame(width: 160, height: 1)
+                .accessibilityHidden(true)
         }
-        // The header draws its own glass; no shared toolbar capsule behind it.
         .sharedBackgroundVisibility(.hidden)
+
         if let gitInfo {
             ToolbarItem(placement: .primaryAction) {
                 GitMenu(info: gitInfo, isBusy: controller.shells[session.id]?.isBusy ?? false) {

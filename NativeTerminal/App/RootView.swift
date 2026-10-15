@@ -45,7 +45,7 @@ struct RootView: View {
                 )
             }
         }
-        .searchable(text: $searchText, placement: .toolbar, prompt: Text("Buscar comandos y salidas"))
+        .searchable(text: $searchText, placement: .toolbar, prompt: Text("Buscar"))
         .searchScopes($searchScope) {
             Text("Esta sesión").tag(SearchScope.session)
             Text("Todas").tag(SearchScope.all)
