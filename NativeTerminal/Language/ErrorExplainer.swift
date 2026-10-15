@@ -34,7 +34,7 @@ nonisolated enum ErrorExplainer {
             return CommandHint(message: String(localized: "El comando tiene un error de escritura, como comillas o paréntesis sin cerrar."))
         }
         if text.contains("operation not permitted") {
-            return CommandHint(message: String(localized: "macOS bloqueó el acceso. Puedes darle acceso total al disco a NativeTerminal en Ajustes del Sistema › Privacidad y seguridad."))
+            return CommandHint(message: String(localized: "macOS bloqueó el acceso. Puedes darle acceso total al disco a Comando en Ajustes del Sistema › Privacidad y seguridad."))
         }
         if text.contains("permission denied") {
             let trimmed = command.trimmingCharacters(in: .whitespaces)

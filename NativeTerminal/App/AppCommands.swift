@@ -19,7 +19,7 @@ struct AppCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
-            Button("Bienvenida a NativeTerminal") {
+            Button("Bienvenida a Comando") {
                 controller.isShowingWelcome = true
             }
         }

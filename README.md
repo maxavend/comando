@@ -1,4 +1,4 @@
-# NativeTerminal
+# Comando
 
 Una terminal para macOS que funciona como un chat: cada comando es un mensaje y su resultado llega como respuesta.
 

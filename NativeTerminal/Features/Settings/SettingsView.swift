@@ -41,7 +41,7 @@ struct SettingsView: View {
             } header: {
                 Text("Notificaciones")
             } footer: {
-                Text("Solo se avisa si NativeTerminal no está en primer plano o estás en otra sesión.")
+                Text("Solo se avisa si Comando no está en primer plano o estás en otra sesión.")
             }
 
             Section {

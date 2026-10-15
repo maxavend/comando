@@ -2,7 +2,7 @@
 
 ## 1.0 (14 de octubre de 2026)
 
-Primera versión.
+Primera versión de Comando.
 
 - Terminal con forma de chat sobre tu zsh: colores, enlaces, barras de progreso, salidas largas plegadas y terminal integrada para programas interactivos.
 - Asistente con Apple Intelligence que funciona en tu Mac y entiende pedidos escritos con tus palabras:

@@ -17,7 +17,7 @@ struct NativeTerminalApp: App {
     }
 
     var body: some Scene {
-        Window("NativeTerminal", id: "main") {
+        Window("Comando", id: "main") {
             RootView()
                 .environment(controller)
         }
@@ -41,6 +41,7 @@ struct NativeTerminalApp: App {
     }
 
     private static func makeContainer() -> ModelContainer {
+        // The store keeps its first name so history survives the rename.
         var name = "NativeTerminal"
         #if DEBUG
         if let debugName = DebugAutomation.storeName { name = debugName }

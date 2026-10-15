@@ -34,9 +34,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cl.native.NativeTerminal
-        PRODUCT_NAME: NativeTerminal
+        # The app is called Comando; the module keeps its original name.
+        PRODUCT_NAME: Comando
+        PRODUCT_MODULE_NAME: NativeTerminal
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: NativeTerminal
+        INFOPLIST_KEY_CFBundleDisplayName: Comando
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Maximiliano Avendaño"
         MARKETING_VERSION: "1.0"
@@ -56,7 +58,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cl.native.NativeTerminalTests
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NativeTerminal.app/Contents/MacOS/NativeTerminal"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Comando.app/Contents/MacOS/Comando"
         BUNDLE_LOADER: "$(TEST_HOST)"
   NativeTerminalUITests:
     type: bundle.ui-testing

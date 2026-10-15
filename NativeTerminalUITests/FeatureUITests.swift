@@ -246,7 +246,7 @@ final class FeatureUITests: XCTestCase {
 
     func testWelcomeAndSettings() {
         app.menuBars.menuBarItems["Ayuda"].click()
-        app.menuItems["Bienvenida a NativeTerminal"].click()
+        app.menuItems["Bienvenida a Comando"].click()
         XCTAssertTrue(text("Una terminal que conversa contigo").waitForExistence(timeout: 3), "No se abrió la bienvenida")
         app.buttons["Siguiente"].click()
         XCTAssertTrue(text("Pídelo con tus palabras").waitForExistence(timeout: 2), "Falta el paso del asistente")

@@ -38,7 +38,7 @@ nonisolated enum ShellIntegration {
         }
         environment["TERM"] = "xterm-256color"
         environment["COLORTERM"] = "truecolor"
-        environment["TERM_PROGRAM"] = "NativeTerminal"
+        environment["TERM_PROGRAM"] = "Comando"
         environment["TERM_PROGRAM_VERSION"] = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         environment["CLICOLOR"] = "1"
         // Pagers make no sense in a chat: the bubble already scrolls.
