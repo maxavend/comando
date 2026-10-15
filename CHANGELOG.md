@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.1 (15 de octubre de 2026)
+
+- El asistente busca herramientas de terminal en Homebrew, npm y tldr, propone el comando con ejemplos reales y dice en español qué hace cada herramienta.
+- Chat al estilo Messages:
+  - Burbujas más redondas y letra más grande.
+  - Fecha y carpeta por separado, y el estado solo cuando aporta.
+- Liquid Glass: los mensajes pasan bajo la barra y el campo de texto, y el encabezado flotante muestra la sesión.
+- Pedidos al asistente:
+  - Burbuja de azul a violeta y una estrella como símbolo.
+  - Brillo de Apple Intelligence en el campo y estado “pensando” sin burbuja.
+- Corrige un cierre al abrir sesiones (SwiftTerm, proceso hijo tras forkpty).
+
 ## 1.0.2 (15 de octubre de 2026)
 
 - El asistente conoce lo que tienes instalado:
