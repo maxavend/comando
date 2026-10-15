@@ -11,8 +11,15 @@ struct WelcomeView: View {
         let current = steps[step]
         VStack(spacing: 0) {
             VStack(spacing: Metrics.exchangeSpacing) {
-                SymbolBadge(systemImage: current.symbol)
-                    .frame(height: 96)
+                Group {
+                    if let symbol = current.symbol {
+                        SymbolBadge(systemImage: symbol)
+                    } else {
+                        // The first step shows the app's own bubble.
+                        AppBubble(size: 96)
+                    }
+                }
+                .frame(height: 96)
                 VStack(spacing: Metrics.statusSpacing * 2) {
                     Text(current.title)
                         .font(.title2.bold())
@@ -68,13 +75,14 @@ struct WelcomeView: View {
 }
 
 struct WelcomeStep {
-    let symbol: String
+    /// nil shows the bubble from the app icon.
+    let symbol: String?
     let title: LocalizedStringKey
     let message: LocalizedStringKey
 
     static let all: [WelcomeStep] = [
         WelcomeStep(
-            symbol: "apple.terminal",
+            symbol: nil,
             title: "Una terminal que conversa contigo",
             message: "Escribe un comando como si enviaras un mensaje. La respuesta llega en una burbuja, con una explicación de lo que hizo el comando."
         ),
