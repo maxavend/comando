@@ -13,13 +13,25 @@ struct AssistantExchangeView: View {
     var body: some View {
         VStack(spacing: Metrics.replySpacing) {
             request
-            reply
-                // Replies with commands or buttons read as a card: the same
-                // inset on all four sides, and room for the command.
-                .padding(.vertical, isRich ? Metrics.bubbleHorizontalPadding - Metrics.bubbleVerticalPadding : 0)
-                .bubble(.reply)
-                .bubbleWidth(isRich ? 0.86 : Metrics.textBubbleFraction, alignment: .leading)
+            if entry.isFinished {
+                answer
+                    // Replies with commands or buttons read as a card: the same
+                    // inset on all four sides, and room for the command.
+                    .padding(.vertical, isRich ? Metrics.bubbleHorizontalPadding - Metrics.bubbleVerticalPadding : 0)
+                    .bubble(.reply)
+                    .bubbleWidth(isRich ? 0.86 : Metrics.textBubbleFraction, alignment: .leading)
+                    .transition(.opacity)
+            } else {
+                // Thinking isn't a message yet: no bubble, just the status,
+                // lined up with the text of the bubble that will replace it.
+                thinking
+                    .padding(.horizontal, Metrics.bubbleHorizontalPadding)
+                    .padding(.vertical, Metrics.bubbleVerticalPadding)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+            }
         }
+        .animation(.smooth(duration: 0.25), value: entry.isFinished)
     }
 
     private var isRich: Bool {
@@ -50,22 +62,17 @@ struct AssistantExchangeView: View {
         .bubbleWidth(Metrics.textBubbleFraction, alignment: .trailing)
     }
 
-    @ViewBuilder
-    private var reply: some View {
-        if entry.isFinished {
-            answer
-        } else {
-            HStack(spacing: Metrics.composerSpacing) {
-                IntelligenceGlyph(isActive: true)
-                ThinkingText(states: [
-                    String(localized: "Leyendo tu pedido…"),
-                    String(localized: "Revisando lo que tienes instalado…"),
-                    String(localized: "Buscando la mejor herramienta…"),
-                    String(localized: "Armando el comando…"),
-                ])
-            }
-            .font(.system(size: fontSize))
+    private var thinking: some View {
+        HStack(spacing: Metrics.composerSpacing) {
+            IntelligenceGlyph(isActive: true)
+            ThinkingText(states: [
+                String(localized: "Leyendo tu pedido…"),
+                String(localized: "Revisando lo que tienes instalado…"),
+                String(localized: "Buscando la mejor herramienta…"),
+                String(localized: "Armando el comando…"),
+            ])
         }
+        .font(.system(size: fontSize))
     }
 
     private var answer: some View {
