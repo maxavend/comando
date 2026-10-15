@@ -104,8 +104,9 @@ struct ComposerView: View {
                     // Drawn over the glass and a little past its edge, so the
                     // glow reads clearly instead of being frosted away.
                     .overlay {
+                        // Also while the assistant answers, so the field shows it's working.
                         IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2 + 2),
-                                         isActive: isAskingAssistant, spread: 0.45)
+                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0, spread: 0.45)
                             .padding(-2)
                     }
                 if showsBusy {
