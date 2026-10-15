@@ -9,7 +9,7 @@ struct EmptyChatView: View {
 
     var body: some View {
         VStack(spacing: Metrics.exchangeSpacing) {
-            SymbolBadge(systemImage: "apple.terminal", size: 72)
+            AppBubble(size: 72)
 
             VStack(spacing: Metrics.statusSpacing) {
                 Text("¿Qué quieres hacer?")
