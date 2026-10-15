@@ -23,16 +23,17 @@ struct IntelligenceGlow<S: InsettableShape>: View {
             let angle = Angle.degrees(time.truncatingRemainder(dividingBy: Self.period) / Self.period * 360)
             let breath = reduceMotion ? 1 : 0.8 + 0.2 * sin(time * 2.2)
             let gradient = AngularGradient(colors: IntelligenceGlyph.spectrum, center: .center, angle: angle)
-            // Only light, no line: a soft glow that fades in from the edge.
+            // Only light, no line: bright at the edge, fading quickly inward,
+            // so the middle stays clear.
             ZStack {
-                // Wide, faint halo reaching inward.
-                edge(lineWidth: 16 * spread).stroke(gradient, lineWidth: 16 * spread)
-                    .blur(radius: 16 * spread)
-                    .opacity((colorScheme == .dark ? 0.55 : 0.45) * breath)
-                // Brighter glow right at the edge.
-                edge(lineWidth: 6 * spread).stroke(gradient, lineWidth: 6 * spread)
-                    .blur(radius: 6 * spread)
-                    .opacity((colorScheme == .dark ? 0.9 : 0.75) * breath)
+                // Short halo reaching inward.
+                edge(lineWidth: 10 * spread).stroke(gradient, lineWidth: 10 * spread)
+                    .blur(radius: 7 * spread)
+                    .opacity((colorScheme == .dark ? 0.5 : 0.4) * breath)
+                // Bright band hugging the edge.
+                edge(lineWidth: 3.5 * spread).stroke(gradient, lineWidth: 3.5 * spread)
+                    .blur(radius: 1.6 * spread)
+                    .opacity((colorScheme == .dark ? 1 : 0.85) * breath)
             }
             .mask(shape)
         }
