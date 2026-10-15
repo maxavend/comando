@@ -27,13 +27,13 @@ struct IntelligenceGlow<S: InsettableShape>: View {
                 .fill(AngularGradient(colors: IntelligenceGlyph.spectrum, center: .center, angle: angle))
                 // Softens where the colors meet, so they flow into each other.
                 .blur(radius: depth * 0.35)
-                .saturation(1.25)
+                .saturation(1.5)
                 .mask(EdgeFalloff(shape: shape, depth: depth, centerTint: centerTint))
                 .opacity(breath)
         }
         // On dark glass the colors add light instead of covering it.
         .blendMode(colorScheme == .dark ? .plusLighter : .normal)
-        .opacity(isActive ? (colorScheme == .dark ? 0.9 : 0.7) : 0)
+        .opacity(isActive ? 1 : 0)
         .animation(.smooth(duration: 0.5), value: isActive)
         .allowsHitTesting(false)
         .accessibilityHidden(true)

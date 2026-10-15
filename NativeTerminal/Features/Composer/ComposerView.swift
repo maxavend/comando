@@ -106,7 +106,8 @@ struct ComposerView: View {
                     .overlay {
                         // Also while the assistant answers, so the field shows it's working.
                         IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
-                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0)
+                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0,
+                                         depth: 5, centerTint: 0)
                     }
                 if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
