@@ -51,6 +51,8 @@ final class FeatureUITests: XCTestCase {
 
     func testExplainCommand() {
         run("ls -lhG")
+        // The description appears beside the command on hover.
+        app.staticTexts["ls -lhG"].firstMatch.hover()
         let description = app.descendants(matching: .any).matching(identifier: "commandDescription").firstMatch
         XCTAssertTrue(description.waitForExistence(timeout: 5), "No aparece la descripción bajo el comando")
         description.click()

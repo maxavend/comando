@@ -10,7 +10,7 @@ nonisolated enum AppSettings {
     static let assistantEnabledKey = "assistantEnabled"
     static let searchesToolsOnlineKey = "searchesToolsOnline"
 
-    static let defaultFontSize = 13.0
+    static let defaultFontSize = 14.0
     static let defaultNotifyAfter = 10.0
     static let defaultInteractiveCommands = "ssh mosh python python3 node irb bun deno mysql psql sqlite3 redis-cli mongosh ftp sftp telnet bc"
 

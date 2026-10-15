@@ -103,6 +103,13 @@ nonisolated enum AssistantEngine {
         SystemLanguageModel.default.availability == .available
     }
 
+    /// Loads the on-device model ahead of the first request, so that one
+    /// doesn't pay for the model starting up.
+    static func prewarm() {
+        guard isAvailable else { return }
+        LanguageModelSession(instructions: instructions).prewarm()
+    }
+
     static var unavailableReason: String? {
         switch SystemLanguageModel.default.availability {
         case .available: nil

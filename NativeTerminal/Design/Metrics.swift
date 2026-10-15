@@ -9,10 +9,17 @@ nonisolated enum Metrics {
     static let contentInset: CGFloat = 20
     /// Vertical inset at the top and bottom of the transcript.
     static let transcriptVerticalInset: CGFloat = 16
-    /// Space between one exchange (command + reply) and the next.
+    /// Space between one exchange (command + reply) and the next, and between
+    /// unrelated blocks elsewhere.
     static let exchangeSpacing: CGFloat = 16
+    /// Space between chat bubbles when the side changes, as in Messages.
+    static let messageSpacing: CGFloat = 8
+    /// Space above a timestamp, which marks a pause in the conversation.
+    static let timestampSpacing: CGFloat = 20
+    /// Widest a bubble of words gets, as a share of the transcript.
+    static let textBubbleFraction: CGFloat = 0.72
     /// Space between a command bubble and its reply.
-    static let replySpacing: CGFloat = 6
+    static let replySpacing: CGFloat = 8
     /// Space between a bubble and its status line underneath.
     static let statusSpacing: CGFloat = 4
     /// Fixed height of the status line, whether or not it has text.
@@ -26,7 +33,7 @@ nonisolated enum Metrics {
 
     static let bubbleHorizontalPadding: CGFloat = 12
     static let bubbleVerticalPadding: CGFloat = 7
-    static let bubbleCornerRadius: CGFloat = 16
+    static let bubbleCornerRadius: CGFloat = 18
     /// Space kept free beside a bubble, so commands and replies read as two sides.
     static let bubbleOppositeInset: CGFloat = 64
     /// Space between the blocks of a rich reply (text, command, buttons).

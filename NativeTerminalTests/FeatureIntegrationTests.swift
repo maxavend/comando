@@ -247,6 +247,30 @@ final class FeatureIntegrationTests {
         process.waitUntilExit()
     }
 
+    // MARK: - Abrir shells con la app ocupada
+
+    /// Opening shells while other threads allocate and decode used to crash the
+    /// forked child (“crashed on child side of fork pre-exec”).
+    @Test func manyShellsOpenWhileOtherThreadsWork() async throws {
+        let busy = Task.detached(priority: .high) {
+            var total = 0
+            while !Task.isCancelled {
+                let data = try? JSONEncoder().encode((0..<500).map { ["n\($0)": [$0, $0 * 2]] })
+                total += (try? JSONDecoder().decode([[String: [Int]]].self, from: data ?? Data()))?.count ?? 0
+            }
+            return total
+        }
+        defer { busy.cancel() }
+        for _ in 0..<20 {
+            let session = controller.createSession(directory: folderPath)
+            let shell = controller.shell(for: session)
+            try await waitUntil("abre el shell") { shell.phase == .idle }
+        }
+        let (session, _) = try await makeSession()
+        let entry = try await runAndWait("echo sigue-vivo", in: session)
+        #expect(entry.plainOutput.contains("sigue-vivo"))
+    }
+
     // MARK: - 8. Sesiones con identidad
 
     @Test func pinningAndAppearancePersist() throws {

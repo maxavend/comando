@@ -100,8 +100,9 @@ struct ChatView: View {
             }
         }
         .scrollPosition($position)
-        // A hard edge keeps text from showing distorted under the composer.
-        .scrollEdgeEffectStyle(.hard, for: .bottom)
+        // Messages scroll under the header and the composer, fading softly
+        // into their glass instead of stopping at a hard line.
+        .scrollEdgeEffectStyle(.soft, for: .all)
         .defaultScrollAnchor(.bottom)
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.visibleRect.maxY >= geometry.contentSize.height - Metrics.exchangeSpacing
@@ -165,6 +166,10 @@ struct ChatView: View {
         #endif
         .navigationTitle(session.displayName)
         .navigationSubtitle(subtitle(for: directory))
+        // A centered capsule names the session, like a conversation in
+        // Messages; the window title stays for the Window menu and VoiceOver.
+        .toolbar(removing: .title)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .toolbar { toolbar(directory: directory) }
         .task(id: session.id) {
             controller.shell(for: session)
@@ -208,6 +213,11 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private func toolbar(directory: String) -> some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            SessionHeader(session: session, directory: directory, isRunning: controller.shells[session.id]?.isBusy ?? false)
+        }
+        // The header draws its own glass; no shared toolbar capsule behind it.
+        .sharedBackgroundVisibility(.hidden)
         if let gitInfo {
             ToolbarItem(placement: .primaryAction) {
                 GitMenu(info: gitInfo, isBusy: controller.shells[session.id]?.isBusy ?? false) {

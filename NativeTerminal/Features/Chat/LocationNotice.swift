@@ -7,9 +7,9 @@ struct LocationNotice: View {
 
     var body: some View {
         Label {
-            Text("Ahora estás en \(Text(FolderName.display(folder)).bold())")
+            Text("Ahora estás en \(Text(FolderName.phrase(folder)).fontWeight(.medium))")
         } icon: {
-            Image(systemName: FolderName.systemImage(folder))
+            Image(systemName: "folder")
         }
         .font(.caption)
         .foregroundStyle(.secondary)

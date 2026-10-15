@@ -29,8 +29,7 @@ struct OutputBubble<Accessory: View>: View {
                 .opacity(isHovering ? 1 : 0)
         }
         .onHover { isHovering = $0 }
-        .padding(.trailing, Metrics.bubbleOppositeInset)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(OutputWidth(isColumns: monospaced))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Salida")
     }
@@ -39,5 +38,21 @@ struct OutputBubble<Accessory: View>: View {
 extension OutputBubble where Accessory == EmptyView {
     init(output: AttributedString, plainText: String, monospaced: Bool) {
         self.init(output: output, plainText: plainText, monospaced: monospaced) { EmptyView() }
+    }
+}
+
+/// Prose wraps into a readable column; columns (ls, tables) keep the width
+/// they were laid out for.
+private struct OutputWidth: ViewModifier {
+    let isColumns: Bool
+
+    func body(content: Content) -> some View {
+        if isColumns {
+            content
+                .padding(.trailing, Metrics.bubbleOppositeInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            content.bubbleWidth(0.8, alignment: .leading)
+        }
     }
 }

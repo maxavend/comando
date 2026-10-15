@@ -8,6 +8,12 @@ nonisolated enum FolderName {
         return FileManager.default.displayName(atPath: path)
     }
 
+    /// The folder as part of a sentence: “Estás en \(phrase)”. The home
+    /// folder reads as “tu carpeta personal”, which says what “Inicio” means.
+    static func phrase(_ path: String) -> String {
+        path == NSHomeDirectory() ? String(localized: "tu carpeta personal") : display(path)
+    }
+
     /// “Inicio › Documentos › GitHub”, keeping only the last few folders.
     static func breadcrumb(_ path: String, maxComponents: Int = 3) -> String {
         var names: [String] = []

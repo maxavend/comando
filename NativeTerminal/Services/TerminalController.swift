@@ -40,8 +40,13 @@ final class TerminalController {
         try? ShellIntegration.install()
         repairInterruptedEntries()
         // The tool catalogs download in the background; tests stay offline.
-        if AppSettings.searchesToolsOnline, ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
-            Task.detached(priority: .utility) { await ToolKnowledge.shared.prepare() }
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil, AppSettings.assistantEnabled {
+            AssistantEngine.prewarm()
+            if AppSettings.searchesToolsOnline {
+                Task.detached(priority: .utility) { await ToolKnowledge.shared.prepare() }
+            }
+            // What's installed changes rarely: read it before the first request.
+            Task.detached(priority: .utility) { _ = await InstalledPackages.shared.brew() }
         }
         notifications.onOpenSession = { [weak self] id in
             self?.selectedSessionID = id

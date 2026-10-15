@@ -1,27 +1,33 @@
 import SwiftUI
 
-/// Centered context above an exchange: when it happened and in which folder,
-/// like the timestamps between conversations in Messages.
+/// Centered context above an exchange, like the notes between conversations
+/// in Messages: when it happened, after a pause, and which folder the shell is
+/// in, when that changed.
 struct ExchangeHeader: View {
     let date: Date?
     let directory: String?
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Metrics.statusSpacing) {
             if let date {
-                Text(date.formatted(.dateTime.weekday(.wide).day().month().hour().minute()))
+                Text(date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
+                    .fontWeight(.medium)
             }
             if let directory {
-                Label(FolderName.breadcrumb(directory), systemImage: FolderName.systemImage(directory))
-                    .lineLimit(1)
-                    .truncationMode(.head)
-                    .help(ShellEscape.abbreviate(directory))
-                    .accessibilityLabel("Carpeta \(FolderName.display(directory))")
+                Label {
+                    Text("Estás en \(Text(FolderName.phrase(directory)).fontWeight(.medium))")
+                } icon: {
+                    Image(systemName: "folder")
+                }
+                .lineLimit(1)
+                .help(ShellEscape.abbreviate(directory))
+                .accessibilityLabel("Carpeta \(FolderName.display(directory))")
             }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity)
-        .padding(.bottom, Metrics.replySpacing)
+        .padding(.top, date != nil ? Metrics.timestampSpacing - Metrics.messageSpacing : 0)
+        .padding(.bottom, Metrics.statusSpacing)
     }
 }

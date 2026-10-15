@@ -86,6 +86,8 @@ actor ToolKnowledge {
         if Self.isStale(tldrURL.appending(path: "es"), days: 30) {
             await downloadTldr()
         }
+        // Ready in memory before the first search.
+        _ = loadedFormulae()
     }
 
     private static func isStale(_ url: URL, days: Double) -> Bool {

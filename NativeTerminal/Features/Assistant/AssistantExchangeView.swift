@@ -15,11 +15,10 @@ struct AssistantExchangeView: View {
             request
             reply
                 // Replies with commands or buttons read as a card: the same
-                // inset on all four sides.
+                // inset on all four sides, and room for the command.
                 .padding(.vertical, isRich ? Metrics.bubbleHorizontalPadding - Metrics.bubbleVerticalPadding : 0)
                 .bubble(.reply)
-                .padding(.trailing, Metrics.bubbleOppositeInset)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .bubbleWidth(isRich ? 0.86 : Metrics.textBubbleFraction, alignment: .leading)
         }
     }
 
@@ -46,8 +45,7 @@ struct AssistantExchangeView: View {
             .textSelection(.enabled)
             .bubble(.command)
         }
-        .padding(.leading, Metrics.bubbleOppositeInset)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .bubbleWidth(Metrics.textBubbleFraction, alignment: .trailing)
     }
 
     @ViewBuilder

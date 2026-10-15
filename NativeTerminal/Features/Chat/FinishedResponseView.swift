@@ -60,7 +60,9 @@ struct FinishedResponseView: View {
                     Button("Volver a ejecutar", systemImage: "arrow.clockwise", action: onRerun)
                 }
             }
-            ReceiptView(entry: entry)
+            if Self.showsReceipt(for: entry, hasOutput: !(rendered?.isEmpty ?? true)) {
+                ReceiptView(entry: entry)
+            }
             if let message = entry.hintMessage {
                 HintView(message: message, suggestion: entry.hintSuggestion, onUseSuggestion: onEdit)
             }
@@ -83,6 +85,16 @@ struct FinishedResponseView: View {
         .sheet(isPresented: $isShowingAll) {
             FullOutputSheet(command: entry.command, output: entry.output, lineCount: rendered?.totalLines ?? 0, startsSearching: startsSearching)
         }
+    }
+
+    /// Like “Entregado” in Messages, the status line appears only when it
+    /// says something: a failure, a stop, a long run, or a quiet success.
+    static func showsReceipt(for entry: CommandEntry, hasOutput: Bool) -> Bool {
+        if entry.wasInterrupted || entry.wasStopped || entry.truncated { return true }
+        if let code = entry.exitCode, code != 0 { return true }
+        if let duration = entry.duration, duration >= .seconds(3) { return true }
+        // No output and no folder change: “Listo” is the only answer.
+        return !hasOutput && entry.movedTo == nil && entry.kind != .interactive
     }
 
     private func showAll(searching: Bool) {

@@ -4,25 +4,26 @@ struct SessionAvatar: View {
     let isRunning: Bool
     var emoji: String?
     var colorIndex: Int = 0
+    var size: CGFloat = Metrics.avatarSize
 
     var body: some View {
         ZStack {
             if let emoji, !emoji.isEmpty {
                 Text(emoji)
-                    .font(.system(size: 17))
+                    .font(.system(size: size * 0.53))
             } else {
                 Image(systemName: "apple.terminal.fill")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: size * 0.47, weight: .medium))
                     .foregroundStyle(.white)
             }
         }
-        .frame(width: Metrics.avatarSize, height: Metrics.avatarSize)
+        .frame(width: size, height: size)
         .background(SessionColor.color(at: colorIndex).gradient, in: .circle)
         .overlay(alignment: .bottomTrailing) {
             if isRunning {
                 Circle()
                     .fill(.green)
-                    .frame(width: 10, height: 10)
+                    .frame(width: size * 0.31, height: size * 0.31)
                     .overlay(Circle().stroke(.background, lineWidth: 2))
             }
         }

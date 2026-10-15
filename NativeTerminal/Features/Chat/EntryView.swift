@@ -10,6 +10,7 @@ struct EntryView: View {
 
     @Environment(TerminalController.self) private var controller
     @State private var isExplaining = false
+    @State private var isHovering = false
 
     var body: some View {
         let live = shell?.live
@@ -26,7 +27,7 @@ struct EntryView: View {
                 commandExchange(live: live)
             }
         }
-        .padding(.top, Metrics.exchangeSpacing)
+        .padding(.top, Metrics.messageSpacing)
         #if DEBUG
         .onDebugAction("#explain") { id in
             if id == entry.id.uuidString { isExplaining = true }
@@ -36,26 +37,29 @@ struct EntryView: View {
             RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
                 .fill(.tint.quaternary)
                 .padding(.horizontal, -Metrics.bubbleHorizontalPadding / 2)
-                .padding(.top, Metrics.exchangeSpacing / 2)
-                .padding(.bottom, -Metrics.exchangeSpacing / 2)
+                .padding(.top, Metrics.messageSpacing / 2)
+                .padding(.bottom, -Metrics.messageSpacing / 2)
                 .opacity(isHighlighted ? 1 : 0)
         }
     }
 
     @ViewBuilder
     private func commandExchange(live: LiveOutput?) -> some View {
-        VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
-            CommandBubble(command: entry.command)
-                .contextMenu { commandMenu }
-                .popover(isPresented: $isExplaining, arrowEdge: .leading) {
-                    CommandBreakdownView(command: entry.command)
-                }
-            if let description = CommandGlossary.describe(entry.command) {
-                CommandDescription(text: description, command: entry.command)
+        // What the command does shows on hover, beside the bubble, instead of
+        // a line under every command.
+        CommandBubble(command: entry.command)
+            .contextMenu { commandMenu }
+            .popover(isPresented: $isExplaining, arrowEdge: .leading) {
+                CommandBreakdownView(command: entry.command)
             }
-        }
-        .padding(.leading, Metrics.bubbleOppositeInset)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+            .overlay(alignment: .leading) {
+                if let description = CommandGlossary.describe(entry.command) {
+                    CommandDescription(text: description, command: entry.command, isVisible: isHovering)
+                        .alignmentGuide(.leading) { $0[.trailing] + Metrics.composerSpacing }
+                }
+            }
+            .onHover { isHovering = $0 }
+            .bubbleWidth(Metrics.textBubbleFraction, alignment: .trailing)
 
         if let shell, let live, live.entryID == entry.id {
             LiveResponseView(live: live, shell: shell)
