@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The Apple Intelligence glow: the spectrum running around a shape's edge,
-/// with a crisp line and soft halos that slowly turn and breathe, like Siri
-/// listening. When it turns on, the light first sweeps around the edge.
+/// The Apple Intelligence glow: the spectrum running around a shape's edge as
+/// soft light, with no line, slowly turning and breathing like Siri listening. When it turns on, the light first sweeps around the edge.
 /// Still (and without the sweep) with Reduce Motion.
 struct IntelligenceGlow<S: InsettableShape>: View {
     let shape: S
@@ -24,19 +23,18 @@ struct IntelligenceGlow<S: InsettableShape>: View {
             let angle = Angle.degrees(time.truncatingRemainder(dividingBy: Self.period) / Self.period * 360)
             let breath = reduceMotion ? 1 : 0.8 + 0.2 * sin(time * 2.2)
             let gradient = AngularGradient(colors: IntelligenceGlyph.spectrum, center: .center, angle: angle)
+            // Only light, no line: a soft glow that fades in from the edge.
             ZStack {
-                // Wide, faint halo.
-                edge(lineWidth: 14 * spread).stroke(gradient, lineWidth: 14 * spread)
-                    .blur(radius: 18 * spread)
-                    .opacity(0.45 * breath)
-                // Closer glow.
-                edge(lineWidth: 5 * spread).stroke(gradient, lineWidth: 5 * spread)
-                    .blur(radius: 5 * spread)
-                    .opacity(0.8 * breath)
-                // The crisp edge.
-                edge(lineWidth: 1.5).stroke(gradient, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                    .opacity(colorScheme == .dark ? 0.95 : 0.85)
+                // Wide, faint halo reaching inward.
+                edge(lineWidth: 16 * spread).stroke(gradient, lineWidth: 16 * spread)
+                    .blur(radius: 16 * spread)
+                    .opacity((colorScheme == .dark ? 0.55 : 0.45) * breath)
+                // Brighter glow right at the edge.
+                edge(lineWidth: 6 * spread).stroke(gradient, lineWidth: 6 * spread)
+                    .blur(radius: 6 * spread)
+                    .opacity((colorScheme == .dark ? 0.9 : 0.75) * breath)
             }
+            .mask(shape)
         }
         .opacity(isActive ? 1 : 0)
         .animation(.smooth(duration: 0.45), value: isActive)

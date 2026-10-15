@@ -105,9 +105,8 @@ struct ComposerView: View {
                     // glow reads clearly instead of being frosted away.
                     .overlay {
                         // Also while the assistant answers, so the field shows it's working.
-                        IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2 + 2),
-                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0, spread: 0.45)
-                            .padding(-2)
+                        IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
+                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0, spread: 0.32)
                     }
                 if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
