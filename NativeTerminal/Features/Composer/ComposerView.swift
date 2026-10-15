@@ -107,7 +107,7 @@ struct ComposerView: View {
                         // Also while the assistant answers, so the field shows it's working.
                         IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
                                          isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0,
-                                         depth: 5, centerTint: 0)
+                                         depth: 12, centerTint: 0.45)
                     }
                 if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
@@ -118,7 +118,7 @@ struct ComposerView: View {
                 // place, so nothing in the field shifts.
                 Button(action: submit) {
                     Label(isAskingAssistant ? "Pedir al asistente" : "Enviar",
-                          systemImage: isAskingAssistant ? "sparkles" : "arrow.up")
+                          systemImage: isAskingAssistant ? "sparkle" : "arrow.up")
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.glassCircle(.prominent))

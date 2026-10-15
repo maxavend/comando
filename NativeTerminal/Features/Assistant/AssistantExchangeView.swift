@@ -48,7 +48,7 @@ struct AssistantExchangeView: View {
                 }
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "sparkles")
+                Image(systemName: "sparkle")
                     .font(.system(size: fontSize * 0.82, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
                     .accessibilityHidden(true)

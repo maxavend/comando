@@ -26,8 +26,8 @@ struct IntelligenceGlow<S: InsettableShape>: View {
             shape
                 .fill(AngularGradient(colors: IntelligenceGlyph.spectrum, center: .center, angle: angle))
                 // Softens where the colors meet, so they flow into each other.
-                .blur(radius: depth * 0.35)
-                .saturation(1.5)
+                .blur(radius: depth * 0.6)
+                .saturation(1.4)
                 .mask(EdgeFalloff(shape: shape, depth: depth, centerTint: centerTint))
                 .opacity(breath)
         }
@@ -50,9 +50,10 @@ private struct EdgeFalloff<S: InsettableShape>: View {
     var body: some View {
         ZStack {
             shape.fill(.white)
-            shape.inset(by: depth * 0.6)
+            // A long, soft falloff: no band where the edge light ends.
+            shape.inset(by: depth * 0.45)
                 .fill(Color(white: centerTint))
-                .blur(radius: depth * 0.6)
+                .blur(radius: depth * 1.1)
         }
         .compositingGroup()
         .luminanceToAlpha()

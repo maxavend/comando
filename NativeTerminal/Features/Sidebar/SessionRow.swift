@@ -6,6 +6,14 @@ struct SessionRow: View {
 
     private var isRunning: Bool { shell?.isBusy ?? false }
 
+    /// The last command, or the last request to the assistant with its star
+    /// (stored as “✨ ” before the request).
+    private var lastLine: Text {
+        guard let last = session.lastCommand else { return Text(FolderName.breadcrumb(session.directory)) }
+        guard last.hasPrefix("✨ ") else { return Text(last) }
+        return Text("\(Image(systemName: "sparkle")) \(String(last.dropFirst(2)))")
+    }
+
     var body: some View {
         let live = shell?.live
         HStack(spacing: Metrics.sidebarRowSpacing) {
@@ -33,7 +41,7 @@ struct SessionRow: View {
                 if let live {
                     ActivityLine(live: live)
                 } else {
-                    Text(session.lastCommand ?? FolderName.breadcrumb(session.directory))
+                    lastLine
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
