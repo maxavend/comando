@@ -298,6 +298,27 @@ struct AssistantBuilderTests {
         #expect(missing?.extras.suggestions.first?.package == "pandoc")
     }
 
+    @Test func naturalWordingIsCleanedUp() {
+        let reply = AssistantReply(explanation: "Voy a ver qué ocupa más espacio aquí.",
+                                   proposals: [AssistantProposal(command: "du -sh * | sort -rh | head -20", tool: "du")])
+        func clean(_ text: String, _ request: String = "¿qué ocupa espacio?") -> String? {
+            AssistantEngine.polished(text, request: request, reply: reply)
+        }
+        #expect(clean("Hola. Con esto ves qué pesa más aquí. ¿Quieres probar otra cosa?") == "Con esto ves qué pesa más aquí.")
+        #expect(clean("¡Hola! Te muestro qué pesa más.", "hola")?.hasPrefix("¡Hola!") == true)
+        #expect(clean("Prueba con du -sh * para verlo.") == nil)
+        #expect(clean("Aquí tienes los archivos más grandes.") == nil)
+        #expect(clean("Ok") == nil)
+    }
+
+    @Test func sessionsGetASymbolForWhereTheyWork() throws {
+        #expect(SessionSymbol.symbol(for: NSHomeDirectory()) == "house.fill")
+        let folder = FileManager.default.temporaryDirectory.appending(path: "nt-sym-\(UUID().uuidString.prefix(6))")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try "{}".write(to: folder.appending(path: "package.json"), atomically: true, encoding: .utf8)
+        #expect(SessionSymbol.symbol(for: folder.path(percentEncoded: false)) == "curlybraces")
+    }
+
     @Test func slowWorkHasADeadline() async {
         let start = ContinuousClock.now
         let result: Int? = await AssistantEngine.firstResult(within: .milliseconds(200)) {

@@ -24,7 +24,8 @@ struct SessionHeader: View {
             isEditing = true
         } label: {
             VStack(spacing: -9) {
-                SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex, size: Self.avatarSize)
+                SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex,
+                              size: Self.avatarSize, symbol: SessionSymbol.symbol(for: directory))
                 HStack(spacing: 3) {
                     Text(session.displayName)
                         .font(.system(size: 13, weight: .semibold))

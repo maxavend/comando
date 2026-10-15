@@ -136,7 +136,9 @@ struct AssistantExchangeView: View {
             }
             .buttonStyle(template == nil ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
         }
-        .controlSize(.small)
+        // Regular-size capsules: easy to hit, and the same shape as the bubbles.
+        .controlSize(.regular)
+        .buttonBorderShape(.capsule)
     }
 }
 
@@ -243,7 +245,9 @@ private struct ExampleChips: View {
                     .buttonStyle(.glass)
             }
         }
-        .controlSize(.small)
+        // Regular-size capsules: easy to hit, and the same shape as the bubbles.
+        .controlSize(.regular)
+        .buttonBorderShape(.capsule)
     }
 }
 
@@ -270,7 +274,9 @@ private struct FileRequestView: View {
             Button("Elegir archivo…", systemImage: "folder") { isPicking = true }
                 .buttonStyle(.glass)
         }
-        .controlSize(.small)
+        // Regular-size capsules: easy to hit, and the same shape as the bubbles.
+        .controlSize(.regular)
+        .buttonBorderShape(.capsule)
         .fileImporter(isPresented: $isPicking, allowedContentTypes: contentTypes) { result in
             if case .success(let url) = result { onChoose(url) }
         }
@@ -334,7 +340,9 @@ private struct SuggestionRow: View {
                         onInstall()
                     }
                     .buttonStyle(.glass)
-                    .controlSize(.small)
+                    // Regular-size capsules: easy to hit, and the same shape as the bubbles.
+        .controlSize(.regular)
+        .buttonBorderShape(.capsule)
                     .disabled(isBusy)
                     .help(suggestion.installCommand)
                 }

@@ -130,6 +130,84 @@ nonisolated enum AssistantEngine {
     @concurrent
     static func reply(to request: String, inventory: ToolInventory) async -> AssistantReply {
         if let reason = unavailableReason { return .failure(reason) }
+        let reply = await plainReply(to: request, inventory: inventory)
+        return await naturalized(reply, request: request)
+    }
+
+    private static let voiceInstructions = """
+    Reescribes un mensaje de un asistente de terminal para que suene natural y cercano, en español, \
+    en una o dos oraciones cortas. Mantén el mismo sentido. Nada se ha ejecutado todavía: no describas resultados. \
+    No escribas comandos ni nombres de opciones. No agregues preguntas ni saludos.
+    """
+
+    /// The reply in the model's own words, so each message reads like a
+    /// person answering instead of a fixed phrase. Commands, files and tools
+    /// stay exactly as the app decided; only the text around them changes.
+    static func naturalized(_ reply: AssistantReply, request: String) async -> AssistantReply {
+        let base = reply.error ?? reply.explanation
+        guard !base.isEmpty else { return reply }
+        // Deleting and safety messages keep their exact words.
+        let isSafetyMessage = reply.proposals.contains { $0.command.hasPrefix("trash ") }
+            || ["Papelera", "Por seguridad"].contains(where: base.contains)
+        guard !isSafetyMessage else { return reply }
+        var facts = ["PEDIDO: \(request)", "MENSAJE: \(base)"]
+        if let about = reply.proposals.first?.about { facts.append("LA HERRAMIENTA: \(about)") }
+        let prompt = facts.joined(separator: "\n")
+        let written = await firstResult(within: .seconds(3)) {
+            let session = LanguageModelSession(instructions: voiceInstructions)
+            let options = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 70)
+            return try? await session.respond(to: prompt, options: options).content
+        }
+        guard let text = polished(written, request: request, reply: reply) else { return reply }
+        var natural = reply
+        if natural.error != nil {
+            natural.error = text
+        } else {
+            natural.explanation = text
+        }
+        return natural
+    }
+
+    /// The model's rewrite, cleaned up, or nil to keep the original: no
+    /// greeting unless greeted, no closing question unless a file is needed,
+    /// and never a command or tool label in the text.
+    static func polished(_ written: String?, request: String, reply: AssistantReply) -> String? {
+        guard var text = cleanMessage(written), text.count <= 300 else { return nil }
+        text = text.trimmingCharacters(in: CharacterSet(charactersIn: "\"“”"))
+        if !isGreeting(normalized(request)) {
+            text = text.replacing(/^(¡?[Hh]ola[!.,]*\s*)/, with: "")
+        }
+        if reply.extras.fileRequest == nil, reply.extras.examples.isEmpty,
+           let question = text.firstRange(of: /\s*¿[^?]*\?\s*$/), question.lowerBound > text.startIndex {
+            text = String(text[..<question.lowerBound])
+        }
+        text = text.trimmingCharacters(in: .whitespaces)
+        guard text.count >= 8 else { return nil }
+        let commands = reply.proposals.map(\.command) + [reply.extras.template].compactMap { $0 }
+        let leaksCommand = commands.contains { command in
+            let words = ShellEscape.words(command)
+            return command.count > 6 && (text.contains(command) || (words.count > 1 && text.contains(words.prefix(2).joined(separator: " "))))
+        }
+        let soundsLikeLabel = ["·", "comando:", "Prueba con este", "Prueba con el comando", "incluida en macOS"].contains { text.contains($0) }
+        // Nothing has run yet: a rewrite that reports a result is made up.
+        let lowered = normalized(text)
+        let claimsResult = ["aqui tienes", "aqui estan", "se esta ", "encontre", "ya tienes la", " tiene varias", "estos son", "este es el resultado"]
+            .contains { lowered.contains($0) }
+        guard !claimsResult else { return nil }
+        guard !leaksCommand, !soundsLikeLabel, !mentionsOtherCommand(text, reply: reply) else { return nil }
+        return sentence(text.prefix(1).uppercased() + text.dropFirst())
+    }
+
+    /// Words in backticks that aren't part of the proposed command: the model
+    /// must not suggest a different command in its text.
+    private static func mentionsOtherCommand(_ text: String, reply: AssistantReply) -> Bool {
+        let quoted = text.matches(of: /`([^`]+)`/).map { String($0.1) }
+        let allowed = reply.proposals.map(\.command).joined(separator: " ") + " " + (reply.extras.template ?? "")
+        return quoted.contains { !allowed.contains($0) }
+    }
+
+    @concurrent
+    static func plainReply(to request: String, inventory: ToolInventory) async -> AssistantReply {
         let words = normalized(request)
         if let smallTalk = smallTalkReply(to: words, inventory: inventory) { return smallTalk }
         // Emoji or a keyboard smash: nothing to act on.
@@ -667,7 +745,7 @@ nonisolated enum AssistantEngine {
     static func sentence(_ text: String) -> String {
         var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let first = text.first { text = first.uppercased() + text.dropFirst() }
-        if let last = text.last, !".!?".contains(last) { text += "." }
+        if let last = text.last, !".!?:…".contains(last) { text += "." }
         return text
     }
 

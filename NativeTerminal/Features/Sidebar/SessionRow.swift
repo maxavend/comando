@@ -17,7 +17,8 @@ struct SessionRow: View {
     var body: some View {
         let live = shell?.live
         HStack(spacing: Metrics.sidebarRowSpacing) {
-            SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex)
+            SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex,
+                          symbol: SessionSymbol.symbol(for: session.directory))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(session.displayName)

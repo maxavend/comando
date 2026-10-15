@@ -5,6 +5,8 @@ struct SessionAvatar: View {
     var emoji: String?
     var colorIndex: Int = 0
     var size: CGFloat = Metrics.avatarSize
+    /// What the session works on (a folder or a kind of project).
+    var symbol = "apple.terminal.fill"
 
     var body: some View {
         ZStack {
@@ -12,7 +14,7 @@ struct SessionAvatar: View {
                 Text(emoji)
                     .font(.system(size: size * 0.53))
             } else {
-                Image(systemName: "apple.terminal.fill")
+                Image(systemName: symbol)
                     .font(.system(size: size * 0.47, weight: .medium))
                     .foregroundStyle(.white)
             }
