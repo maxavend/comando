@@ -40,9 +40,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Comando
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
-        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Maximiliano Avendaño (maxavend)"
-        MARKETING_VERSION: "1.3"
-        CURRENT_PROJECT_VERSION: "6"
+        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 Maximiliano Avendaño (maxavend). MIT License."
+        MARKETING_VERSION: "1.3.1"
+        CURRENT_PROJECT_VERSION: "7"
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

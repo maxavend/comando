@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.3.1 (15 de octubre de 2026)
+
+- “Acerca de Comando” indica la licencia MIT.
+
 ## 1.3 (15 de octubre de 2026)
 
 - La bienvenida y la pantalla de inicio muestran la burbuja del ícono de Comando.
