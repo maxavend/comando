@@ -7,7 +7,7 @@ import FoundationModels
 @Generable
 enum AssistantAction: String, CaseIterable {
     case runScript, installDependencies, compressAudio, compressVideo, resizeImage, zipFiles
-    case gitPublish, gitStatus, installTool, unknown
+    case convertToPDF, compressPDF, gitPublish, gitStatus, installTool, unknown
 }
 
 @Generable
@@ -17,6 +17,7 @@ struct AssistantStep {
     installDependencies: instalar las dependencias del proyecto. \
     compressAudio: comprimir o convertir un audio. compressVideo: comprimir un video. \
     resizeImage: cambiar el tamaño de una imagen. zipFiles: comprimir archivos o carpetas en .zip. \
+    convertToPDF: pasar un documento (Pages, Word, Keynote, Numbers) a PDF. compressPDF: reducir el peso de un PDF. \
     gitPublish: subir o publicar cambios en GitHub. gitStatus: ver qué cambió en el proyecto. \
     installTool: instalar un programa con Homebrew. unknown: ninguna acción sirve.
     """)
@@ -31,6 +32,8 @@ struct AssistantStep {
     var message: String?
     @Guide(description: "Para installTool: nombre del paquete de Homebrew")
     var package: String?
+    @Guide(description: "Para convertToPDF: true si además pide que pese poco")
+    var compress: Bool?
 }
 
 @Generable

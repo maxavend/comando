@@ -107,18 +107,27 @@ nonisolated enum AssistantEngine {
         if let reason = unavailableReason { return .failure(reason) }
         let words = normalized(request)
         if let smallTalk = smallTalkReply(to: words, inventory: inventory) { return smallTalk }
-
-        let plan = await ask(prompt(request, inventory: inventory), instructions: instructions, generating: AssistantPlan.self)
-        let steps = validate(plan?.steps ?? [], request: request, inventory: inventory)
-        if !steps.isEmpty {
-            return build(steps: steps, request: request, inventory: inventory)
+        // Emoji or a keyboard smash: nothing to act on.
+        guard keywords(in: words).contains(where: { $0.count >= 3 }) else {
+            return build(steps: [], request: request, inventory: inventory)
         }
         if let trash = trashReply(for: request, inventory: inventory) {
             return trash
         }
-        // “¿Qué es npm?” wants an explanation, not a command.
+        // “¿Qué es npm?” or “¿para qué sirve git?” want an explanation, not a command.
         if asksForMeaning(words), let answer = await explain(request) {
             return AssistantReply(explanation: answer, proposals: [])
+        }
+        // A clear request needs no model: answer at once.
+        if let action = guess(words, inventory: inventory) {
+            let steps = validate([AssistantStep(action: action)], request: request, inventory: inventory)
+            if !steps.isEmpty { return build(steps: steps, request: request, inventory: inventory) }
+        }
+
+        let plan = await ask(prompt(request, inventory: inventory), instructions: instructions, generating: AssistantPlan.self, maximumTokens: 120)
+        let steps = validate(plan?.steps ?? [], request: request, inventory: inventory)
+        if !steps.isEmpty {
+            return build(steps: steps, request: request, inventory: inventory)
         }
         if let chosen = await pickOption(for: request, inventory: inventory) {
             return chosen
@@ -132,11 +141,35 @@ nonisolated enum AssistantEngine {
         return build(steps: [], request: request, inventory: inventory)
     }
 
-    /// One focused model call; nil if the model fails.
-    private static func ask<Content: Generable>(_ prompt: String, instructions: String, generating type: Content.Type) async -> Content? {
-        let session = LanguageModelSession(instructions: instructions)
-        // Greedy sampling: the same request always gets the same answer.
-        return try? await session.respond(to: prompt, generating: type, options: GenerationOptions(samplingMode: .greedy)).content
+    /// One focused model call; nil if the model fails or takes too long.
+    ///
+    /// Greedy sampling gives the same answer to the same request, but it can
+    /// also fall into repeating itself forever, so every call has a token
+    /// limit and a deadline.
+    private static func ask<Content: Generable & Sendable>(
+        _ prompt: String, instructions: String, generating type: Content.Type,
+        maximumTokens: Int = 300, timeout: Duration = .seconds(12)
+    ) async -> Content? {
+        await firstResult(within: timeout) {
+            let session = LanguageModelSession(instructions: instructions)
+            let options = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: maximumTokens)
+            return try? await session.respond(to: prompt, generating: type, options: options).content
+        }
+    }
+
+    /// The operation's result, or nil once the deadline passes (the operation
+    /// is cancelled).
+    static func firstResult<T: Sendable>(within timeout: Duration, _ operation: @escaping @Sendable () async -> T?) async -> T? {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await operation() }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
     }
 
     // MARK: - Small talk
@@ -226,8 +259,11 @@ nonisolated enum AssistantEngine {
 
     @concurrent
     static func explain(_ request: String) async -> String? {
-        let session = LanguageModelSession(instructions: explainInstructions)
-        guard let text = try? await session.respond(to: request, options: GenerationOptions(samplingMode: .greedy)).content else { return nil }
+        let text = await firstResult(within: .seconds(12)) {
+            let session = LanguageModelSession(instructions: explainInstructions)
+            let options = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 120)
+            return try? await session.respond(to: request, options: options).content
+        }
         return cleanMessage(text)
     }
 
@@ -255,7 +291,7 @@ nonisolated enum AssistantEngine {
         var options: [String] = recipes.map { "\($0.title): \($0.detail)" }
         options += tools.map { "Instalar o usar \($0.title): \($0.detail)" }
         let prompt = "PEDIDO: \(request)\n\nOPCIONES:\n" + options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
-        guard let choice = await ask(prompt, instructions: pickInstructions, generating: OptionChoice.self),
+        guard let choice = await ask(prompt, instructions: pickInstructions, generating: OptionChoice.self, maximumTokens: 10),
               choice.option >= 1, choice.option <= options.count else { return nil }
         let index = choice.option - 1
         if index < recipes.count {
@@ -297,12 +333,15 @@ nonisolated enum AssistantEngine {
         if !inventory.files.isEmpty {
             context.append("ARCHIVOS: \(inventory.files.prefix(30).map(\.name).joined(separator: ", "))")
         }
+        if !inventory.attachments.isEmpty {
+            context.append("ADJUNTOS: \(inventory.attachments.map(\.path).joined(separator: ", "))")
+        }
         let prompt = context.joined(separator: "\n") + "\n\nPEDIDO: \(request)"
-        guard let written = await ask(prompt, instructions: writeInstructions, generating: WrittenCommand.self),
+        guard let written = await ask(prompt, instructions: writeInstructions, generating: WrittenCommand.self, maximumTokens: 100),
               let proposal = checkCommand(written.command, request: request, inventory: inventory) else { return nil }
         // A second, independent look catches commands that run but miss the point.
         let review = "PEDIDO: \(request)\nCOMANDO: \(proposal.command)"
-        guard let check = await ask(review, instructions: checkInstructions, generating: CommandCheck.self), check.matches else { return nil }
+        guard let check = await ask(review, instructions: checkInstructions, generating: CommandCheck.self, maximumTokens: 10), check.matches else { return nil }
         let explanation = cleanMessage(written.explanation).map { sentence($0) }
             ?? CommandGlossary.describe(proposal.command).map { $0 + "." }
             ?? String(localized: "Este comando debería hacerlo.")
@@ -435,10 +474,13 @@ nonisolated enum AssistantEngine {
         var result: [AssistantStep] = []
         // When the model finds nothing usable, plain keywords still can.
         let candidates = steps.contains { check($0, words: words, inventory: inventory) != nil }
-            ? steps : steps + [guess(words)].compactMap { $0.map { AssistantStep(action: $0) } }
+            ? steps : steps + [guess(words, inventory: inventory)].compactMap { $0.map { AssistantStep(action: $0) } }
         for step in candidates where step.action != .unknown {
             guard !result.contains(where: { $0.action == step.action && $0.script == step.script }) else { continue }
             guard var checked = check(step, words: words, inventory: inventory) else { continue }
+            if checked.action == .convertToPDF {
+                checked.compress = ["comprim", "pese poco", "liviano", "ligero", "reduc", "achic", "chico", "menos"].contains(where: words.contains)
+            }
             if checked.action == .resizeImage {
                 // Only a width the person wrote, or a fraction of the real one;
                 // otherwise a common size they can edit.
@@ -463,9 +505,11 @@ nonisolated enum AssistantEngine {
                 step.file = file.path
                 return true
             }
-            // A single attachment of the right kind is clearly “this”.
+            // A single attachment of the right kind is clearly “this”, and so
+            // is a file of the folder the request names.
             let candidates = inventory.attachments.filter { kinds.contains($0.kind) }
-            step.file = candidates.count == 1 ? candidates[0].path : nil
+            let named = inventory.files.filter { kinds.contains($0.kind) && mentionsFile($0, in: words) }
+            step.file = candidates.count == 1 ? candidates[0].path : named.count == 1 ? named[0].path : nil
             return true
         }
 
@@ -474,7 +518,8 @@ nonisolated enum AssistantEngine {
             let available = inventory.scripts + inventory.makeTargets
             let script = step.script.flatMap { name in available.first { $0.caseInsensitiveCompare(name) == .orderedSame } }
                 ?? available.first { words.contains(normalized($0)) }
-                // “Corre el proyecto” means its development server.
+                // “Corre el proyecto” means its development server; “los tests”, its tests.
+                ?? (mentions(["test", "prueba"]) ? ["test", "tests"].first(where: available.contains) : nil)
                 ?? (mentions(["proyecto", "servidor", "server", "app", "sitio", "web"])
                     ? ["dev", "start", "serve"].first(where: available.contains) : nil)
             guard var script else { return nil }
@@ -503,10 +548,26 @@ nonisolated enum AssistantEngine {
             guard mentions(imageWords) || inventory.attachments.contains(where: { $0.kind == .image }),
                   mentions(sizeWords) || words.contains(/\d{2,5}/),
                   resolveFile([.image]) else { return nil }
+        case .convertToPDF, .compressPDF:
+            // “Que pese menos” about an attached PDF or document counts too.
+            guard mentions(["pdf"]) || inventory.attachments.contains(where: { $0.kind == .pdf || $0.kind == .document }) else { return nil }
+            // Shrinking needs a PDF; a document is converted first.
+            let hasDocument = inventory.attachments.contains { $0.kind == .document }
+                || inventory.files.contains { $0.kind == .document && mentionsFile($0, in: words) }
+            let hasPDF = inventory.attachments.contains { $0.kind == .pdf }
+                || inventory.files.contains { $0.kind == .pdf && mentionsFile($0, in: words) }
+            if step.action == .compressPDF, !hasPDF, hasDocument || mentions(documentWords) {
+                step.action = .convertToPDF
+            }
+            if step.action == .convertToPDF, !hasDocument, hasPDF {
+                step.action = .compressPDF
+            }
+            if step.action == .compressPDF, !mentions(shrinkWords) { return nil }
+            _ = resolveFile(step.action == .convertToPDF ? [.document] : [.pdf])
         case .zipFiles:
             // “Comprimir un audio” means a smaller audio, not a .zip.
             guard mentions(["zip", "empaquet"])
-                    || (mentions(["comprim"]) && !mentions(audioWords + videoWords + imageWords + ["pdf"])),
+                    || (mentions(["comprim"]) && !mentions(audioWords + videoWords + imageWords + documentWords + ["pdf"])),
                   resolveFile([.folder, .other, .image, .audio, .video]) else { return nil }
         case .gitPublish:
             guard mentions(["github", "git", "sube", "subir", "push", "publica", "commit", "repositorio", "repo"]) else { return nil }
@@ -579,17 +640,32 @@ nonisolated enum AssistantEngine {
     private static let videoWords = ["video", "mov", "mp4", "clip", "pelicula", "grabacion de pantalla"]
     /// Words that ask for a smaller or converted file, or one ready to send.
     private static let shrinkWords = ["comprim", "achic", "reduc", "liviano", "pesa", "peso", "convert", "pasar a", "chico",
-                                      "mp3", "m4a", "whatsapp", "mandar", "enviar", "correo", "mail"]
+                                      "mp3", "m4a", "whatsapp", "mandar", "enviar", "correo", "mail", "pese poco", "pese menos", "menos peso", "ligero", "liviano"]
+    private static let documentWords = ["documento", "word", "docx", "pages", "presentacion", "keynote", "planilla", "excel", "numbers"]
     private static let sizeWords = ["mitad", "tercio", "%", "por ciento", "achic", "redimension", "tamano", "ancho", "px", "agrand", "reduc", "pequen", "mas chica", "mas grande"]
     private static let imageWords = ["imagen", "foto", "logo", "png", "jpg", "jpeg", "heic"]
 
     /// The action a request clearly asks for by its words alone.
-    static func guess(_ words: String) -> AssistantAction? {
+    static func guess(_ words: String, inventory: ToolInventory) -> AssistantAction? {
         func mentions(_ keys: [String]) -> Bool { keys.contains { words.contains($0) } }
-        if mentions(audioWords), mentions(shrinkWords) { return .compressAudio }
-        if mentions(videoWords), mentions(shrinkWords + ["720"]) { return .compressVideo }
-        if mentions(imageWords), mentions(sizeWords) { return .resizeImage }
+        func attached(_ kind: ToolInventory.FileInfo.Kind) -> Bool { inventory.attachments.contains { $0.kind == kind } }
+        if mentions(["pdf"]) || attached(.pdf) || attached(.document) {
+            if mentions(documentWords + ["convert", "pasa", "exporta", "transforma", "a pdf", "en pdf"]) || attached(.document) {
+                if mentions(["pdf"]) || attached(.document) && mentions(shrinkWords) { return .convertToPDF }
+            }
+            if mentions(shrinkWords) && (mentions(["pdf"]) || attached(.pdf)) { return .compressPDF }
+        }
+        if mentions(audioWords) || attached(.audio), mentions(shrinkWords) { return .compressAudio }
+        if mentions(videoWords) || attached(.video), mentions(shrinkWords + ["720"]) { return .compressVideo }
+        if mentions(imageWords) || attached(.image), mentions(sizeWords) { return .resizeImage }
         if mentions(["zip", "empaquet"]) { return .zipFiles }
+        let run = ["corre", "correr", "ejecuta", "levanta", "inicia", "arranca", "run ", "start"]
+        if mentions(run), mentions(["proyecto", "servidor", "server", "app", "test", "prueba", "build", "compila"])
+            || inventory.scripts.contains(where: { mentions(["corre " + normalized($0), "ejecuta " + normalized($0)]) }) {
+            return .runScript
+        }
+        if mentions(["instala", "install"]), mentions(["dependencia", "paquetes", "modulos"]) { return .installDependencies }
+        if mentions(["sube", "subir", "publica", "push"]), mentions(["github", "git ", "cambios", "repo"]) { return .gitPublish }
         return nil
     }
 
@@ -662,6 +738,12 @@ nonisolated enum AssistantEngine {
         case .resizeImage:
             kind = .image
             explanation = String(localized: "Puedo cambiarle el tamaño con sips, que ya viene en macOS. ¿Qué imagen? Arrástrala a la ventana o elígela.")
+        case .convertToPDF:
+            kind = .document
+            explanation = String(localized: "Puedo exportarlo a PDF con Pages, Numbers o Keynote, que vienen con tu Mac. ¿Qué documento? Arrástralo a la ventana o elígelo.")
+        case .compressPDF:
+            kind = .pdf
+            explanation = String(localized: "Puedo reducir su peso con comprimir-pdf, que viene con Comando. ¿Qué PDF? Arrástralo a la ventana o elígelo.")
         default:
             kind = .other
             explanation = String(localized: "Puedo comprimirlo en un .zip con la herramienta de macOS. ¿Qué archivo o carpeta? Arrástralo a la ventana o elígelo.")
@@ -750,6 +832,24 @@ nonisolated enum AssistantEngine {
             return (String(localized: "Voy a crear una copia de “\((file as NSString).lastPathComponent)” de \(width) píxeles de ancho."),
                     AssistantProposal(command: "sips --resampleWidth \(width) \(q(file)) --out \(q(output))",
                                       tool: "sips · incluida en macOS"))
+
+        case .convertToPDF:
+            guard let file = step.file, let export = DocumentExport.command(for: file, in: inventory.directory) else { return nil }
+            let name = (file as NSString).lastPathComponent
+            guard step.compress == true else {
+                return (String(localized: "Voy a exportar “\(name)” a PDF con \(export.app). La primera vez, macOS te pedirá permiso para que Comando use \(export.app)."),
+                        AssistantProposal(command: export.command, tool: "\(export.app) · incluida en tu Mac"))
+            }
+            let compressed = derivedName(export.output, suffix: "comprimido", extension: "pdf")
+            return (String(localized: "Voy a exportar “\(name)” a PDF con \(export.app) y luego reducir su peso. La primera vez, macOS te pedirá permiso para que Comando use \(export.app)."),
+                    AssistantProposal(command: "\(export.command) && \(BuiltInTools.compressPDF) \(q(export.output)) \(q(compressed))",
+                                      tool: "\(export.app) y \(BuiltInTools.compressPDF) · incluidas en tu Mac"))
+
+        case .compressPDF:
+            guard let file = step.file else { return nil }
+            let output = derivedName(file, suffix: "comprimido", extension: "pdf")
+            return (String(localized: "Voy a reducir el peso de “\((file as NSString).lastPathComponent)” con el filtro de macOS y te diré cuánto bajó."),
+                    AssistantProposal(command: "\(BuiltInTools.compressPDF) \(q(file)) \(q(output))", tool: "\(BuiltInTools.compressPDF) · incluida en Comando"))
 
         case .zipFiles:
             guard let file = step.file else { return nil }
@@ -894,7 +994,7 @@ nonisolated enum AssistantEngine {
 extension AssistantStep {
     /// Actions that work on a file the person has to point at.
     nonisolated var needsFile: Bool {
-        [.compressAudio, .compressVideo, .resizeImage, .zipFiles].contains(action)
+        [.compressAudio, .compressVideo, .resizeImage, .zipFiles, .convertToPDF, .compressPDF].contains(action)
     }
 }
 

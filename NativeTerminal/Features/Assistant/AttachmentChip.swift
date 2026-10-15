@@ -41,6 +41,8 @@ struct AttachmentChip: View {
         case .image: "photo"
         case .folder: "folder"
         case .archive: "doc.zipper"
+        case .document: "doc.text"
+        case .pdf: "doc.richtext"
         case .other: "doc"
         }
     }

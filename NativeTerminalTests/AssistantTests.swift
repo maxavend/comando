@@ -239,6 +239,49 @@ struct AssistantBuilderTests {
         #expect(TerminalController.changesInstalledTools("cd x; npm i -g pnpm"))
     }
 
+    @Test func documentsBecomePDFs() {
+        let pages = ToolInventory.FileInfo(name: "Cuestionario BCI.pages", path: "/Users/demo/Cuestionario BCI.pages", kind: .document, size: 1)
+        let context = inventory(attachments: [pages])
+        let request = "Quiero convertir este documento en pdf comprimido y que pese poco"
+        let steps = AssistantEngine.validate([AssistantStep(action: .compressPDF)], request: request, inventory: context)
+        #expect(steps.map(\.action) == [.convertToPDF])
+        #expect(steps.first?.compress == true)
+        let reply = AssistantEngine.build(steps: steps, request: request, inventory: context)
+        let command = reply.proposals.first?.command ?? ""
+        #expect(command.hasPrefix("osascript -e 'tell application \"Pages\"'"))
+        #expect(command.contains("POSIX file \"/Users/demo/Cuestionario BCI.pdf\""))
+        #expect(command.hasSuffix("&& comprimir-pdf '/Users/demo/Cuestionario BCI.pdf' '/Users/demo/Cuestionario BCI-comprimido.pdf'"))
+        #expect(DangerDetector.risk(of: command) == nil)
+
+        let pdf = ToolInventory.FileInfo(name: "Contrato.pdf", path: "Contrato.pdf", kind: .pdf, size: 1)
+        let shrink = AssistantEngine.validate([AssistantStep(action: .unknown)], request: "comprime Contrato.pdf", inventory: inventory(files: [pdf]))
+        #expect(AssistantEngine.build(steps: shrink, request: "", inventory: inventory(files: [pdf])).proposals.first?.command
+                == "comprimir-pdf Contrato.pdf Contrato-comprimido.pdf")
+    }
+
+    @Test func attachedPDFNeedsNoKeyword() {
+        let pdf = ToolInventory.FileInfo(name: "Escaneo.pdf", path: "/tmp/Escaneo.pdf", kind: .pdf, size: 1)
+        let context = inventory(attachments: [pdf])
+        #expect(AssistantEngine.guess("que pese menos", inventory: context) == .compressPDF)
+        let steps = AssistantEngine.validate([AssistantStep(action: .compressPDF)], request: "que pese menos", inventory: context)
+        #expect(AssistantEngine.build(steps: steps, request: "", inventory: context).proposals.first?.command
+                == "comprimir-pdf /tmp/Escaneo.pdf /tmp/Escaneo-comprimido.pdf")
+        #expect(AssistantEngine.guess("corre el proyecto", inventory: inventory()) == .runScript)
+        #expect(AssistantEngine.guess("sube mis cambios a github", inventory: inventory()) == .gitPublish)
+    }
+
+    @Test func slowWorkHasADeadline() async {
+        let start = ContinuousClock.now
+        let result: Int? = await AssistantEngine.firstResult(within: .milliseconds(200)) {
+            try? await Task.sleep(for: .seconds(30))
+            return 1
+        }
+        #expect(result == nil)
+        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(ToolInventory.run(["sleep", "5"], timeout: 0.3) == nil)
+        #expect(ToolInventory.run(["echo", "hola"])?.trimmingCharacters(in: .newlines) == "hola")
+    }
+
     @Test func catalogMatchesWordForms() {
         #expect(ToolCatalog.match("comprime un pdf")?.id == "ghostscript")
         #expect(ToolCatalog.match("descarga un archivo de internet")?.id == "wget")

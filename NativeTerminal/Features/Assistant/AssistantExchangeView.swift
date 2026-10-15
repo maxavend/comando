@@ -271,6 +271,7 @@ private struct FileRequestView: View {
         case .audio: [.audio]
         case .video: [.movie]
         case .image: [.image]
+        case .pdf: [.pdf]
         default: [.item, .folder]
         }
     }

@@ -45,7 +45,7 @@ enum DebugAutomation {
         case "#ask":
             if let session = controller.selectedSession {
                 let files = environment["NATIVETERM_ATTACH"].flatMap { $0.isEmpty ? nil : [URL(filePath: $0)] } ?? []
-                controller.ask(argument, attachments: argument.contains("audio") ? files : [], in: session)
+                controller.ask(argument, attachments: ["audio", "documento", "esto"].contains(where: argument.contains) ? files : [], in: session)
                 try? await Task.sleep(for: .milliseconds(300))
             }
         case "#axdump":

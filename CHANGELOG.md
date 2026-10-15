@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.0.1 (15 de octubre de 2026)
+
+- El asistente ya no se queda en “Armando el comando…”:
+  - Cada consulta al modelo tiene un tope de largo y de tiempo, y el asistente completo también, así que siempre termina con una respuesta.
+  - Las herramientas lentas o sin conexión ya no pueden trabar la app.
+- Los pedidos claros (“corre el proyecto”, “sube mis cambios a GitHub”, “comprime este PDF”) se responden al instante sin pasar por el modelo. Las preguntas como “¿para qué sirve git?” se explican.
+- Documentos:
+  - Convierte documentos de Pages, Word, Keynote y Numbers a PDF con las apps que vienen en el Mac.
+  - El nuevo comando `comprimir-pdf` reduce el peso de un PDF con el filtro de macOS.
+- La burbuja de “pensando” se ajusta al largo de cada mensaje.
+- Prueba de estrés con más de 40 pedidos reales: todos responden en menos de 5 segundos y ninguno propone algo riesgoso.
+
 ## 1.0 (14 de octubre de 2026)
 
 Primera versión de Comando.

@@ -27,6 +27,7 @@ nonisolated enum ShellIntegration {
         for (name, contents) in files {
             try contents.write(to: directory.appending(path: name), atomically: true, encoding: .utf8)
         }
+        try BuiltInTools.install()
     }
 
     /// Environment for a new shell, based on the app's own environment.
@@ -51,6 +52,7 @@ nonisolated enum ShellIntegration {
         environment["NATIVETERM_USER_ZDOTDIR"] = userZDOTDIR ?? NSHomeDirectory()
         environment["NATIVETERM_INTEGRATION_DIR"] = directory.path(percentEncoded: false)
         environment["ZDOTDIR"] = directory.path(percentEncoded: false)
+        environment["NATIVETERM_TOOLS_DIR"] = BuiltInTools.directory.path(percentEncoded: false).trimmingSuffix("/")
         return environment.map { "\($0.key)=\($0.value)" }
     }
 
@@ -111,6 +113,10 @@ nonisolated enum ShellIntegration {
       # Bracketed paste is how the app submits commands, so keep it enabled.
       zle_bracketed_paste=($'\e[?2004h' $'\e[?2004l')
       unsetopt PROMPT_SP 2>/dev/null
+    fi
+    # Comando's own commands (comprimir-pdf), after whatever the user's files set.
+    if [[ -n "$NATIVETERM_TOOLS_DIR" ]]; then
+      path=(${path:#$NATIVETERM_TOOLS_DIR} "$NATIVETERM_TOOLS_DIR")
     fi
     # Run last, after any prompt theme, so the prompt stays empty.
     precmd_functions=(${precmd_functions:#__nativeterm_precmd} __nativeterm_precmd)

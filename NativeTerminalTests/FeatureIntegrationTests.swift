@@ -198,6 +198,55 @@ final class FeatureIntegrationTests {
         #expect(entry.command.hasPrefix("cd "))
     }
 
+    // MARK: - Comandos propios y asistente de punta a punta
+
+    @Test func compressPDFRunsFromTheShell() async throws {
+        let (session, _) = try await makeSession()
+        let pdf = folder.appending(path: "Folleto.pdf")
+        try Self.makeHeavyPDF(at: pdf)
+        let entry = try await runAndWait("comprimir-pdf Folleto.pdf", in: session)
+        #expect(entry.succeeded, "\(entry.plainOutput)")
+        #expect(entry.plainOutput.contains("Listo"), "\(entry.plainOutput)")
+        let output = folder.appending(path: "Folleto-comprimido.pdf").path(percentEncoded: false)
+        let size = (try FileManager.default.attributesOfItem(atPath: output)[.size] as? Int) ?? 0
+        let original = (try FileManager.default.attributesOfItem(atPath: pdf.path(percentEncoded: false))[.size] as? Int) ?? 0
+        #expect(size > 0 && size < original)
+    }
+
+    @Test(.enabled(if: AssistantEngine.isAvailable))
+    func assistantAnswersAndItsCommandRuns() async throws {
+        let (session, _) = try await makeSession()
+        let pdf = folder.appending(path: "Escaneo.pdf")
+        try Self.makeHeavyPDF(at: pdf)
+        controller.ask("que pese menos para mandarlo por correo", attachments: [pdf], in: session)
+        let entry = try #require(entries(of: session).last)
+        try await waitUntil("responde el asistente", timeout: .seconds(50)) { entry.isFinished }
+        #expect(entry.proposals.first?.command.hasPrefix("comprimir-pdf") == true, "\(entry.assistantExplanation ?? entry.assistantError ?? "")")
+        controller.runProposals(of: entry)
+        let output = folder.appending(path: "Escaneo-comprimido.pdf").path(percentEncoded: false)
+        try await waitUntil("se crea el PDF comprimido") { FileManager.default.fileExists(atPath: output) }
+    }
+
+    @Test(.enabled(if: AssistantEngine.isAvailable))
+    func assistantNeverHangs() async throws {
+        let (session, _) = try await makeSession()
+        for request in ["Quiero convertir este documento en pdf comprimido y que pese poco", "🚀", "¿qué es zsh?", "corre el proyecto"] {
+            controller.ask(request, attachments: [], in: session)
+            let entry = try #require(entries(of: session).last)
+            try await waitUntil("responde «\(request)»", timeout: .seconds(50)) { entry.isFinished }
+            #expect(entry.assistantError != nil || entry.assistantExplanation?.isEmpty == false)
+        }
+    }
+
+    private static func makeHeavyPDF(at url: URL) throws {
+        let process = Process()
+        process.executableURL = URL(filePath: "/usr/bin/sips")
+        process.arguments = ["-s", "format", "pdf", "/System/Library/Desktop Pictures/Mac Blue.heic", "--out", url.path(percentEncoded: false)]
+        process.standardOutput = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+    }
+
     // MARK: - 8. Sesiones con identidad
 
     @Test func pinningAndAppearancePersist() throws {

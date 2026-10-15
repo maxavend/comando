@@ -243,8 +243,11 @@ final class TerminalController {
         let attachments = entry.attachmentPaths.map { URL(filePath: $0) }
         let path = shell.pathEntries
         Task {
-            let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
-            let reply = await AssistantEngine.reply(to: request, inventory: inventory)
+            // Whatever happens inside, the reply always arrives.
+            let reply = await AssistantEngine.firstResult(within: .seconds(45)) {
+                let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
+                return await AssistantEngine.reply(to: request, inventory: inventory)
+            } ?? .failure(String(localized: "Esto me está tomando demasiado. Inténtalo de nuevo o dilo con otras palabras."))
             entry.assistantExplanation = reply.explanation
             entry.proposals = reply.proposals
             entry.assistantError = reply.error

@@ -13,12 +13,14 @@ struct ThinkingText: View {
         static let hold: Duration = .seconds(2)
         static let swap = 0.15
         static let gap = 0.05
+        /// The bubble's width change, a little slower than the text swap.
+        static let resize = 0.3
     }
 
     var body: some View {
+        // The box hugs the current state, and its size eases from one state
+        // to the next along with the text.
         ZStack(alignment: .leading) {
-            // The longest state sizes the box, so it never resizes mid-swap.
-            Text(longest).hidden()
             ShimmerText(text: current, isAnimated: !reduceMotion)
                 .id(index)
                 .transition(reduceMotion ? AnyTransition.identity : AnyTransition(Self.swap))
@@ -34,13 +36,12 @@ struct ThinkingText: View {
                 guard !Task.isCancelled else { return }
                 // Stops on the last state instead of looping back to the first.
                 guard index < states.count - 1 else { return }
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: Timing.swap)) { index += 1 }
+                withAnimation(reduceMotion ? nil : .smooth(duration: Timing.resize)) { index += 1 }
             }
         }
     }
 
     private var current: String { states.isEmpty ? "" : states[min(index, states.count - 1)] }
-    private var longest: String { states.max { $0.count < $1.count } ?? "" }
 
     private static var swap: some Transition {
         AsymmetricTransition(

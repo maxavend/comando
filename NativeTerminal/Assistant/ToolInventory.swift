@@ -16,7 +16,7 @@ nonisolated struct ToolInventory: Sendable {
         var size: Int64
 
         enum Kind: String, Codable, Sendable {
-            case audio, video, image, folder, archive, other
+            case audio, video, image, folder, archive, document, pdf, other
         }
 
         var sizeText: String { ByteCountFormatter.string(fromByteCount: size, countStyle: .file) }
@@ -88,7 +88,13 @@ nonisolated struct ToolInventory: Sendable {
         let path = url.path(percentEncoded: false)
         let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .contentTypeKey])
         let kind: FileInfo.Kind
-        if values?.isDirectory == true {
+        let ext = url.pathExtension.lowercased()
+        if ext == "pdf" {
+            kind = .pdf
+        } else if DocumentExport.app(forExtension: ext) != nil {
+            // Pages documents can be folders (packages): they're still documents.
+            kind = .document
+        } else if values?.isDirectory == true {
             kind = .folder
         } else if let type = values?.contentType ?? UTType(filenameExtension: url.pathExtension) {
             if type.conforms(to: .audio) { kind = .audio }
@@ -173,15 +179,57 @@ nonisolated struct ToolInventory: Sendable {
         let output = Pipe()
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return nil }
-        // Offline, tools like `npm outdated` can wait forever: stop them.
-        let watchdog = DispatchWorkItem { if process.isRunning { process.terminate() } }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: watchdog)
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        watchdog.cancel()
-        if process.terminationReason == .uncaughtSignal { return nil }
-        return process.terminationStatus == 0 || acceptsFailure ? String(decoding: data, as: UTF8.self) : nil
+        process.standardInput = FileHandle.nullDevice
+
+        // Output is collected as it arrives, and the wait has a deadline: a
+        // tool that hangs offline, or leaves a child holding the pipe open,
+        // can't block the caller.
+        let collected = OutputCollector()
+        output.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty { handle.readabilityHandler = nil } else { collected.append(chunk) }
+        }
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
+        guard (try? process.run()) != nil else {
+            output.fileHandleForReading.readabilityHandler = nil
+            return nil
+        }
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            output.fileHandleForReading.readabilityHandler = nil
+            return nil
+        }
+        // Let the last chunks written before exiting arrive.
+        collected.waitUntilQuiet()
+        output.fileHandleForReading.readabilityHandler = nil
+        guard process.terminationStatus == 0 || acceptsFailure else { return nil }
+        return String(decoding: collected.data, as: UTF8.self)
+    }
+
+}
+
+/// Bytes from a pipe, gathered from its reading thread.
+nonisolated private final class OutputCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var buffer = Data()
+    private var lastChange = Date.now
+
+    func append(_ chunk: Data) {
+        lock.withLock {
+            buffer.append(chunk)
+            lastChange = .now
+        }
+    }
+
+    var data: Data { lock.withLock { buffer } }
+
+    /// Waits until nothing new arrived for a moment (at most half a second).
+    func waitUntilQuiet() {
+        let deadline = Date.now.addingTimeInterval(0.5)
+        while Date.now < deadline, lock.withLock({ Date.now.timeIntervalSince(lastChange) < 0.05 }) {
+            Thread.sleep(forTimeInterval: 0.01)
+        }
     }
 }
 

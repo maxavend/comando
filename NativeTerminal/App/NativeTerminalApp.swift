@@ -9,6 +9,8 @@ struct NativeTerminalApp: App {
     private let container: ModelContainer
 
     init() {
+        // Launched from the shell as one of its built-in commands: do that and quit.
+        if let code = BuiltInTools.runIfRequested() { exit(code) }
         let container = Self.makeContainer()
         let controller = TerminalController(modelContext: container.mainContext)
         self.container = container

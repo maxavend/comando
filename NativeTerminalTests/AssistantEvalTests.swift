@@ -16,6 +16,13 @@ struct AssistantEvalTests {
         ]
         context.git = GitInfo(branch: "main", changes: 3)
         context.gitHasRemote = true
+        var withPages = context
+        withPages.attachments = [.init(name: "Cuestionario.pages", path: "/tmp/Cuestionario.pages", kind: .folder, size: 5_600_000)]
+        for request in ["Quiero convertir este documento en pdf comprimido y que pese poco", "pasa esto a pdf"] {
+            let start = ContinuousClock.now
+            let reply = await AssistantEngine.reply(to: request, inventory: withPages)
+            print("EVAL ⏱ \(ContinuousClock.now - start) «\(request)» → \(reply.error ?? reply.explanation) ⌘ \(reply.proposals.map(\.command))")
+        }
         let requests = [
             "Hola, ¿qué tal?",
             "gracias!",
