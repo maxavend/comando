@@ -8,6 +8,12 @@ Una terminal para macOS que funciona como un chat: cada comando es un mensaje y 
 - Apple Intelligence activado, para el asistente (opcional).
 - Para compilar: Xcode 27 y [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
+## Instalar
+
+1. Descarga `Comando-<versión>.dmg` desde [Releases](https://github.com/maxavend/comando/releases).
+2. Abre el `.dmg` y arrastra Comando a Aplicaciones.
+3. La app no está notarizada por Apple, así que la primera vez macOS la bloquea. Ábrela una vez, ve a **Ajustes del Sistema → Privacidad y seguridad** y presiona **Abrir de todos modos**.
+
 ## Qué incluye
 
 - **Chat de comandos.** Usa tu zsh y tu `~/.zshrc`. Muestra colores ANSI, enlaces a archivos y sitios web, barras de progreso y salidas largas plegadas.
@@ -16,6 +22,8 @@ Una terminal para macOS que funciona como un chat: cada comando es un mensaje y 
 - **Seguridad.** Pide confirmación antes de comandos riesgosos y ofrece mover a la Papelera en vez de usar `rm`.
 - **Recetas (⌘K).** Tareas comunes explicadas en lenguaje simple.
 - **Herramientas (⇧⌘I).** Todo lo que instalaste con Homebrew, npm (de cada versión de Node), pipx y uv, con actualizaciones y opción de desinstalar.
+- **Guía.** Pregúntale al asistente “¿qué hace?”, “¿cómo cambio de carpeta?” o “¿qué atajos hay?”.
+- **Carpetas.** Presiona “Estás en…” sobre los mensajes para ir a otra carpeta o abrirla en Finder.
 - **Sesiones.** Se guardan en la barra lateral, con su historial, su carpeta, un emoji y un color.
 
 ## Compilar
@@ -46,3 +54,7 @@ xcodebuild -scheme NativeTerminalUI test
 | ⌘↑ | Subir un nivel de carpeta |
 | ⇧⌘G | Ir a una carpeta |
 | Tab | Completar |
+
+## Licencia
+
+[MIT](LICENSE). Incluye una copia de [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (MIT) en `Vendor/SwiftTerm`.

@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.2 (15 de octubre de 2026)
+
+- Guía integrada: pregúntale al asistente “¿qué hace?”, “¿para qué sirve?”, “¿cómo cambio de carpeta?”, “¿qué atajos hay?” o “¿es privado?” y responde al instante con un mini tutorial, aunque Apple Intelligence no esté activado.
+- “Estás en…” y “Ahora estás en…” abren un menú para ir a otra carpeta, volver a una anterior o mostrarla en Finder.
+- El asistente responde con sus propias palabras, en vez de frases fijas.
+- Las sugerencias del asistente van debajo de la burbuja, como respuestas rápidas.
+- Botones en cápsula y de tamaño regular, más fáciles de presionar.
+- La burbuja de los pedidos cambia suavemente de color al hacer scroll.
+- Cada sesión tiene un ícono según su carpeta: casa, Escritorio, Descargas, proyecto Swift, Node, Python, Git…
+
 ## 1.1 (15 de octubre de 2026)
 
 - El asistente busca herramientas de terminal en Homebrew, npm y tldr, propone el comando con ejemplos reales y dice en español qué hace cada herramienta.
