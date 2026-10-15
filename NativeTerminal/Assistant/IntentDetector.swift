@@ -17,9 +17,10 @@ nonisolated enum IntentDetector {
         let words = trimmed.split(separator: " ").map(String.init)
         guard let first = words.first else { return false }
         if words.count == 1 {
-            // “Hola” or “gracias” on their own, unless a program has that name.
+            // “Hola”, “gracias” or “ayuda” on their own, unless a program has that name.
             let word = AssistantEngine.normalized(trimmed)
-            return !knownCommands.contains(first) && (AssistantEngine.isGreeting(word) || AssistantEngine.isThanks(word))
+            return !knownCommands.contains(first)
+                && (AssistantEngine.isGreeting(word) || AssistantEngine.isThanks(word) || AppGuide.topic(for: trimmed) != nil)
         }
         if first.contains("/") || first.contains("=") || first.hasPrefix(".") || first.hasPrefix("~") || first.hasPrefix("$") {
             return false

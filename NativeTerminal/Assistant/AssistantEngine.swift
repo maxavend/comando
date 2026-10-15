@@ -67,6 +67,8 @@ nonisolated struct AssistantExtras: Codable, Hashable, Sendable {
     var examples: [String] = []
     /// A usage example to complete before running (“yt-dlp 'URL'”).
     var template: String?
+    /// Points of a guide answer, for questions about Comando itself.
+    var guide: [GuideItem] = []
 
     init(fileRequest: FileRequest? = nil, suggestions: [ToolSuggestion] = [], examples: [String] = [], template: String? = nil) {
         self.fileRequest = fileRequest
@@ -82,6 +84,7 @@ nonisolated struct AssistantExtras: Codable, Hashable, Sendable {
         suggestions = try container.decodeIfPresent([ToolSuggestion].self, forKey: .suggestions) ?? []
         examples = try container.decodeIfPresent([String].self, forKey: .examples) ?? []
         template = try container.decodeIfPresent(String.self, forKey: .template)
+        guide = try container.decodeIfPresent([GuideItem].self, forKey: .guide) ?? []
     }
 }
 
@@ -129,6 +132,10 @@ nonisolated enum AssistantEngine {
     /// writes (checked twice), and finally a short answer in words.
     @concurrent
     static func reply(to request: String, inventory: ToolInventory) async -> AssistantReply {
+        // The guide needs no model, so it answers even without Apple Intelligence.
+        if let topic = AppGuide.topic(for: request) {
+            return AppGuide.reply(for: topic, inventory: inventory)
+        }
         if let reason = unavailableReason { return .failure(reason) }
         let reply = await plainReply(to: request, inventory: inventory)
         return await naturalized(reply, request: request)
@@ -145,7 +152,8 @@ nonisolated enum AssistantEngine {
     /// stay exactly as the app decided; only the text around them changes.
     static func naturalized(_ reply: AssistantReply, request: String) async -> AssistantReply {
         let base = reply.error ?? reply.explanation
-        guard !base.isEmpty else { return reply }
+        // Guide answers are written to match the app exactly.
+        guard !base.isEmpty, reply.extras.guide.isEmpty else { return reply }
         // Deleting and safety messages keep their exact words.
         let isSafetyMessage = reply.proposals.contains { $0.command.hasPrefix("trash ") }
             || ["Papelera", "Por seguridad"].contains(where: base.contains)
@@ -209,6 +217,10 @@ nonisolated enum AssistantEngine {
     @concurrent
     static func plainReply(to request: String, inventory: ToolInventory) async -> AssistantReply {
         let words = normalized(request)
+        // “¿Qué hace?”, “¿para qué sirve?”, “¿cómo cambio de carpeta?”: about Comando itself.
+        if let topic = AppGuide.topic(for: request) {
+            return AppGuide.reply(for: topic, inventory: inventory)
+        }
         if let smallTalk = smallTalkReply(to: words, inventory: inventory) { return smallTalk }
         // Emoji or a keyboard smash: nothing to act on.
         guard keywords(in: words).contains(where: { $0.count >= 3 }) else {

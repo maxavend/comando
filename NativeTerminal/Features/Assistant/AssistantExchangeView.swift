@@ -21,6 +21,16 @@ struct AssistantExchangeView: View {
                     .bubble(.reply)
                     .bubbleWidth(isRich ? 0.86 : Metrics.textBubbleFraction, alignment: .leading)
                     .transition(.opacity)
+                // Suggested replies sit under the bubble, like quick replies:
+                // things to say next, not part of the answer.
+                if !entry.assistantExtras.examples.isEmpty {
+                    ExampleChips(examples: entry.assistantExtras.examples) { example in
+                        guard let session = entry.session else { return }
+                        controller.ask(example, attachments: [], in: session)
+                    }
+                    .bubbleWidth(0.86, alignment: .leading)
+                    .transition(.opacity)
+                }
             } else {
                 // Thinking isn't a message yet: no bubble, just the status,
                 // lined up with the text of the bubble that will replace it.
@@ -37,7 +47,7 @@ struct AssistantExchangeView: View {
     private var isRich: Bool {
         let extras = entry.assistantExtras
         return entry.isFinished && (!entry.proposals.isEmpty || extras.template != nil || extras.fileRequest != nil
-            || !extras.examples.isEmpty || !extras.suggestions.isEmpty)
+            || !extras.suggestions.isEmpty || !extras.guide.isEmpty)
     }
 
     private var request: some View {
@@ -85,6 +95,9 @@ struct AssistantExchangeView: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if !extras.guide.isEmpty {
+                GuideList(items: extras.guide, fontSize: fontSize)
+            }
             ForEach(entry.proposals, id: \.self) { proposal in
                 ProposalBlock(proposal: proposal, fontSize: fontSize, isBusy: isBusy) { package in
                     if let install = proposal.install {
@@ -104,12 +117,6 @@ struct AssistantExchangeView: View {
             }
             if !entry.proposals.isEmpty || extras.template != nil {
                 actions(template: extras.template, isBusy: isBusy)
-            }
-            if !extras.examples.isEmpty {
-                ExampleChips(examples: extras.examples) { example in
-                    guard let session = entry.session else { return }
-                    controller.ask(example, attachments: [], in: session)
-                }
             }
             ForEach(extras.suggestions, id: \.self) { suggestion in
                 SuggestionRow(suggestion: suggestion, isBusy: isBusy) {
@@ -229,6 +236,36 @@ private struct CaptionLabelStyle: LabelStyle {
         HStack(alignment: .firstTextBaseline, spacing: Metrics.statusSpacing) {
             configuration.icon
             configuration.title
+        }
+    }
+}
+
+/// A guide answer's points: a symbol, what it is, and a line about it.
+private struct GuideList: View {
+    let items: [GuideItem]
+    let fontSize: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Metrics.replyBlockSpacing) {
+            ForEach(items, id: \.self) { item in
+                HStack(alignment: .firstTextBaseline, spacing: Metrics.replyBlockSpacing) {
+                    Image(systemName: item.symbol)
+                        .font(.system(size: fontSize, weight: .medium))
+                        .foregroundStyle(.tint)
+                        // One column for every symbol, so the text lines up.
+                        .frame(width: fontSize * 1.5)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title)
+                            .font(.system(size: fontSize, weight: .semibold))
+                        Text(item.detail)
+                            .font(.system(size: fontSize - 1))
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                }
+                .accessibilityElement(children: .combine)
+            }
         }
     }
 }

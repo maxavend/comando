@@ -4,17 +4,13 @@ import SwiftUI
 /// notices Messages shows between bubbles.
 struct LocationNotice: View {
     let folder: String
+    var session: TerminalSession?
 
     var body: some View {
-        Label {
-            Text("Ahora estás en \(Text(FolderName.phrase(folder)).fontWeight(.medium))")
-        } icon: {
-            Image(systemName: "folder")
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity)
-        .padding(.top, Metrics.replySpacing)
-        .help(ShellEscape.abbreviate(folder))
+        FolderNotice(folder: folder, session: session, isChange: true)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.top, Metrics.replySpacing)
     }
 }

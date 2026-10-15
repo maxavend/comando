@@ -6,44 +6,63 @@ struct FolderMenu: View {
     let session: TerminalSession
     let directory: String
 
+    var body: some View {
+        Menu("Carpeta", systemImage: "folder") {
+            FolderMenuItems(session: session, directory: directory)
+        }
+        .help("Ir a otra carpeta")
+    }
+}
+
+/// Where the session can go: up, the usual places, recent folders, any
+/// folder, or the folder in Finder. `shown` is a folder the chat names (an
+/// earlier exchange's), offered first when the shell has moved on.
+struct FolderMenuItems: View {
+    let session: TerminalSession
+    let directory: String
+    var shown: String?
+
     @Environment(TerminalController.self) private var controller
 
     var body: some View {
         let isBusy = controller.shells[session.id]?.isBusy ?? false
-        Menu("Carpeta", systemImage: "folder") {
-            Section(FolderName.breadcrumb(directory)) {
-                Button("Subir un nivel", systemImage: "arrow.up", action: goUp)
-                    .disabled(isBusy || directory == "/")
+        let folder = shown ?? directory
+        Section(FolderName.breadcrumb(folder)) {
+            if folder != directory {
+                Button("Volver a \(FolderName.display(folder))", systemImage: "arrow.uturn.backward") { go(to: folder) }
+                    .disabled(isBusy)
             }
-            Section("Lugares") {
-                ForEach(FolderPlaces.standard, id: \.self) { folder in
-                    FolderButton(folder: folder) { go(to: folder) }
-                        .disabled(isBusy || folder == directory)
-                }
-            }
-            let recents = session.recentDirectories.filter { $0 != directory && !FolderPlaces.standard.contains($0) }
-            if !recents.isEmpty {
-                Section("Recientes") {
-                    ForEach(recents.prefix(5), id: \.self) { folder in
-                        FolderButton(folder: folder) { go(to: folder) }
-                            .disabled(isBusy)
-                    }
-                }
-            }
-            Divider()
-            Button("Ir a una carpeta…", systemImage: "folder.badge.questionmark", action: pickFolder)
-                .disabled(isBusy)
-            Button("Mostrar en Finder", systemImage: "macwindow", action: showInFinder)
+            Button("Mostrar en Finder", systemImage: "macwindow") { showInFinder(folder) }
+            Button("Subir un nivel", systemImage: "arrow.up", action: goUp)
+                .disabled(isBusy || directory == "/")
         }
-        .help("Ir a otra carpeta")
+        Section("Lugares") {
+            ForEach(FolderPlaces.standard, id: \.self) { place in
+                FolderButton(folder: place) { go(to: place) }
+                    .disabled(isBusy || place == directory)
+            }
+        }
+        let recents = session.recentDirectories.filter { $0 != directory && $0 != folder && !FolderPlaces.standard.contains($0) }
+        if !recents.isEmpty {
+            Section("Recientes") {
+                ForEach(recents.prefix(5), id: \.self) { recent in
+                    FolderButton(folder: recent) { go(to: recent) }
+                        .disabled(isBusy)
+                }
+            }
+        }
+        Divider()
+        Button("Ir a una carpeta…", systemImage: "folder.badge.questionmark", action: pickFolder)
+            .disabled(isBusy)
     }
 
     private func goUp() { controller.navigateUp(in: session) }
     private func go(to folder: String) { controller.navigate(to: folder, in: session) }
+
     private func pickFolder() { controller.isPickingFolder = true }
 
-    private func showInFinder() {
-        NSWorkspace.shared.open(URL(filePath: directory, directoryHint: .isDirectory))
+    private func showInFinder(_ folder: String) {
+        NSWorkspace.shared.open(URL(filePath: folder, directoryHint: .isDirectory))
     }
 }
 
