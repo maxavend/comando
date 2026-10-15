@@ -94,7 +94,7 @@ struct WelcomeStep {
         WelcomeStep(
             symbol: "folder",
             title: "Siempre sabes dónde estás",
-            message: "Arriba ves la carpeta en la que trabajas. Cámbiala con el botón de carpeta, arrastrando una carpeta al chat o haciendo clic en una carpeta de la lista."
+            message: "Sobre los mensajes ves en qué carpeta estás. Presiona “Estás en…” para ir a otra o abrirla en Finder, o arrastra una carpeta al chat."
         ),
         WelcomeStep(
             symbol: "lightbulb",
