@@ -114,6 +114,9 @@ nonisolated enum AssistantEngine {
         if let trash = trashReply(for: request, inventory: inventory) {
             return trash
         }
+        if let installed = installedReply(for: request, inventory: inventory) {
+            return installed
+        }
         // “¿Qué es npm?” or “¿para qué sirve git?” want an explanation, not a command.
         if asksForMeaning(words), let answer = await explain(request) {
             return AssistantReply(explanation: answer, proposals: [])
@@ -222,6 +225,66 @@ nonisolated enum AssistantEngine {
     static func isQuestion(_ request: String) -> Bool {
         let words = normalized(request).trimmingCharacters(in: .whitespaces)
         return request.contains("?") || ["que ", "como ", "cual ", "por que ", "cuando ", "donde "].contains { words.hasPrefix($0) }
+    }
+
+    // MARK: - Apps and programs on this Mac
+
+    /// “Abre Antigravity”, “abre el CLI de Gemini”, “abre notas.md” or
+    /// “¿tengo ffmpeg?”, answered from what's installed, without the model.
+    static func installedReply(for request: String, inventory: ToolInventory) -> AssistantReply? {
+        let words = normalized(request)
+        let asksIfInstalled = ["tengo ", "esta instalad", "tienes instalad", "hay instalad", "tengo instalad"].contains(where: words.contains)
+        let open = /(?i)\b(?:abre|abrir|abreme|ábreme|open|lanza|lanzar|inicia|iniciar|ejecuta|ejecutar|arranca|arrancar|entra a|entrar a)\b\s+(.+)/
+        guard asksIfInstalled || words.firstMatch(of: open) != nil else { return nil }
+        let target = words.firstMatch(of: open).map { String($0.1) }
+            ?? words.replacing(/^.*?(tengo instalad[oa]|tengo|esta instalad[oa]|tienes instalad[oa]|hay instalad[oa])\s*/, with: "")
+        let target_ = target.trimmingCharacters(in: CharacterSet(charactersIn: "¿? "))
+        let wantsCommand = ["cli", "comando", "terminal de", "en la terminal", "consola"].contains(where: words.contains)
+
+        // A file of this folder, named with its extension.
+        if !asksIfInstalled, let file = (inventory.attachments + inventory.files).first(where: { words.contains(normalized($0.name)) }) {
+            return AssistantReply(
+                explanation: String(localized: "Voy a abrir “\(file.name)” con su app."),
+                proposals: [AssistantProposal(command: "open " + q(file.path), tool: "open · incluida en macOS")]
+            )
+        }
+        let app = InstalledApps.findApp(target_, in: inventory.apps)
+        let command = InstalledApps.findCommand(target_, app: app, executables: inventory.executables)
+        guard app != nil || command != nil else {
+            if asksIfInstalled, let name = InstalledApps.tokens(target_).first {
+                var reply = AssistantReply(explanation: String(localized: "No encontré “\(name)” en este Mac, ni como app ni como comando."), proposals: [])
+                if let tool = ToolCatalog.match(target_) {
+                    reply.extras.suggestions = [ToolSuggestion(tool, isInstalled: false)]
+                }
+                return reply
+            }
+            return nil
+        }
+
+        if asksIfInstalled {
+            let parts = [app.map { String(localized: "la app \($0.displayName)") }, command.map { String(localized: "el comando \($0)") }].compactMap { $0 }
+            var reply = AssistantReply(
+                explanation: String(localized: "Sí, tienes \(parts.formatted(.list(type: .and))).") + (app != nil ? " " + String(localized: "¿La abro?") : ""),
+                proposals: []
+            )
+            if let app {
+                reply.proposals = [AssistantProposal(command: "open -a " + q(app.name), tool: "\(app.displayName) · app instalada")]
+            }
+            return reply
+        }
+        if let command, wantsCommand || app == nil {
+            let explanation = app.map { String(localized: "Voy a ejecutar \(command), el comando de \($0.displayName).") }
+                ?? String(localized: "Voy a ejecutar \(command).")
+            return AssistantReply(explanation: explanation,
+                                  proposals: [AssistantProposal(command: command, tool: "\(command) · \(inventory.source(of: command))")])
+        }
+        guard let app else { return nil }
+        var explanation = String(localized: "Voy a abrir \(app.displayName).")
+        if let command {
+            explanation += " " + String(localized: "Su comando de terminal es \(command).")
+        }
+        return AssistantReply(explanation: explanation,
+                              proposals: [AssistantProposal(command: "open -a " + q(app.name), tool: "\(app.displayName) · app instalada")])
     }
 
     // MARK: - Deleting
@@ -335,6 +398,10 @@ nonisolated enum AssistantEngine {
         }
         if !inventory.attachments.isEmpty {
             context.append("ADJUNTOS: \(inventory.attachments.map(\.path).joined(separator: ", "))")
+        }
+        let installed = InstalledApps.related(to: request, inventory: inventory)
+        if !installed.isEmpty {
+            context.append("INSTALADO: \(installed.joined(separator: ", "))")
         }
         let prompt = context.joined(separator: "\n") + "\n\nPEDIDO: \(request)"
         guard let written = await ask(prompt, instructions: writeInstructions, generating: WrittenCommand.self, maximumTokens: 100),

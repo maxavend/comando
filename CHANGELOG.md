@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.0.2 (15 de octubre de 2026)
+
+- El asistente conoce lo que tienes instalado:
+  - “Abre Antigravity”, “abre el CLI de Antigravity” (`agy`), “abre la configuración del sistema”, “abre notas.md” y “¿tengo ffmpeg?” se responden al instante, aunque escribas el nombre de forma aproximada o en español.
+  - Busca también en carpetas dentro de Aplicaciones y reconoce los comandos que instalan apps como VS Code, Cursor, Xcode o Antigravity.
+  - Cuando el modelo escribe un comando, recibe las apps y comandos instalados relacionados con el pedido.
+
 ## 1.0.1 (15 de octubre de 2026)
 
 - El asistente ya no se queda en “Armando el comando…”:

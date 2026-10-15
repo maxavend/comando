@@ -35,6 +35,7 @@ nonisolated struct ToolInventory: Sendable {
     var makeTargets: [String] = []
     var files: [FileInfo] = []
     var attachments: [FileInfo] = []
+    var apps: [InstalledApp] = []
     var git: GitInfo?
     var gitHasRemote = false
 
@@ -68,6 +69,7 @@ nonisolated struct ToolInventory: Sendable {
         inventory.brew = await InstalledPackages.shared.brew()
         inventory.npmGlobals = await InstalledPackages.shared.npm(path: path)
         inventory.files = listFiles(in: directory)
+        inventory.apps = InstalledApps.list()
         inventory.attachments = attachments.map { info(for: $0, relativeTo: directory) }
         if let project = nearestFile(named: "package.json", from: directory) {
             inventory.scripts = scripts(in: project)

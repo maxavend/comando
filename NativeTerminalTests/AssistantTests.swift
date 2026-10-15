@@ -270,6 +270,33 @@ struct AssistantBuilderTests {
         #expect(AssistantEngine.guess("sube mis cambios a github", inventory: inventory()) == .gitPublish)
     }
 
+    @Test func installedAppsAndCommandsOpen() {
+        var context = inventory(executables: ["agy", "gemini", "ffmpeg", "sudo", "test", "git"], files: [
+            ToolInventory.FileInfo(name: "notas.md", path: "notas.md", kind: .other, size: 1),
+        ])
+        context.apps = [
+            InstalledApp(name: "Antigravity IDE", displayName: "Antigravity IDE", path: "/Applications/Antigravity IDE.app"),
+            InstalledApp(name: "Antigravity", displayName: "Antigravity", path: "/Applications/AI Development/Antigravity.app"),
+            InstalledApp(name: "Gemini", displayName: "Gemini", path: "/Applications/AI Assistants/Gemini.app"),
+            InstalledApp(name: "Calculator", displayName: "Calculadora", path: "/System/Applications/Calculator.app"),
+        ]
+        func command(_ request: String) -> String? { AssistantEngine.installedReply(for: request, inventory: context)?.proposals.first?.command }
+        #expect(command("Quiero abrir antigravity CLI") == "agy")
+        #expect(command("abre antigravity") == "open -a Antigravity")
+        #expect(command("abre la calculadora") == "open -a Calculator")
+        #expect(command("abre gemini") == "open -a Gemini")
+        #expect(command("abre el cli de gemini") == "gemini")
+        #expect(command("abre notas.md") == "open notas.md")
+        #expect(command("ejecuta sudo rm -rf /") == nil)
+        #expect(command("ejecuta los tests") == nil)
+        #expect(command("abre esta carpeta en finder") == nil)
+        let have = AssistantEngine.installedReply(for: "¿tengo ffmpeg instalado?", inventory: context)
+        #expect(have?.explanation.hasPrefix("Sí, tienes el comando ffmpeg") == true)
+        let missing = AssistantEngine.installedReply(for: "¿tengo pandoc?", inventory: context)
+        #expect(missing?.explanation.contains("No encontré") == true)
+        #expect(missing?.extras.suggestions.first?.package == "pandoc")
+    }
+
     @Test func slowWorkHasADeadline() async {
         let start = ContinuousClock.now
         let result: Int? = await AssistantEngine.firstResult(within: .milliseconds(200)) {
