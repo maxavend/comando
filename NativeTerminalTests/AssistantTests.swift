@@ -163,6 +163,7 @@ struct AssistantBuilderTests {
     @Test func smallTalkIsAnsweredWithoutTheModel() {
         #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("Hola, ¿qué tal?"), inventory: inventory())?.extras.examples.count == 4)
         #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("¡Muchas gracias!"), inventory: inventory()) != nil)
+        #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("hola de nuevo"), inventory: inventory()) != nil)
         // A greeting followed by a request is a request.
         #expect(AssistantEngine.smallTalkReply(to: AssistantEngine.normalized("Hola, ¿cómo comprimo un audio?"), inventory: inventory()) == nil)
     }

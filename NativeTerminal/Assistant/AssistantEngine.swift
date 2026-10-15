@@ -234,7 +234,10 @@ nonisolated enum AssistantEngine {
     ]
     private static let thanksPhrases = ["muchas gracias", "gracias", "thanks", "genial", "perfecto", "buenisimo", "excelente"]
     /// Words that can sit around a greeting without asking for anything.
-    private static let filler: Set<String> = ["y", "tu", "todo", "bien", "como", "que", "me", "te", "a", "ti", "por", "eso", "ok", "oye", "amigo", "crack"]
+    private static let filler: Set<String> = [
+        "y", "tu", "todo", "bien", "como", "que", "me", "te", "a", "ti", "por", "eso", "ok", "oye", "amigo", "crack",
+        "de", "nuevo", "otra", "vez", "denuevo", "again", "mucho", "mil",
+    ]
 
     /// Only small talk: once the phrases and filler are gone, nothing is left.
     private static func isOnly(_ phrases: [String], in words: String) -> Bool {

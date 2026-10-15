@@ -14,9 +14,16 @@ extension View {
     /// Applies the shared bubble padding, fill and shape. The tail marks the
     /// last bubble of a run from the same side, like Messages.
     func bubble(_ role: BubbleRole, tail: Bool = false) -> some View {
-        padding(.horizontal, Metrics.bubbleHorizontalPadding)
+        let shape = BubbleShape(side: role == .reply ? .leading : .trailing, hasTail: tail)
+        return padding(.horizontal, Metrics.bubbleHorizontalPadding)
             .padding(.vertical, Metrics.bubbleVerticalPadding)
-            .background(fill(for: role), in: BubbleShape(side: role == .reply ? .leading : .trailing, hasTail: tail))
+            .background {
+                if role == .request {
+                    ScrollTintedFill(shape: shape)
+                } else {
+                    shape.fill(fill(for: role))
+                }
+            }
     }
 
     /// Caps a bubble's width at a share of the transcript, so long text wraps
@@ -33,6 +40,25 @@ private func fill(for role: BubbleRole) -> AnyShapeStyle {
     case .reply: AnyShapeStyle(.fill.secondary)
     case .request: AnyShapeStyle(LinearGradient(colors: [.accentColor, IntelligenceGlyph.violet],
                                                 startPoint: .leading, endPoint: .trailing))
+    }
+}
+
+/// The blue-to-violet blend of requests to the assistant, shifting with the
+/// bubble's height on screen like Messages: bluer at the bottom, where new
+/// messages arrive, and toward violet and pink as it scrolls up.
+private struct ScrollTintedFill: View {
+    let shape: BubbleShape
+
+    var body: some View {
+        shape
+            .fill(LinearGradient(colors: [.accentColor, IntelligenceGlyph.violet], startPoint: .leading, endPoint: .trailing))
+            .visualEffect { content, proxy in
+                let frame = proxy.frame(in: .scrollView)
+                let height = proxy.bounds(of: .scrollView)?.height ?? frame.maxY
+                let position = height > 0 ? min(max(frame.midY / height, 0), 1) : 1
+                // 0 at the top, 1 at the bottom: up to 45° of hue toward pink.
+                return content.hueRotation(.degrees((1 - position) * 45))
+            }
     }
 }
 
