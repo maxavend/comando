@@ -12,6 +12,9 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     #endif
 
+    /// The corner radius of a macOS window with a toolbar.
+    private static let windowCornerRadius: CGFloat = 16
+
     private static var isAutomated: Bool {
         #if DEBUG
         DebugAutomation.environment["NATIVETERM_SCRIPT"] != nil
@@ -51,6 +54,12 @@ struct RootView: View {
             Text("Todas").tag(SearchScope.all)
         }
         .frame(minWidth: 680, minHeight: 440)
+        // While the assistant thinks, the window's edges glow like Siri.
+        .overlay {
+            IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Self.windowCornerRadius, style: .continuous),
+                             isActive: controller.assistantRequestsInFlight > 0, spread: 2)
+                .ignoresSafeArea()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.markSelectedAsRead()
         }

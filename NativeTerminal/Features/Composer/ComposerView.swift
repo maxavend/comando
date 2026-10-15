@@ -97,10 +97,17 @@ struct ComposerView: View {
                     // Plain words tint the glass violet, with ✨ on the send
                     // button: this goes to the assistant, not to the shell.
                     .glassEffect(
-                        isAskingAssistant ? .regular.tint(IntelligenceGlyph.violet.opacity(0.35)) : .regular,
+                        isAskingAssistant ? .regular.tint(IntelligenceGlyph.violet.opacity(0.25)) : .regular,
                         in: .rect(cornerRadius: Metrics.composerControlSize / 2)
                     )
                     .animation(.smooth(duration: 0.25), value: isAskingAssistant)
+                    // Drawn over the glass and a little past its edge, so the
+                    // glow reads clearly instead of being frosted away.
+                    .overlay {
+                        IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2 + 2),
+                                         isActive: isAskingAssistant, spread: 0.45)
+                            .padding(-2)
+                    }
                 if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
                         .buttonStyle(.glassCircle(.destructive))

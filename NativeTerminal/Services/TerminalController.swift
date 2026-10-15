@@ -27,6 +27,8 @@ final class TerminalController {
     var draftRequest: String?
     /// Bumped when a command installs or removes tools, so lists reload.
     var installedToolsVersion = 0
+    /// Requests the assistant is still answering; the window glows meanwhile.
+    private(set) var assistantRequestsInFlight = 0
 
     private(set) var shells: [UUID: ShellSession] = [:]
 
@@ -251,7 +253,9 @@ final class TerminalController {
         let request = entry.command
         let attachments = entry.attachmentPaths.map { URL(filePath: $0) }
         let path = shell.pathEntries
+        assistantRequestsInFlight += 1
         Task {
+            defer { assistantRequestsInFlight -= 1 }
             // Whatever happens inside, the reply always arrives.
             let reply = await AssistantEngine.firstResult(within: .seconds(45)) {
                 let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
