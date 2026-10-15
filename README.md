@@ -1,6 +1,27 @@
-# Comando
+<p align="center">
+  <img src="docs/images/icono.png" width="128" height="128" alt="Ícono de Comando">
+</p>
 
-Una terminal para macOS que funciona como un chat: cada comando es un mensaje y su resultado llega como respuesta.
+<h1 align="center">Comando</h1>
+
+<p align="center">
+  Una terminal para macOS que funciona como un chat: cada comando es un mensaje y su resultado llega como respuesta.<br>
+  Y si no sabes el comando, pídelo con tus palabras.
+</p>
+
+<p align="center">
+  <a href="https://github.com/maxavend/comando/releases/latest"><img src="https://img.shields.io/github/v/release/maxavend/comando?label=versi%C3%B3n" alt="Última versión"></a>
+  <img src="https://img.shields.io/badge/macOS-27-black?logo=apple" alt="macOS 27">
+  <img src="https://img.shields.io/badge/SwiftUI-Liquid%20Glass-blue?logo=swift&logoColor=white" alt="SwiftUI">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/maxavend/comando?label=licencia" alt="Licencia MIT"></a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/chat-oscuro.png">
+    <img src="docs/images/chat-claro.png" alt="Comando con comandos de git y un pedido al asistente para comprimir un audio">
+  </picture>
+</p>
 
 ## Requisitos
 
@@ -25,6 +46,20 @@ Una terminal para macOS que funciona como un chat: cada comando es un mensaje y 
 - **Guía.** Pregúntale al asistente “¿qué hace?”, “¿cómo cambio de carpeta?” o “¿qué atajos hay?”.
 - **Carpetas.** Presiona “Estás en…” sobre los mensajes para ir a otra carpeta o abrirla en Finder.
 - **Sesiones.** Se guardan en la barra lateral, con su historial, su carpeta, un emoji y un color.
+
+## Pregúntale qué hace
+
+El asistente también es la guía de la app: “¿para qué sirve?”, “¿cómo cambio de carpeta?”, “¿qué atajos hay?” o “¿es privado?” responden al instante, aunque Apple Intelligence no esté activado.
+
+<p align="center">
+  <img src="docs/images/guia.png" width="800" alt="La guía de Comando respondiendo “¿Para qué sirve?”">
+</p>
+
+## Privacidad
+
+- Lo que le pides al asistente se procesa en tu Mac con Apple Intelligence.
+- Para sugerirte herramientas, Comando solo consulta Homebrew, npm y tldr con palabras clave; tus archivos y comandos no salen del Mac.
+- El asistente nunca ejecuta nada sin tu clic, no propone `sudo` y, para borrar, usa la Papelera.
 
 ## Compilar
 
@@ -53,7 +88,13 @@ xcodebuild -scheme NativeTerminalUI test
 | ⌘. | Detener el comando |
 | ⌘↑ | Subir un nivel de carpeta |
 | ⇧⌘G | Ir a una carpeta |
+| ⇧⌘] / ⇧⌘[ | Sesión siguiente / anterior |
+| ⇧⌘K | Limpiar historial |
 | Tab | Completar |
+
+## Contribuir
+
+¿Encontraste un error o tienes una idea? [Abre un issue](https://github.com/maxavend/comando/issues/new/choose). Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).
 
 ## Licencia
 

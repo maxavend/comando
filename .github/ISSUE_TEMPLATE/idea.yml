@@ -1,0 +1,15 @@
+name: Una idea
+description: Algo que te gustaría que Comando hiciera, o hiciera mejor.
+labels: [idea]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué te gustaría hacer?
+      description: Cuéntalo como una tarea real, por ejemplo “quiero convertir varias fotos a JPG de una vez”.
+    validations:
+      required: true
+  - type: textarea
+    id: hoy
+    attributes:
+      label: ¿Cómo lo haces hoy?
