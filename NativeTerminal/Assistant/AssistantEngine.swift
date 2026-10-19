@@ -93,6 +93,9 @@ nonisolated struct AssistantReply: Sendable {
     var proposals: [AssistantProposal]
     var error: String?
     var extras = AssistantExtras()
+    /// A question the conversation answers in its own words (and with its
+    /// tools), rather than something to run.
+    var answersItself = false
 
     static func failure(_ message: String) -> AssistantReply {
         AssistantReply(explanation: "", proposals: [], error: message)
@@ -139,6 +142,130 @@ nonisolated enum AssistantEngine {
         if let reason = unavailableReason { return .failure(reason) }
         let reply = await plainReply(to: request, inventory: inventory)
         return await naturalized(reply, request: request)
+    }
+
+    /// What to show, decided with every check, before the conversation says
+    /// it in its own words. Questions are left for the conversation to answer.
+    @concurrent
+    static func structuredReply(to request: String, inventory: ToolInventory) async -> AssistantReply {
+        if let topic = AppGuide.topic(for: request) {
+            return AppGuide.reply(for: topic, inventory: inventory)
+        }
+        if let reason = unavailableReason { return .failure(reason) }
+        return await plainReply(to: request, inventory: inventory, conversational: true)
+    }
+
+    /// Deleting and safety messages keep their exact words.
+    static func keepsExactWords(_ reply: AssistantReply) -> Bool {
+        let base = reply.error ?? reply.explanation
+        return reply.proposals.contains { $0.command.hasPrefix("trash ") }
+            || ["Papelera", "Por seguridad"].contains(where: base.contains)
+    }
+
+    /// What the app prepared, told to the conversation so it can say it.
+    static func facts(for reply: AssistantReply) -> String {
+        var lines: [String] = []
+        // What it should say comes first, so the small model keeps to it.
+        let base = reply.error ?? reply.explanation
+        if !base.isEmpty, !reply.answersItself {
+            lines.append("Cuéntale esto con tus palabras: \(base)")
+        }
+        if reply.answersItself {
+            lines.append("Comando no preparó nada: responde tú la pregunta. Usa tus herramientas si te sirven.")
+        }
+        if let error = reply.error {
+            lines.append("Comando no pudo hacerlo: \(error)")
+        }
+        if !reply.proposals.isEmpty {
+            for proposal in reply.proposals {
+                var line = "Comando propone ejecutar `\(proposal.command)` (herramienta: \(proposal.tool)"
+                if let about = proposal.about { line += ", que \(about.lowercasedFirst)" }
+                line += ")."
+                if let missing = proposal.missingPackage { line += " Antes hay que instalar \(missing)." }
+                lines.append(line)
+            }
+            lines.append("La persona lo verá en una tarjeta con un botón Ejecutar. Explica qué hará eso; no ofrezcas otra cosa.")
+        }
+        let extras = reply.extras
+        if let template = extras.template {
+            lines.append("Comando muestra un ejemplo para completar: `\(template)`.")
+        }
+        if let request = extras.fileRequest {
+            let choices = request.choices.prefix(4).joined(separator: ", ")
+            lines.append("Comando necesita saber qué archivo usar (\(request.kind.rawValue))" + (choices.isEmpty ? "." : "; ofrece: \(choices)."))
+        }
+        if !extras.suggestions.isEmpty {
+            lines.append("Comando sugiere instalar: " + extras.suggestions.map { "\($0.title) (\($0.detail))" }.joined(separator: "; ") + ".")
+        }
+        if !extras.guide.isEmpty {
+            lines.append("Comando muestra una guía con estos puntos, no los repitas, solo preséntala: "
+                         + extras.guide.map(\.title).joined(separator: ", ") + ".")
+        }
+        if !extras.examples.isEmpty, extras.guide.isEmpty {
+            lines.append("Debajo aparecen botones con ideas (no las enumeres ni las repitas): " + extras.examples.joined(separator: "; ") + ".")
+        }
+        return "Contexto para ti, no lo copies ni lo cites:\n" + lines.map { "· " + $0 }.joined(separator: "\n")
+            + "\nAhora responde solo con tu mensaje para la persona."
+    }
+
+    /// The conversation's text, or nil when it isn't safe to show: risky
+    /// commands, or claims that something already ran.
+    static func vetted(_ written: String, reply: AssistantReply, inventory: ToolInventory? = nil, request: String = "") -> String? {
+        var text = written.trimmingCharacters(in: .whitespacesAndNewlines)
+        text = text.replacing(/^(Asistente|Comando|Respuesta):\s*/, with: "")
+        // A copied label or section (“**Comando**:”, “Contexto:”) ends the message.
+        if let label = text.firstRange(of: /(?m)^\s*\**\s*(Comando|Contexto|Nota|Herramientas?|Lo que Comando)\**\s*:/) {
+            text = String(text[..<label.lowerBound])
+        }
+        text = text.replacing(/(?m)^\s*·\s.*$/, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        let lowered = normalized(text)
+        if lowered.contains("sudo ") || lowered.range(of: #"(^|[\s`;|&])rm\s+-"#, options: .regularExpression) != nil { return nil }
+        for match in text.matches(of: /`([^`\n]+)`/) where DangerDetector.risk(of: String(match.1)) != nil {
+            return nil
+        }
+        let prepared = !reply.proposals.isEmpty || reply.extras.template != nil || reply.extras.fileRequest != nil
+        if prepared {
+            let claims = ["ya lo hice", "ya lo ejecute", "he ejecutado", "ya ejecute", "ya esta listo", "listo, ya",
+                          "aqui tienes el resultado", "se ha ejecutado", "ya se ejecuto", "ya lo comprimi", "ya lo converti",
+                          "ya revise", "revise la lista", "ya cambie", "ya renombre"]
+            if claims.contains(where: lowered.contains) { return nil }
+            // The command is in the card right below: not copied into the text.
+            for command in reply.proposals.map(\.command) + [reply.extras.template].compactMap({ $0 }) {
+                for quoted in ["\"\(command)\"", "“\(command)”", "`\(command)`", "'\(command)'", command] {
+                    text = text.replacingOccurrences(of: quoted, with: String(localized: "este comando"))
+                }
+            }
+            text = text.replacingOccurrences(of: "El comando este comando", with: "Este comando")
+                .replacingOccurrences(of: "el comando este comando", with: "este comando")
+            // Something is prepared: a short explanation, its first paragraph.
+            if let end = text.range(of: "\n\n") { text = String(text[..<end.lowerBound]) }
+            text = text.replacing(/(?m)^#+\s*/, with: "")
+        }
+        // The idea buttons are already below: a list repeating them goes.
+        if !reply.extras.examples.isEmpty {
+            let ideas = reply.extras.examples.map { keywords(in: normalized($0)) }
+            var lines = text.components(separatedBy: "\n").filter { line in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard let first = trimmed.first, "•-*·0123456789".contains(first) else { return true }
+                let words = keywords(in: normalized(trimmed))
+                return !ideas.contains { $0.intersection(words).count >= 2 }
+            }
+            while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty { lines.removeLast() }
+            text = lines.joined(separator: "\n").replacing(/\n{3,}/, with: "\n\n")
+            // “Aquí tienes algunas ideas:” with nothing after it.
+            text = text.replacing(/(?m)[^.!?\n]*:\s*(\n\s*)*(?=\n\n|$)/, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // A file that isn't here is made up: the model mustn't invent names.
+        if let inventory {
+            let known = Set(inventory.files.map { $0.name.lowercased() } + inventory.attachments.map { $0.name.lowercased() })
+            let allowed = (reply.proposals.map(\.command) + [reply.extras.template ?? "", request]).joined(separator: " ").lowercased()
+            for match in text.matches(of: /(?i)\b[\p{L}\d_-]+\.(jpe?g|png|heic|gif|mp3|m4a|wav|aiff?|pdf|txt|md|mov|mp4|docx?|zip|json|js|ts|swift|py)\b/) {
+                let name = String(match.0).lowercased()
+                if !known.contains(name) && !allowed.contains(name) { return nil }
+            }
+        }
+        return String(text.prefix(1600))
     }
 
     private static let voiceInstructions = """
@@ -215,7 +342,7 @@ nonisolated enum AssistantEngine {
     }
 
     @concurrent
-    static func plainReply(to request: String, inventory: ToolInventory) async -> AssistantReply {
+    static func plainReply(to request: String, inventory: ToolInventory, conversational: Bool = false) async -> AssistantReply {
         let words = normalized(request)
         // “¿Qué hace?”, “¿para qué sirve?”, “¿cómo cambio de carpeta?”: about Comando itself.
         if let topic = AppGuide.topic(for: request) {
@@ -235,9 +362,14 @@ nonisolated enum AssistantEngine {
         if let refusal = destructiveRefusal(for: words) {
             return refusal
         }
+        if let rename = renameReply(for: request, inventory: inventory) {
+            return rename
+        }
         // “¿Qué es npm?” or “¿para qué sirve git?” want an explanation, not a command.
-        if asksForMeaning(words), let answer = await explain(request) {
-            return AssistantReply(explanation: answer, proposals: [])
+        if asksForMeaning(words) {
+            // The conversation answers it, with what it knows and its tools.
+            if conversational { return AssistantReply(explanation: "", proposals: [], answersItself: true) }
+            if let answer = await explain(request) { return AssistantReply(explanation: answer, proposals: []) }
         }
         // A clear request needs no model: answer at once.
         if let action = guess(words, inventory: inventory) {
@@ -263,8 +395,9 @@ nonisolated enum AssistantEngine {
         if let written = await writeCommand(for: request, inventory: inventory) {
             return written
         }
-        if isQuestion(request), let answer = await explain(request) {
-            return AssistantReply(explanation: answer, proposals: [])
+        if isQuestion(request) {
+            if conversational { return AssistantReply(explanation: "", proposals: [], answersItself: true) }
+            if let answer = await explain(request) { return AssistantReply(explanation: answer, proposals: []) }
         }
         return build(steps: [], request: request, inventory: inventory)
     }
@@ -347,7 +480,8 @@ nonisolated enum AssistantEngine {
     static func asksForMeaning(_ words: String) -> Bool {
         let text = words.trimmingCharacters(in: CharacterSet(charactersIn: "¿? ")).trimmingCharacters(in: .whitespaces)
         if text.contains("lo que") { return false }
-        return ["que es ", "que son ", "que significa", "para que sirve", "explicame", "diferencia entre", "what is "].contains { text.hasPrefix($0) }
+        return ["que es ", "que son ", "que significa", "para que sirve", "que hace ", "como funciona ", "explicame",
+                "diferencia entre", "what is "].contains { text.hasPrefix($0) }
     }
 
     static func isQuestion(_ request: String) -> Bool {
@@ -452,6 +586,59 @@ nonisolated enum AssistantEngine {
     /// “Borra notas.md” moves it to the Trash instead, where it can be recovered.
     /// Only when the file is what the verb acts on: “abre borrador.md” or
     /// “elimina los espacios de notas.txt” are not deletions.
+    /// “Renombra todas las fotos como vacaciones”: numbered names, built by
+    /// the app, never overwriting a file; the confirmation shows the list.
+    static func renameReply(for request: String, inventory: ToolInventory) -> AssistantReply? {
+        let words = normalized(request)
+        let renames = ["renombr", "cambiar el nombre", "cambia el nombre", "cambiarle el nombre", "cambiales el nombre",
+                       "ponerles nombre", "ponles nombre", "rename"].contains(where: words.contains)
+        let many = ["todas", "todos", "varias", "varios", "archivos", "fotos", "imagenes", "videos", "pdfs", "canciones",
+                    "audios", "documentos", "en lote", "de una vez"].contains(where: words.contains)
+        guard renames, many else { return nil }
+        let files = inventory.files.filter { $0.kind != .folder && !($0.name as NSString).pathExtension.isEmpty }
+        let kind: ToolInventory.FileInfo.Kind? = switch true {
+        case ["foto", "imagen"].contains(where: words.contains): .image
+        case words.contains("video"): .video
+        case ["audio", "cancion", "musica"].contains(where: words.contains): .audio
+        case words.contains("pdf"): .pdf
+        case words.contains("documento"): .document
+        default: nil
+        }
+        // An extension named in the request, or the most common one of that kind.
+        let named = request.firstMatch(of: /(?i)\.?\b(jpe?g|png|heic|gif|webp|mp3|m4a|wav|aiff?|pdf|txt|md|mov|mp4|docx?)\b/)
+            .map { String($0.1).lowercased() }
+        let candidates = files.filter { kind == nil || $0.kind == kind }
+        let counts = Dictionary(grouping: candidates.map { ($0.name as NSString).pathExtension }, by: { $0 }).mapValues(\.count)
+        let ext = named.flatMap { want in counts.keys.first { $0.lowercased() == want } ?? want }
+            ?? counts.max { $0.value < $1.value }?.key
+        guard let ext else {
+            return AssistantReply(explanation: String(localized: "No encontré archivos de ese tipo en esta carpeta. ¿En qué carpeta están, o qué tipo de archivo son?"), proposals: [])
+        }
+        let fallback = switch kind {
+        case .image: "foto"
+        case .video: "video"
+        case .audio: "audio"
+        case .pdf, .document: "documento"
+        default: "archivo"
+        }
+        let asked = requestedText(in: request)
+            ?? request.firstMatch(of: /(?i)\b(?:como|a|por)\s+["“«]?([\p{L}\d_-]+)["”»]?\s*[?.!]?$/).map { String($0.1) }
+        let base = asked.map(RenamePlan.cleanBase).flatMap { $0.isEmpty ? nil : $0 } ?? fallback
+        let plan = RenamePlan(fileExtension: ext, base: base)
+        let count = plan.files(in: inventory.directory).count
+        guard count > 0 else {
+            return AssistantReply(explanation: String(localized: "No hay archivos .\(ext) en esta carpeta."), proposals: [])
+        }
+        let proposal = AssistantProposal(
+            command: plan.command, tool: String(localized: "zsh · incluido en macOS"),
+            about: String(localized: "cambia el nombre de varios archivos de una vez, numerándolos y sin reemplazar ninguno")
+        )
+        return AssistantReply(
+            explanation: String(localized: "Renombra los \(count) archivos .\(ext) como \(base)-1.\(ext), \(base)-2.\(ext)… Antes de cambiar nada, te muestro la lista para que la revises."),
+            proposals: [proposal]
+        )
+    }
+
     static func trashReply(for request: String, inventory: ToolInventory) -> AssistantReply? {
         let words = normalized(request)
         let pattern = /(?i)\b(?:borra|borrar|bórralo|elimina|eliminar|deshazte de|manda a la papelera|delete|remove)\s+(?:(?:el|la|los|las|mi|mis|archivo|carpeta|todo)\s+)*(?:(lo que hay en|el contenido de|todo lo que hay en|contenido de|lo de)\s+)?(?:(?:el|la|los|las|archivo|carpeta)\s+)*["“']?([^\s"”']+)/
@@ -1057,7 +1244,7 @@ nonisolated enum AssistantEngine {
     private static let audioWords = ["audio", "sonido", "voz", "grabacion", "mp3", "m4a", "wav", "whatsapp", "podcast", "cancion", "musica"]
     private static let videoWords = ["video", "mov", "mp4", "clip", "pelicula", "grabacion de pantalla"]
     /// Words that ask for a smaller or converted file, or one ready to send.
-    private static let shrinkWords = ["comprim", "achic", "reduc", "liviano", "pesa", "peso", "convert", "pasar a", "chico",
+    private static let shrinkWords = ["comprim", "achic", "reduc", "liviano", "pesa", "peso", "convert", "pasar a", "pasalo a", "pasala a", "chico",
                                       "mp3", "m4a", "whatsapp", "mandar", "enviar", "correo", "mail", "pese poco", "pese menos", "menos peso", "ligero", "liviano"]
     private static let documentWords = ["documento", "word", "docx", "pages", "presentacion", "keynote", "planilla", "excel", "numbers"]
     private static let sizeWords = ["mitad", "tercio", "%", "por ciento", "achic", "redimension", "tamano", "ancho", "px", "agrand", "reduc", "pequen", "mas chica", "mas grande"]
@@ -1128,7 +1315,7 @@ nonisolated enum AssistantEngine {
         var explanations: [String] = []
         var proposals: [AssistantProposal] = []
         for step in steps {
-            guard let (explanation, proposal) = command(for: step, inventory: inventory) else { continue }
+            guard let (explanation, proposal) = command(for: step, inventory: inventory, request: request) else { continue }
             explanations.append(explanation)
             proposals.append(proposal)
         }
@@ -1203,7 +1390,7 @@ nonisolated enum AssistantEngine {
 
     private static func q(_ value: String) -> String { ShellEscape.quote(value) }
 
-    private static func command(for step: AssistantStep, inventory: ToolInventory) -> (String, AssistantProposal)? {
+    private static func command(for step: AssistantStep, inventory: ToolInventory, request: String = "") -> (String, AssistantProposal)? {
         switch step.action {
         case .runScript:
             guard let script = step.script else { return nil }
@@ -1225,6 +1412,13 @@ nonisolated enum AssistantEngine {
 
         case .compressAudio:
             guard let file = step.file else { return nil }
+            // MP3 asked for: afconvert can't write it, ffmpeg can.
+            if normalized(request).contains("mp3"), inventory.has("ffmpeg") {
+                let output = derivedName(file, suffix: "", extension: "mp3")
+                return (String(localized: "Voy a convertir “\((file as NSString).lastPathComponent)” a MP3 con ffmpeg, en buena calidad."),
+                        AssistantProposal(command: "ffmpeg -n -i \(q(file)) -codec:a libmp3lame -q:a 2 \(q(output))",
+                                          tool: "ffmpeg · \(inventory.source(of: "ffmpeg"))"))
+            }
             let output = derivedName(file, suffix: "comprimido", extension: "m4a")
             return (String(localized: "Voy a comprimir “\((file as NSString).lastPathComponent)” a AAC de 64 kbps, ideal para enviarlo por mensaje."),
                     AssistantProposal(command: "afconvert -f m4af -d aac -b 64000 \(q(file)) \(q(output))",
@@ -1327,7 +1521,7 @@ nonisolated enum AssistantEngine {
     /// “Entrevista.wav” → “Entrevista-comprimido.m4a”, next to the original.
     static func derivedName(_ file: String, suffix: String, extension ext: String) -> String {
         let base = (file as NSString).deletingPathExtension
-        return "\(base)-\(suffix).\(ext)"
+        return suffix.isEmpty ? "\(base).\(ext)" : "\(base)-\(suffix).\(ext)"
     }
 
     /// A recipe that matches, filled with what the request says (“llamada

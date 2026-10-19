@@ -90,7 +90,8 @@ struct AssistantExchangeView: View {
         let isBusy = shell?.isBusy ?? false
         return VStack(alignment: .leading, spacing: Metrics.replyBlockSpacing) {
             if let text = entry.assistantError ?? entry.assistantExplanation, !text.isEmpty {
-                Text(text)
+                // Bold, code, links and lists, as the model writes them.
+                Text(AgentTextFormat.markdown(text))
                     .font(.system(size: fontSize))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)

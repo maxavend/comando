@@ -21,6 +21,18 @@ nonisolated enum DangerDetector {
             )
         }
 
+        // Many files renamed or moved at once: easy to get wrong, hard to undo.
+        let loopMoves = line.range(of: #"\bfor\b.+\bdo\b.*\bmv\b"#, options: .regularExpression) != nil
+        let batchTools = line.range(of: #"(^|[;&|]\s*)(zmv|rename|perl-rename)\s"#, options: .regularExpression) != nil
+            && !line.contains("zmv -n") && !line.contains("rename -n")
+        let findMoves = line.range(of: #"(-exec(dir)?|xargs(\s+-\S+)*)\s+mv\b"#, options: .regularExpression) != nil
+        if loopMoves || batchTools || findMoves {
+            return CommandRisk(
+                title: String(localized: "Este comando renombra o mueve muchos archivos de una vez"),
+                explanation: String(localized: "Revisa a qué archivos afecta antes de seguir. Si dos quedan con el mismo nombre, uno podría reemplazar al otro.")
+            )
+        }
+
         // Each part of “a && b; c | d” runs, so each one gets checked, and
         // so do commands hidden in $(…), backticks or `bash -c '…'`.
         let segments = line.split(separator: /&&|\|\||;|\|/).map { $0.trimmingCharacters(in: .whitespaces) }

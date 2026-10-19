@@ -91,6 +91,12 @@ enum DebugAutomation {
             controller.selectedShell?.interrupt()
         case "#send":
             controller.selectedShell?.sendRaw(Array(argument.replacing("\\r", with: "\r").utf8))
+        case "#runproposal":
+            if let session = controller.selectedSession,
+               let entry = session.entries.filter({ $0.kind == .assistant }).max(by: { $0.startedAt < $1.startedAt }) {
+                controller.runProposals(of: entry)
+            }
+            try? await Task.sleep(for: .milliseconds(600))
         case "#agentterminal":
             if let session = controller.selectedSession { controller.openAgentInTerminal(in: session) }
         case "#agentchat":

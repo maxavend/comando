@@ -19,6 +19,8 @@ final class TerminalController {
     var isPickingFolder = false
     /// A risky command shown in a confirmation alert before it runs.
     var pendingCommand: PendingCommand?
+    /// The assistant reply whose command waits for confirmation.
+    @ObservationIgnored private var pendingProposalEntryID: UUID?
     /// Presents the welcome guide.
     var isShowingWelcome = false
     /// Presents the recipes finder (⌘K) for the selected session.
@@ -33,6 +35,8 @@ final class TerminalController {
     private(set) var shells: [UUID: ShellSession] = [:]
     /// Open conversations with AI agent CLIs, by session.
     var agentChats: [UUID: AgentChat] = [:]
+    /// Apple Intelligence's conversation in each session, with its memory.
+    @ObservationIgnored var assistantConversations: [UUID: AssistantConversation] = [:]
 
     @ObservationIgnored let modelContext: ModelContext
     @ObservationIgnored let notifications = NotificationService()
@@ -131,6 +135,8 @@ final class TerminalController {
             modelContext.delete(entry)
         }
         session.lastCommand = nil
+        // A clean chat starts a fresh conversation too.
+        assistantConversations[session.id] = nil
         save()
     }
 
@@ -190,7 +196,11 @@ final class TerminalController {
                     explanation: String(localized: "No pasan por la Papelera. Si los mueves a la Papelera, podrás recuperarlos.")
                 )
             }
-            if let risk {
+            if var risk {
+                // A rename Comando built: show exactly which files change.
+                if let plan = RenamePlan(command: command) { risk.explanation = plan.preview(in: shell.directory) }
+                // Not from an assistant reply unless runProposals says so.
+                pendingProposalEntryID = nil
                 pendingCommand = PendingCommand(command: command, sessionID: session.id, risk: risk, trashAlternative: trash)
                 return
             }
@@ -215,6 +225,7 @@ final class TerminalController {
     func confirmPendingCommand() {
         guard let pending = pendingCommand, let session = session(withID: pending.sessionID) else { return }
         pendingCommand = nil
+        if let id = pendingProposalEntryID.take() { entry(withID: id)?.assistantRanAt = .now }
         submit(pending.command, in: session, confirmed: true)
     }
 
@@ -259,30 +270,85 @@ final class TerminalController {
         let executables = Set(ExecutableIndex.shared.names(for: shell.pathEntries))
         let directory = entry.directory
         let request = entry.command
+        let entryID = entry.id
         let attachments = entry.attachmentPaths.map { URL(filePath: $0) }
         let path = shell.pathEntries
+        let conversation = entry.session.map(assistantConversation(for:))
         assistantRequestsInFlight += 1
-        Task {
-            defer { assistantRequestsInFlight -= 1 }
-            // Whatever happens inside, the reply always arrives.
-            let reply = await AssistantEngine.firstResult(within: .seconds(45)) {
-                let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
-                return await AssistantEngine.reply(to: request, inventory: inventory)
+        Task { [weak self] in
+            defer { self?.assistantRequestsInFlight -= 1 }
+            let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
+            // “Ahora en mp3” becomes the whole request, from what was said before.
+            let standalone = await conversation?.standalone(request, inventory: inventory) ?? request
+            // What to show, with every check; whatever happens, a reply arrives.
+            let prepared = await AssistantEngine.firstResult(within: .seconds(40)) {
+                await AssistantEngine.structuredReply(to: standalone, inventory: inventory)
             } ?? .failure(String(localized: "Esto me está tomando demasiado. Inténtalo de nuevo o dilo con otras palabras."))
-            entry.assistantExplanation = reply.explanation
-            entry.proposals = reply.proposals
-            entry.assistantError = reply.error
-            entry.assistantExtras = reply.extras
-            entry.finishedAt = .now
-            save()
+
+            // Then said in the assistant's own words, as they come. The entry
+            // is looked up each time: it may have been cleared meanwhile.
+            var shown = false
+            let spoken = await conversation?.speak(request: request, reply: prepared, inventory: inventory) { [weak self] text in
+                guard let self, let entry = self.entry(withID: entryID) else { return }
+                if !shown {
+                    shown = true
+                    self.show(prepared, in: entry)
+                }
+                if prepared.error != nil { entry.assistantError = text } else { entry.assistantExplanation = text }
+            }
+            var fallback: String?
+            if (!shown && prepared.answersItself) || (shown && spoken == nil) {
+                fallback = prepared.answersItself ? await AssistantEngine.explain(standalone) : prepared.explanation
+            }
+            guard let self, let entry = self.entry(withID: entryID) else { return }
+            if !shown {
+                var reply = prepared
+                // The question was left for the conversation; answer it the plain way.
+                if reply.answersItself {
+                    reply.explanation = fallback
+                        ?? String(localized: "No tengo una buena respuesta para eso. ¿Me lo cuentas con otras palabras?")
+                }
+                self.show(reply, in: entry)
+            } else if spoken == nil {
+                // Stopped partway for safety: back to the prepared words.
+                if prepared.error != nil { entry.assistantError = prepared.error } else { entry.assistantExplanation = fallback ?? "" }
+            }
+            self.save()
         }
+    }
+
+    private func show(_ reply: AssistantReply, in entry: CommandEntry) {
+        entry.assistantExplanation = reply.explanation
+        entry.proposals = reply.proposals
+        entry.assistantError = reply.error
+        entry.assistantExtras = reply.extras
+        entry.finishedAt = .now
+    }
+
+    /// The session's conversation with Apple Intelligence, picking up from
+    /// its last exchanges when it starts.
+    func assistantConversation(for session: TerminalSession) -> AssistantConversation {
+        if let conversation = assistantConversations[session.id] { return conversation }
+        let history = session.entries
+            .filter { $0.kind == .assistant && $0.isFinished }
+            .sorted { $0.startedAt < $1.startedAt }
+            .suffix(3)
+            .map { (request: $0.command, reply: $0.assistantError ?? $0.assistantExplanation ?? "") }
+        let conversation = AssistantConversation(history: Array(history))
+        assistantConversations[session.id] = conversation
+        return conversation
     }
 
     /// Runs what the assistant proposed, as one visible command.
     func runProposals(of entry: CommandEntry) {
         guard let session = entry.session, !entry.proposals.isEmpty, !(shells[session.id]?.isBusy ?? false) else { return }
-        entry.assistantRanAt = .now
         submit(entry.proposals.map(\.command).joined(separator: " && "), in: session)
+        // A risky command waits for the confirmation: “Ejecutado” only once it runs.
+        if pendingCommand == nil {
+            entry.assistantRanAt = .now
+        } else {
+            pendingProposalEntryID = entry.id
+        }
     }
 
     func installPackage(_ package: String, for entry: CommandEntry) {

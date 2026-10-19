@@ -155,7 +155,8 @@ final class AgentChat {
                 onConversation(id)
                 continue
             }
-            guard let entry = current else { continue }
+            // Cleared from the chat meanwhile: nothing to write into.
+            guard let entry = current, !entry.isDeleted else { continue }
             if case .turnFinished = event {
                 finishTurn(with: event)
             } else {
@@ -179,7 +180,8 @@ final class AgentChat {
     }
 
     private func finishTurn(with event: AgentEvent, stopped: Bool = false) {
-        guard let entry = current else {
+        guard let entry = current, !entry.isDeleted else {
+            current = nil
             isResponding = false
             return
         }
