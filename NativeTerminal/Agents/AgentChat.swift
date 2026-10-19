@@ -23,6 +23,11 @@ final class AgentChat {
     /// Called when an entry changed, to save.
     @ObservationIgnored var onChange: (CommandEntry) -> Void = { _ in }
     @ObservationIgnored var onConversation: (String) -> Void = { _ in }
+    /// The CLI is asking for something only its own screen can do (sign in,
+    /// update, a yes/no question), or went silent: open the terminal.
+    @ObservationIgnored var onNeedsTerminal: (String) -> Void = { _ in }
+    @ObservationIgnored private var lastOutput = ContinuousClock.now
+    @ObservationIgnored private var askedForTerminal = false
 
     init(kind: AgentKind, sessionID: UUID, directory: String, path: [String],
          conversationID: String? = nil, permission: AgentPermission = .ask) {
@@ -74,6 +79,27 @@ final class AgentChat {
         }
         if process == nil {
             finishTurn(with: .failed(String(localized: "No se pudo abrir \(kind.rawValue).")))
+            return
+        }
+        watchForSilence(of: entry)
+    }
+
+    /// Nothing at all for a long while: it's probably waiting on something
+    /// only its own screen shows.
+    private func watchForSilence(of entry: CommandEntry) {
+        let id = entry.id
+        Task { [weak self] in
+            while true {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self, self.isResponding, self.current?.id == id, !self.askedForTerminal else { return }
+                let quiet = ContinuousClock.now - self.lastOutput
+                let hasOutput = self.current.map { !$0.agentReply.steps.isEmpty } ?? false
+                if !hasOutput, quiet > .seconds(45) {
+                    self.askedForTerminal = true
+                    self.onNeedsTerminal(String(localized: "\(self.kind.rawValue) no respondió"))
+                    return
+                }
+            }
         }
     }
 
@@ -123,17 +149,24 @@ final class AgentChat {
         let started = try? AgentProcess(
             executable: executable, arguments: arguments, directory: directory, path: path,
             onLine: { continuation.yield(.line($0)) },
+            onErrorLine: { continuation.yield(.errorLine($0)) },
             onExit: { status, errors in
                 continuation.yield(.exit(status, errors))
                 continuation.finish()
             }
         )
         process = started
+        lastOutput = .now
+        askedForTerminal = false
+        // One message per process: nothing more comes on its input. Codex and
+        // Qwen wait for the input to end before they answer.
+        if kind.transport == .perTurn { started?.closeInput() }
         Task { [weak self] in
             for await output in stream {
                 guard let self else { return }
                 switch output {
                 case .line(let line): self.receive(line)
+                case .errorLine(let line): self.noticeTerminalPrompt(in: line)
                 case .exit(let status, let errors):
                     // A newer process may have replaced this one.
                     if self.process === started || self.process == nil { self.exited(status: status, errors: errors) }
@@ -144,10 +177,30 @@ final class AgentChat {
 
     private enum Output: Sendable {
         case line(String)
+        case errorLine(String)
         case exit(Int32, String)
     }
 
+    /// Words of a screen that needs a person at the terminal.
+    nonisolated static func needsTerminal(_ line: String) -> Bool {
+        let text = line.lowercased()
+        return ["update available", "press enter", "press any key", "do you trust", "trust this folder", "please log in",
+                "please sign in", "not logged in", "log in to", "sign in to", "login required", "run `codex login`",
+                "/login", "authenticate", "[y/n]", "(y/n)", "select an option", "open the following url",
+                "device code", "api key is required", "oauth session expired"].contains(where: text.contains)
+    }
+
+    private func noticeTerminalPrompt(in line: String) {
+        lastOutput = .now
+        guard !askedForTerminal, Self.needsTerminal(line) else { return }
+        askedForTerminal = true
+        onNeedsTerminal(line.trimmingCharacters(in: .whitespaces))
+    }
+
     private func receive(_ line: String) {
+        lastOutput = .now
+        // Not its JSON: a screen meant for a person, maybe one that needs them.
+        if !line.trimmingCharacters(in: .whitespaces).hasPrefix("{") { noticeTerminalPrompt(in: line) }
         for event in parser.parse(line) {
             if case .conversation(let id) = event {
                 conversationID = id
@@ -193,6 +246,11 @@ final class AgentChat {
         current = nil
         isResponding = false
         onChange(entry)
+        // An error that only the CLI's screen can fix (signing in, updating).
+        if !stopped, !askedForTerminal, let error = reply.error, Self.needsTerminal(error) {
+            askedForTerminal = true
+            onNeedsTerminal(error)
+        }
     }
 
     /// The last meaningful lines of what the CLI printed on error.

@@ -21,6 +21,7 @@ nonisolated final class AgentProcess: @unchecked Sendable {
 
     init(executable: String, arguments: [String], directory: String, path: [String],
          onLine: @escaping @Sendable (String) -> Void,
+         onErrorLine: @escaping @Sendable (String) -> Void = { _ in },
          onExit: @escaping @Sendable (Int32, String) -> Void) throws {
         process.executableURL = URL(filePath: executable)
         process.arguments = arguments
@@ -48,6 +49,7 @@ nonisolated final class AgentProcess: @unchecked Sendable {
                 self.errorTail.append(data)
                 if self.errorTail.count > 4096 { self.errorTail = self.errorTail.suffix(4096) }
             }
+            for line in String(decoding: data, as: UTF8.self).split(separator: "\n") { onErrorLine(String(line)) }
         }
         process.terminationHandler = { [weak self] process in
             guard let self else { return }

@@ -42,6 +42,10 @@ extension TerminalController {
             }
             self?.save()
         }
+        chat.onNeedsTerminal = { [weak self, weak session] reason in
+            guard let self, let session else { return }
+            self.agentNeedsTerminal(session, reason: reason)
+        }
         chat.onConversation = { [weak session] id in
             guard let session else { return }
             session.agentConversationID = id
@@ -111,6 +115,24 @@ extension TerminalController {
     /// The CLI's screen closed: the chat picks the conversation up again.
     func agentTerminalClosed(in session: TerminalSession) {
         agentChats[session.id]?.warmUp()
+    }
+
+    /// The CLI needs its own screen: say why in the chat, and open it.
+    func agentNeedsTerminal(_ session: TerminalSession, reason: String) {
+        guard let chat = agentChats[session.id], !shell(for: session).isBusy else { return }
+        let entry = session.entries.filter { $0.kind == .agent }.max { $0.startedAt < $1.startedAt }
+        openAgentInTerminal(in: session)
+        // After opening it, so stopping the turn doesn't write over the reason.
+        if let entry, !entry.isDeleted {
+            var reply = entry.agentReply
+            // The CLI's own error text is in the notice already.
+            reply.steps.removeAll { $0.kind == .text && reason.contains($0.text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            reply.error = String(localized: "\(chat.kind.rawValue) necesita su pantalla para seguir (\(reason.prefix(120))). La abrí aquí abajo; cuando termines, vuelve al chat.")
+            reply.finish()
+            entry.agentReply = reply
+            entry.finishedAt = entry.finishedAt ?? .now
+            save()
+        }
     }
 
     /// Closes the CLI's screen and goes back to chatting.

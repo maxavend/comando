@@ -134,4 +134,12 @@ import Testing
         let text = String(AgentTextFormat.markdown("Archivos:\n- notas.txt\n```text\nhola\n```").characters)
         #expect(text == "Archivos:\n• notas.txt\nhola")
     }
+
+    @Test func screensThatNeedTheTerminalAreNoticed() {
+        #expect(AgentChat.needsTerminal("Failed to authenticate: OAuth session expired and could not be refreshed"))
+        #expect(AgentChat.needsTerminal("✨ Update available! 0.142.5 -> 0.144.3"))
+        #expect(AgentChat.needsTerminal("Do you trust the files in this folder? [y/N]"))
+        #expect(!AgentChat.needsTerminal("Reading additional input from stdin..."))
+        #expect(!AgentChat.needsTerminal("The 'gpt-6.1-sol' model is not supported."))
+    }
 }
