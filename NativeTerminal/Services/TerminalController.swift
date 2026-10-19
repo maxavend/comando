@@ -35,9 +35,12 @@ final class TerminalController {
     private(set) var shells: [UUID: ShellSession] = [:]
     /// Open conversations with AI agent CLIs, by session.
     var agentChats: [UUID: AgentChat] = [:]
-    /// Sessions whose open conversation or program card is on screen; the
-    /// activity bar shows only when it isn't.
+    /// The open conversation and program cards on screen, by entry; the
+    /// activity bar shows only when its card isn't.
     var visibleActivityCards: Set<UUID> = []
+    /// Sessions whose agent conversation ends once its terminal closes
+    /// (“Terminar” there ends it all; “Volver al chat” doesn't).
+    @ObservationIgnored var endsAgentWithTerminal: Set<UUID> = []
     /// Apple Intelligence's conversation in each session, with its memory.
     @ObservationIgnored var assistantConversations: [UUID: AssistantConversation] = [:]
 
@@ -535,8 +538,11 @@ extension TerminalController: ShellSessionDelegate {
         entry.truncated = result.truncated
         entry.kind = result.wasInteractive ? .interactive : .command
         entry.transcript = result.transcript
-        // Back from the agent's own screen: the chat starts it up again.
-        if agentChats[shell.id] != nil, let session = entry.session { agentTerminalClosed(in: session) }
+        // Back from the agent's own screen: the chat starts it up again, unless
+        // the person ended it there.
+        if agentChats[shell.id] != nil, let session = entry.session {
+            if endsAgentWithTerminal.remove(shell.id) != nil { endAgent(in: session) } else { agentTerminalClosed(in: session) }
+        }
         let rendered = OutputRenderer.render(raw: output)
         RenderCache.shared[entry] = RenderCache.linked(rendered, for: entry)
         entry.plainOutput = String(rendered.plainText.prefix(CommandEntry.plainOutputLimit))

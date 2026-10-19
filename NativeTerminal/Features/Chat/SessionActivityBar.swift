@@ -10,7 +10,7 @@ struct SessionActivityBar: View {
     @Environment(TerminalController.self) private var controller
 
     var body: some View {
-        if let activity {
+        if let activity, !controller.visibleActivityCards.contains(activity.cardID) {
             HStack(spacing: Metrics.chipSpacing) {
                 Circle()
                     .fill(.green)
@@ -36,6 +36,8 @@ struct SessionActivityBar: View {
     }
 
     private struct Activity {
+        /// The card that shows the same thing in the chat.
+        var cardID: UUID
         var title: String
         var showTitle: LocalizedStringKey
         var show: () -> Void
@@ -47,20 +49,24 @@ struct SessionActivityBar: View {
             let program = ShellSession.firstWord(of: live.command)
             let entryID = live.entryID
             return Activity(
+                cardID: entryID,
                 title: String(localized: "\(program) en ejecución"),
                 showTitle: "Ver",
                 show: { controller.focusedEntryID = entryID },
-                close: { shell.quitForeground() }
+                close: { controller.finishActivity(in: session) }
             )
         }
         if let chat = controller.agentChats[session.id], !(shell?.isBusy ?? false) {
+            let card = session.entries.filter { $0.kind == .agentStart && $0.finishedAt == nil }
+                .max { $0.startedAt < $1.startedAt }
             return Activity(
+                cardID: card?.id ?? session.id,
                 title: chat.isReady
                     ? String(localized: "\(chat.kind.displayName) en línea")
                     : String(localized: "Iniciando \(chat.kind.displayName)…"),
                 showTitle: "Ver en la terminal",
                 show: { controller.openAgentInTerminal(in: session) },
-                close: { controller.endAgent(in: session) }
+                close: { controller.finishActivity(in: session) }
             )
         }
         return nil

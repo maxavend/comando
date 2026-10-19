@@ -53,7 +53,7 @@ struct AgentStartCard: View {
                         }
                         .help("Abre la misma conversación en la pantalla de \(kind.rawValue); después vuelves al chat")
                         Button("Terminar", systemImage: "xmark") {
-                            if let session = entry.session { controller.endAgent(in: session) }
+                            if let session = entry.session { controller.finishActivity(in: session) }
                         }
                     } else if entry.agentConversationID != nil {
                         Button("Retomar", systemImage: "arrow.uturn.forward") { controller.resumeAgent(from: entry) }
@@ -70,12 +70,9 @@ struct AgentStartCard: View {
             .padding(.vertical, Metrics.statusSpacing)
             // While this card shows, the bar under the header isn't needed.
             .onScrollVisibilityChange(threshold: 0.4) { visible in
-                guard isOpen, let id = entry.session?.id else { return }
-                if visible { controller.visibleActivityCards.insert(id) } else { controller.visibleActivityCards.remove(id) }
+                if visible { controller.visibleActivityCards.insert(entry.id) } else { controller.visibleActivityCards.remove(entry.id) }
             }
-            .onDisappear {
-                if let id = entry.session?.id { controller.visibleActivityCards.remove(id) }
-            }
+            .onDisappear { controller.visibleActivityCards.remove(entry.id) }
         }
     }
 }

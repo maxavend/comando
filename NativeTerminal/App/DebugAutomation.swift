@@ -97,6 +97,8 @@ enum DebugAutomation {
                 controller.runProposals(of: entry)
             }
             try? await Task.sleep(for: .milliseconds(600))
+        case "#finish":
+            if let session = controller.selectedSession { controller.finishActivity(in: session) }
         case "#agentterminal":
             if let session = controller.selectedSession { controller.openAgentInTerminal(in: session) }
         case "#agentchat":

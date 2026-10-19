@@ -49,11 +49,9 @@ struct ChatView: View {
                 SessionHeader(session: session, directory: directory,
                               isRunning: (shell?.isBusy ?? false) || controller.agentChats[session.id]?.isReady == true)
                 // What's open, when its card is out of view: the green dot made visible.
-                if !controller.visibleActivityCards.contains(session.id) {
-                    SessionActivityBar(session: session, shell: shell)
-                }
+                SessionActivityBar(session: session, shell: shell)
             }
-            .animation(.smooth(duration: 0.25), value: controller.visibleActivityCards.contains(session.id))
+            .animation(.smooth(duration: 0.25), value: controller.visibleActivityCards)
                 .padding(.top, SessionHeader.topInset)
                 .ignoresSafeArea(.container, edges: .top)
         }

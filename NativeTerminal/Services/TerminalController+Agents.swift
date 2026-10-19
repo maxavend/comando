@@ -138,6 +138,24 @@ extension TerminalController {
 
     /// Closes the CLI's screen and goes back to chatting.
     func returnToAgentChat(in session: TerminalSession) {
+        endsAgentWithTerminal.remove(session.id)
+        shell(for: session).quitForeground()
+    }
+
+    /// “Terminar”, wherever it is: closes what's open in the session, the
+    /// program in the terminal and the agent conversation alike.
+    func finishActivity(in session: TerminalSession) {
+        if shell(for: session).isBusy {
+            quitProgram(in: session)
+        } else {
+            endAgent(in: session)
+        }
+    }
+
+    /// Closes the program in the terminal. When it's an agent's screen, the
+    /// conversation ends with it.
+    func quitProgram(in session: TerminalSession) {
+        if agentChats[session.id] != nil { endsAgentWithTerminal.insert(session.id) }
         shell(for: session).quitForeground()
     }
 

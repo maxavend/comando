@@ -9,6 +9,8 @@ struct RunningFooter: View {
     let live: LiveOutput
     let shell: ShellSession
 
+    @Environment(TerminalController.self) private var controller
+
     /// Seconds without output before a command counts as idle.
     private static let quietAfter: TimeInterval = 4
 
@@ -65,6 +67,6 @@ struct RunningFooter: View {
     }
 
     private func quit() {
-        shell.quitForeground()
+        if let session = controller.session(withID: shell.id) { controller.finishActivity(in: session) } else { shell.quitForeground() }
     }
 }

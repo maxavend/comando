@@ -52,8 +52,8 @@ struct InteractiveTerminalCard: View {
         }
         // While this card shows, the bar under the header isn't needed.
         .onScrollVisibilityChange(threshold: 0.2) { visible in
-            if visible { controller.visibleActivityCards.insert(shell.id) } else { controller.visibleActivityCards.remove(shell.id) }
+            if visible { controller.visibleActivityCards.insert(live.entryID) } else { controller.visibleActivityCards.remove(live.entryID) }
         }
-        .onDisappear { controller.visibleActivityCards.remove(shell.id) }
+        .onDisappear { controller.visibleActivityCards.remove(live.entryID) }
     }
 }

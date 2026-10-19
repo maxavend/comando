@@ -140,19 +140,15 @@ struct ComposerView: View {
                         .buttonStyle(.glassCircle(.destructive))
                         .help("Interrumpir el comando (⌘.)")
                 }
-                // Plain words go to the assistant: the arrow turns into ✨ in
-                // place, so nothing in the field shifts.
+                // Always the plain send button: the field's edge light is what
+                // says Apple Intelligence will answer.
                 Button(action: submit) {
-                    Label(showsIntelligence ? "Pedir al asistente" : "Enviar",
-                          systemImage: showsIntelligence ? "sparkle" : "arrow.up")
-                        .contentTransition(.symbolEffect(.replace))
+                    Label(showsIntelligence ? "Pedir al asistente" : "Enviar", systemImage: "arrow.up")
                 }
-                // Filled with the Apple Intelligence colors when it will answer.
-                .buttonStyle(.glassCircle(showsIntelligence ? .intelligence(working: isIntelligenceWorking) : .prominent))
+                .buttonStyle(.glassCircle(.prominent))
                 .disabled(!canSubmit)
                 .keyboardShortcut(.return, modifiers: .command)
                 .help(isAskingAssistant ? "Pedir al asistente (↩)" : "Enviar (↩)")
-                .animation(.smooth(duration: 0.2), value: showsIntelligence)
 
             }
         }
