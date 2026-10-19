@@ -21,6 +21,9 @@ final class TerminalSession {
     var isPinned: Bool = false
     /// Optional emoji shown in the avatar instead of the terminal symbol.
     var emoji: String?
+    /// An SF Symbol the person chose for the avatar; otherwise one that
+    /// fits the folder.
+    var symbolName: String?
     /// Index into `SessionColor.all` for the avatar background.
     var colorIndex: Int = 0
     /// The AI agent this session is talking to, if a conversation is open,
@@ -40,6 +43,11 @@ final class TerminalSession {
 
     init(directory: String) {
         self.directory = directory
+    }
+
+    /// The avatar's symbol: the one chosen, or one that fits the folder.
+    @MainActor func avatarSymbol(for directory: String) -> String {
+        symbolName ?? SessionSymbol.symbol(for: directory)
     }
 
     var displayName: String {

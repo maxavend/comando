@@ -82,7 +82,7 @@ enum DebugAutomation {
         case "#welcome":
             controller.isShowingWelcome = true
             try? await Task.sleep(for: .seconds(1))
-        case "#type", "#submit", "#rename", "#delete", "#search", "#scope", "#showall", "#tab", "#next", "#query", "#choose", "#attach", "#tools", "#toolsection", "#toolselect":
+        case "#type", "#submit", "#editappearance", "#rename", "#delete", "#search", "#scope", "#showall", "#tab", "#next", "#query", "#choose", "#attach", "#tools", "#toolsection", "#toolselect":
             var object = argument
             if action == "#showall" { object = lastEntryID(controller)?.uuidString ?? "" }
             NotificationCenter.default.post(name: .debugAction, object: "\(action) \(object)")

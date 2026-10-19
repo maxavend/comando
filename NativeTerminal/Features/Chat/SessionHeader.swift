@@ -31,7 +31,7 @@ struct SessionHeader: View {
             // Like Messages: the avatar in front, over the name capsule's edge.
             VStack(spacing: Self.gap) {
                 SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex,
-                              size: Self.avatarSize, symbol: SessionSymbol.symbol(for: directory))
+                              size: Self.avatarSize, symbol: session.avatarSymbol(for: directory))
                     // In front: the avatar sits over the capsule's top edge.
                     .zIndex(1)
                 HStack(spacing: 2) {
@@ -55,6 +55,12 @@ struct SessionHeader: View {
         .help("En \(ShellEscape.abbreviate(directory)). Clic para cambiar su nombre, emoji y color.")
         .accessibilityLabel("Sesión \(session.displayName), en \(FolderName.display(directory))")
         .accessibilityHint("Cambia su nombre, emoji y color")
+        #if DEBUG
+        .onDebugAction("#editappearance") { _ in isEditing = true }
+        #endif
+        #if DEBUG
+        .onDebugAction("#editappearance") { _ in isEditing = true }
+        #endif
         .popover(isPresented: $isEditing, arrowEdge: .bottom) {
             SessionAppearanceEditor(session: session) { controller.save() }
         }

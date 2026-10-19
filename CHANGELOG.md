@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.4.4 (19 de octubre de 2026)
+
+- El editor de la sesión permite elegir un SF Symbol para el avatar, además de un emoji; el primero es el automático según la carpeta.
+- El avatar del editor se ve nítido y muestra el ícono de la carpeta.
+- El primer color de la paleta es el gris de Mensajes, el mismo del avatar.
+
 ## 1.4.3 (19 de octubre de 2026)
 
 - “Terminar” cierra todo lo abierto en la sesión, esté donde esté: la pantalla del programa y la conversación con el agente. “Volver al chat” es lo único que sigue la conversación.
