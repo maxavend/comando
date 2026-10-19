@@ -44,14 +44,12 @@ struct ComposerView: View {
     private var talksToAgent: Bool {
         phase == .interactive && AICommandLine.isAgent(shell?.live?.command ?? "")
     }
-    /// What's typed goes to an AI: the assistant, or an agent in chat mode.
-    private var talksToAI: Bool {
-        isAskingAssistant || (chatsWithAgent && !text.isEmpty)
-    }
+    /// Apple Intelligence will answer: what's typed goes to the assistant,
+    /// or it's answering now. Agent CLIs don't light up the field.
+    private var showsIntelligence: Bool { isAskingAssistant || isIntelligenceWorking }
 
-    /// An AI is answering in this session.
-    private var isAIWorking: Bool {
-        controller.assistantRequestsInFlight > 0 || agent?.isResponding == true
+    private var isIntelligenceWorking: Bool {
+        controller.assistantRequestsInFlight > 0 && agent == nil && !isRunning
     }
 
     /// Writing to an agent in chat mode, with the shell free.
@@ -113,7 +111,18 @@ struct ComposerView: View {
                     if let anchor {
                         let rect = proxy[anchor]
                         IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
-                                         isActive: talksToAI || isAIWorking, isWorking: isAIWorking)
+                                         isActive: showsIntelligence, isWorking: isIntelligenceWorking)
+                            .frame(width: rect.width, height: rect.height)
+                            .offset(x: rect.minX, y: rect.minY)
+                    }
+                }
+            }
+            // The send button glows with it: it's Apple Intelligence that answers.
+            .overlayPreferenceValue(SendBoundsKey.self) { anchor in
+                GeometryReader { proxy in
+                    if let anchor {
+                        let rect = proxy[anchor]
+                        IntelligenceGlow(shape: Circle(), isActive: showsIntelligence, isWorking: isIntelligenceWorking)
                             .frame(width: rect.width, height: rect.height)
                             .offset(x: rect.minX, y: rect.minY)
                     }
@@ -154,6 +163,7 @@ struct ComposerView: View {
                 .keyboardShortcut(.return, modifiers: .command)
                 .help(isAskingAssistant ? "Pedir al asistente (↩)" : "Enviar (↩)")
                 .animation(.smooth(duration: 0.2), value: isAskingAssistant)
+                .anchorPreference(key: SendBoundsKey.self, value: .bounds) { $0 }
             }
         }
     }
@@ -501,6 +511,14 @@ struct ComposerView: View {
 
 /// Where the message field is, so the AI light can be drawn above the glass.
 private struct FieldBoundsKey: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = value ?? nextValue()
+    }
+}
+
+/// Where the send button is, for the same light.
+private struct SendBoundsKey: PreferenceKey {
     static let defaultValue: Anchor<CGRect>? = nil
     static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
         value = value ?? nextValue()
