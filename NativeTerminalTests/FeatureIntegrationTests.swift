@@ -284,12 +284,32 @@ final class FeatureIntegrationTests {
         controller.submit("./claude", in: session)
         try await waitUntil("el agente toma la terminal") { shell.phase == .interactive }
         #expect(AICommandLine.isAgent(shell.live?.command ?? ""))
+        // Agents get the terminal as they start; give it time to read keys,
+        // as a person would see its prompt first.
+        try await Task.sleep(for: .seconds(1.5))
 
         shell.sendMessage("hola desde Comando")
         let entry = try #require(entries(of: session).last)
         try await waitUntil("el agente recibe el mensaje y termina") { entry.isFinished }
         let received = try String(contentsOf: folder.appending(path: "recibido.txt"), encoding: .utf8)
         #expect(received == "hola desde Comando")
+    }
+
+    /// Like Claude Code's “Do you trust this folder?”: a menu drawn without
+    /// the full screen. It still has to get the terminal, so keys reach it.
+    @Test func anAgentAskingFirstGetsTheTerminal() async throws {
+        let agent = folder.appending(path: "gemini")
+        try "#!/bin/zsh\nprint '❯ No, exit'\nprint '  Yes, I trust this folder'\nread -k1 key\nprint -n -- $key > tecla.txt\n"
+            .write(to: agent, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: agent.path(percentEncoded: false))
+        let (session, shell) = try await makeSession()
+        controller.submit("./gemini", in: session)
+        try await waitUntil("el agente abre en la terminal integrada") { shell.phase == .interactive }
+        try await Task.sleep(for: .seconds(1.5))
+        shell.sendRaw([0x31])
+        let entry = try #require(entries(of: session).last)
+        try await waitUntil("el agente recibe la tecla") { entry.isFinished }
+        #expect(try String(contentsOf: folder.appending(path: "tecla.txt"), encoding: .utf8) == "1")
     }
 
     @Test func manyShellsOpenWhileOtherThreadsWork() async throws {

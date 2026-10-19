@@ -241,7 +241,9 @@ final class ShellSession {
                 promptReady()
             case "C":
                 outputStarted = true
-                if let live, interactiveCommands.contains(Self.firstWord(of: live.command)) {
+                // AI agents ask questions with arrow-key menus even before
+                // they take the full screen, so they always get the terminal.
+                if let live, interactiveCommands.contains(Self.firstWord(of: live.command)) || AICommandLine.isAgent(live.command) {
                     enterInteractive(replaying: [])
                 }
             case "D":

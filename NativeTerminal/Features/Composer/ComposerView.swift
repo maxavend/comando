@@ -193,13 +193,16 @@ struct ComposerView: View {
             .focused($isFocused)
             .disabled(phase == .interactive && !talksToAgent)
             .onSubmit(submit)
-            .onKeyPress(.upArrow) { moveUp() }
-            .onKeyPress(.downArrow) { moveDown() }
+            // With the field empty, an AI agent's menus (“Do you trust this
+            // folder?”) work from here too: the keys go to the agent.
+            .onKeyPress(.upArrow) { forwardToAgent("\u{1B}[A") ?? moveUp() }
+            .onKeyPress(.downArrow) { forwardToAgent("\u{1B}[B") ?? moveDown() }
             .onKeyPress(keys: [.tab], phases: .down) { press in
-                press.modifiers.contains(.shift) ? moveUp() : completeWithTab()
+                if !press.modifiers.contains(.shift), let handled = forwardToAgent("\t") { return handled }
+                return press.modifiers.contains(.shift) ? moveUp() : completeWithTab()
             }
-            .onKeyPress(.return) { acceptSelection() }
-            .onKeyPress(.escape) { dismissPanel() }
+            .onKeyPress(.return) { forwardToAgent("\r") ?? acceptSelection() }
+            .onKeyPress(.escape) { forwardToAgent("\u{1B}") ?? dismissPanel() }
             .onKeyPress(characters: ["c"], phases: .down) { press in
                 guard press.modifiers == .control, isRunning else { return .ignored }
                 shell?.interrupt()
@@ -246,6 +249,14 @@ struct ComposerView: View {
         .menuIndicator(.hidden)
         .buttonStyle(.glassCircle)
         .help("Acciones")
+    }
+
+    /// Sends a key to the AI agent when the field is empty; nil otherwise, so
+    /// the key does its usual job.
+    private func forwardToAgent(_ key: String) -> KeyPress.Result? {
+        guard talksToAgent, text.isEmpty else { return nil }
+        shell?.sendRaw(Array(key.utf8))
+        return .handled
     }
 
     /// Just the program name, so the placeholder stays on one line.
