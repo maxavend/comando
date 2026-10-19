@@ -78,3 +78,10 @@ struct Translations {
     @Guide(description: "Cada descripción traducida al español, en el mismo orden, en menos de 12 palabras y empezando con un verbo")
     var lines: [String]
 }
+
+/// A short title for a conversation, for the sidebar.
+@Generable
+struct SessionTitle {
+    @Guide(description: "De 2 a 4 palabras en español que digan la tarea, sin comillas ni punto final")
+    var title: String
+}

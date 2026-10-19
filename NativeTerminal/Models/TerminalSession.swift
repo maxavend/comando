@@ -5,8 +5,11 @@ import SwiftData
 @Model
 final class TerminalSession {
     var id: UUID = UUID()
-    /// Set when the user renames the session; otherwise the folder name is shown.
+    /// Set when the user renames the session.
     var customName: String?
+    /// A short title from the conversation (“Comprimir entrevista”), when the
+    /// user hasn't named it. Otherwise the folder name is shown.
+    var autoName: String?
     var directory: String = ""
     var createdAt: Date = Date.now
     var lastActivity: Date = Date.now
@@ -41,6 +44,7 @@ final class TerminalSession {
 
     var displayName: String {
         if let customName, !customName.isEmpty { return customName }
+        if let autoName, !autoName.isEmpty { return autoName }
         return FolderName.display(directory)
     }
 }

@@ -20,7 +20,7 @@ struct SessionAvatar: View {
             }
         }
         .frame(width: size, height: size)
-        .background(SessionColor.color(at: colorIndex).gradient, in: .circle)
+        .background(SessionColor.fill(at: colorIndex), in: .circle)
         .overlay(alignment: .bottomTrailing) {
             if isRunning {
                 Circle()

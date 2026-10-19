@@ -67,6 +67,25 @@ final class TerminalController {
         } else {
             selectedSessionID = createSession().id
         }
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            nameUntitledSessions(sessions)
+        }
+    }
+
+    /// Sessions from before titles existed get one from their first request.
+    private func nameUntitledSessions(_ sessions: [TerminalSession]) {
+        for session in sessions where session.customName == nil && session.autoName == nil {
+            let entries = session.entries.sorted { $0.startedAt < $1.startedAt }
+            if let agent = entries.first(where: { $0.kind == .agentStart || AICommandLine.isAgent($0.command) }) {
+                session.autoName = AgentKind(rawValue: ShellSession.firstWord(of: agent.command))?.displayName
+                    ?? ShellSession.firstWord(of: agent.command)
+            }
+            if let request = entries.first(where: { ($0.kind == .assistant || $0.kind == .agent)
+                && AssistantEngine.keywords(in: AssistantEngine.normalized($0.command)).filter({ $0.count >= 3 }).count >= 2 })?.command {
+                nameSessionIfNeeded(session, from: request)
+            }
+        }
+        save()
     }
 
     // MARK: - Sessions
@@ -215,6 +234,10 @@ final class TerminalController {
         modelContext.insert(entry)
         session.lastActivity = entry.startedAt
         session.lastCommand = command
+        // An AI agent opened in its own screen names the session after it.
+        if session.customName == nil, session.autoName == nil, AICommandLine.isAgent(command) {
+            session.autoName = AgentKind(rawValue: ShellSession.firstWord(of: command))?.displayName ?? ShellSession.firstWord(of: command)
+        }
         save()
         shell.interactiveCommands = AppSettings.interactiveCommands
         shell.run(command, entryID: entry.id)
@@ -301,6 +324,7 @@ final class TerminalController {
                 fallback = prepared.answersItself ? await AssistantEngine.explain(standalone) : prepared.explanation
             }
             guard let self, let entry = self.entry(withID: entryID) else { return }
+            if let session = entry.session { self.nameSessionIfNeeded(session, from: standalone) }
             if !shown {
                 var reply = prepared
                 // The question was left for the conversation; answer it the plain way.
@@ -323,6 +347,19 @@ final class TerminalController {
         entry.assistantError = reply.error
         entry.assistantExtras = reply.extras
         entry.finishedAt = .now
+    }
+
+    /// Gives an unnamed session a title from its first real request, so the
+    /// sidebar doesn't read “Inicio” five times.
+    func nameSessionIfNeeded(_ session: TerminalSession, from request: String) {
+        guard session.customName == nil, session.autoName == nil || AgentKind.allCases.contains(where: { $0.displayName == session.autoName }) else { return }
+        let id = session.id
+        Task { [weak self] in
+            guard let title = await AssistantEngine.sessionTitle(for: request),
+                  let self, let session = self.session(withID: id), session.customName == nil else { return }
+            session.autoName = title
+            self.save()
+        }
     }
 
     /// The session's conversation with Apple Intelligence, picking up from

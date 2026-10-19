@@ -162,6 +162,34 @@ nonisolated enum AssistantEngine {
             || ["Papelera", "Por seguridad"].contains(where: base.contains)
     }
 
+    /// A title for the conversation from its first real request: written
+    /// by the model, or made from the request's key words.
+    static func sessionTitle(for request: String) async -> String? {
+        let words = normalized(request)
+        guard !isGreeting(words), !isThanks(words), AppGuide.topic(for: request) == nil,
+              keywords(in: words).filter({ $0.count >= 3 }).count >= 2 else { return nil }
+        if isAvailable, let written = await firstResult(within: .seconds(5), {
+            let session = LanguageModelSession(instructions: """
+            Pones un título muy corto a una conversación sobre la terminal, a partir del primer pedido de la persona. \
+            De 2 a 4 palabras en español, que digan la tarea. Sin comillas, sin punto final, sin la palabra "comando".
+            """)
+            let options = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 20)
+            return try? await session.respond(to: "Pedido: \(request)", generating: SessionTitle.self, options: options).content.title
+        }), let title = cleanTitle(written) {
+            return title
+        }
+        return cleanTitle(request.split(separator: " ").filter { keywords(in: normalized(String($0))).contains { $0.count >= 3 } }
+            .prefix(4).joined(separator: " "))
+    }
+
+    static func cleanTitle(_ text: String) -> String? {
+        var title = text.trimmingCharacters(in: CharacterSet(charactersIn: " \"“”'.¿?¡!:\n"))
+        title = title.replacing(/\s+/, with: " ")
+        let count = title.split(separator: " ").count
+        guard count >= 1, count <= 6, title.count <= 40, !title.contains("`") else { return nil }
+        return title.prefix(1).uppercased() + title.dropFirst()
+    }
+
     /// What the app prepared, told to the conversation so it can say it.
     static func facts(for reply: AssistantReply) -> String {
         var lines: [String] = []

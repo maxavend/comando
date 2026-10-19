@@ -25,6 +25,7 @@ extension TerminalController {
         session.agentPermissionRawValue = nil
         session.lastActivity = entry.startedAt
         session.lastCommand = command
+        if session.customName == nil, session.autoName == nil { session.autoName = kind.displayName }
         _ = makeChat(kind, for: session, conversationID: conversation, permission: .ask)
         save()
     }
@@ -68,6 +69,8 @@ extension TerminalController {
         session.lastActivity = entry.startedAt
         session.lastCommand = chat.kind.rawValue + ": " + message
         save()
+        // The first real message gives the conversation its title.
+        nameSessionIfNeeded(session, from: message)
         chat.send(message, into: entry, directory: shell.directory, path: shell.pathEntries)
     }
 
