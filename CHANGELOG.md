@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.4.3 (19 de octubre de 2026)
+
+- “Terminar” cierra todo lo abierto en la sesión, esté donde esté: la pantalla del programa y la conversación con el agente. “Volver al chat” es lo único que sigue la conversación.
+- La barra bajo el encabezado ya no aparece sobre una tarjeta que se ve.
+- El botón de enviar es siempre el de siempre; el borde de luz del campo indica cuándo responde Apple Intelligence.
+
 ## 1.4.2 (19 de octubre de 2026)
 
 - Bajo el encabezado aparece lo que está abierto en la sesión (un agente en línea o un programa en la terminal), con Ver y Terminar, cuando su tarjeta ya no se ve.
