@@ -45,8 +45,15 @@ struct ChatView: View {
         // in Messages; too tall to fit inside the toolbar.
         .overlay(alignment: .top) {
             // An open agent conversation counts as online, like a running program.
-            SessionHeader(session: session, directory: directory,
-                          isRunning: (shell?.isBusy ?? false) || controller.agentChats[session.id]?.isReady == true)
+            VStack(spacing: Metrics.statusSpacing * 1.5) {
+                SessionHeader(session: session, directory: directory,
+                              isRunning: (shell?.isBusy ?? false) || controller.agentChats[session.id]?.isReady == true)
+                // What's open, when its card is out of view: the green dot made visible.
+                if !controller.visibleActivityCards.contains(session.id) {
+                    SessionActivityBar(session: session, shell: shell)
+                }
+            }
+            .animation(.smooth(duration: 0.25), value: controller.visibleActivityCards.contains(session.id))
                 .padding(.top, SessionHeader.topInset)
                 .ignoresSafeArea(.container, edges: .top)
         }
@@ -54,8 +61,6 @@ struct ChatView: View {
         .task(id: session.id) { _ = controller.agentChat(for: session) }
         .safeAreaBar(edge: .bottom) {
           VStack(spacing: Metrics.statusSpacing) {
-            // What's open, always in view: the green dot made visible.
-            SessionActivityBar(session: session, shell: shell)
             ComposerView(
                 text: $draft,
                 shell: shell,

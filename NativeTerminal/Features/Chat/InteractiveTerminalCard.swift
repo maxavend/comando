@@ -50,5 +50,10 @@ struct InteractiveTerminalCard: View {
             RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
                 .strokeBorder(.separator)
         }
+        // While this card shows, the bar under the header isn't needed.
+        .onScrollVisibilityChange(threshold: 0.2) { visible in
+            if visible { controller.visibleActivityCards.insert(shell.id) } else { controller.visibleActivityCards.remove(shell.id) }
+        }
+        .onDisappear { controller.visibleActivityCards.remove(shell.id) }
     }
 }

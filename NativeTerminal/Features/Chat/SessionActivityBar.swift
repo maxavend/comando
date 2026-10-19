@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// What's open in this session, always in view above the field: an agent
-/// conversation or a program with its own screen. It matches the avatar's
+/// What's open in this session, under the header when its card is out of
+/// view: an agent conversation or a program with its own screen. It matches the avatar's
 /// green dot, with a way to see it and to close it.
 struct SessionActivityBar: View {
     let session: TerminalSession
@@ -19,7 +19,6 @@ struct SessionActivityBar: View {
                 Text(activity.title)
                     .font(.callout.weight(.medium))
                     .lineLimit(1)
-                Spacer(minLength: Metrics.chipSpacing)
                 Button(activity.showTitle, systemImage: "macwindow", action: activity.show)
                 Button("Terminar", systemImage: "xmark", action: activity.close)
             }
@@ -30,8 +29,8 @@ struct SessionActivityBar: View {
             .padding(.trailing, Metrics.statusSpacing)
             .padding(.vertical, Metrics.statusSpacing)
             .glassEffect(.regular, in: .capsule)
-            .padding(.horizontal, Metrics.composerEdgeInset)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .fixedSize()
+            .transition(.move(edge: .top).combined(with: .opacity))
             .accessibilityElement(children: .contain)
         }
     }

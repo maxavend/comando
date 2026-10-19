@@ -35,6 +35,9 @@ final class TerminalController {
     private(set) var shells: [UUID: ShellSession] = [:]
     /// Open conversations with AI agent CLIs, by session.
     var agentChats: [UUID: AgentChat] = [:]
+    /// Sessions whose open conversation or program card is on screen; the
+    /// activity bar shows only when it isn't.
+    var visibleActivityCards: Set<UUID> = []
     /// Apple Intelligence's conversation in each session, with its memory.
     @ObservationIgnored var assistantConversations: [UUID: AssistantConversation] = [:]
 

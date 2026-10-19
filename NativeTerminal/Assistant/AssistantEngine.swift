@@ -166,8 +166,9 @@ nonisolated enum AssistantEngine {
     /// by the model, or made from the request's key words.
     static func sessionTitle(for request: String) async -> String? {
         let words = normalized(request)
+        // A real task (“comprime la entrevista”), not “¿sigues ahí?”.
         guard !isGreeting(words), !isThanks(words), AppGuide.topic(for: request) == nil,
-              keywords(in: words).filter({ $0.count >= 3 }).count >= 2 else { return nil }
+              keywords(in: words).filter({ $0.count >= 4 }).count >= 2 else { return nil }
         if isAvailable, let written = await firstResult(within: .seconds(5), {
             let session = LanguageModelSession(instructions: """
             Pones un título muy corto a una conversación sobre la terminal, a partir del primer pedido de la persona. \

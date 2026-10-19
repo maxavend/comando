@@ -68,6 +68,14 @@ struct AgentStartCard: View {
             .padding(Metrics.bubbleHorizontalPadding)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Metrics.statusSpacing)
+            // While this card shows, the bar under the header isn't needed.
+            .onScrollVisibilityChange(threshold: 0.4) { visible in
+                guard isOpen, let id = entry.session?.id else { return }
+                if visible { controller.visibleActivityCards.insert(id) } else { controller.visibleActivityCards.remove(id) }
+            }
+            .onDisappear {
+                if let id = entry.session?.id { controller.visibleActivityCards.remove(id) }
+            }
         }
     }
 }
