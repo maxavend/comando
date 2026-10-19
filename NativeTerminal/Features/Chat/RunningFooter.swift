@@ -17,12 +17,16 @@ struct RunningFooter: View {
             let elapsed = Duration.seconds(max(0, context.date.timeIntervalSince(live.startedAt)))
             let isQuiet = live.hasOutput && context.date.timeIntervalSince(live.lastOutputAt) > Self.quietAfter
             StatusLine {
-                if isQuiet {
+                // A program with its own screen is open, not loading: a green
+                // dot, and a way to close it.
+                if live.isInteractive || isQuiet {
                     Circle()
                         .fill(.green)
                         .frame(width: 6, height: 6)
                         .accessibilityHidden(true)
-                    Text("Sigue activo · \(elapsed.formatted(.time(pattern: .minuteSecond)))")
+                    Text(live.isInteractive
+                         ? "Ejecutando · \(elapsed.formatted(.time(pattern: .minuteSecond)))"
+                         : "Sigue activo · \(elapsed.formatted(.time(pattern: .minuteSecond)))")
                         .monospacedDigit()
                 } else {
                     ProgressView()
@@ -37,7 +41,14 @@ struct RunningFooter: View {
                         .foregroundStyle(.tint)
                         .help(url.absoluteString)
                 }
-                if isQuiet {
+                if live.isInteractive {
+                    Text("·")
+                    Button("Terminar", action: quit)
+                        .buttonStyle(.link)
+                        .pointerStyle(.link)
+                        .foregroundStyle(.tint)
+                        .help("Cierra \(ShellSession.firstWord(of: live.command))")
+                } else if isQuiet {
                     Text("·")
                     Button("Detener", action: stop)
                         .buttonStyle(.link)
@@ -51,5 +62,9 @@ struct RunningFooter: View {
 
     private func stop() {
         shell.interrupt()
+    }
+
+    private func quit() {
+        shell.quitForeground()
     }
 }

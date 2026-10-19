@@ -48,6 +48,7 @@ extension TerminalController {
             session.entries.last { $0.kind == .agentStart && $0.finishedAt == nil }?.agentConversationID = id
         }
         agentChats[session.id] = chat
+        chat.warmUp()
         return chat
     }
 
@@ -104,18 +105,14 @@ extension TerminalController {
                in: session, bypassAgentChat: true)
     }
 
+    /// The CLI's screen closed: the chat picks the conversation up again.
+    func agentTerminalClosed(in session: TerminalSession) {
+        agentChats[session.id]?.warmUp()
+    }
+
     /// Closes the CLI's screen and goes back to chatting.
     func returnToAgentChat(in session: TerminalSession) {
-        let shell = shell(for: session)
-        guard shell.isBusy else { return }
-        // Agents quit on a second ⌃C; a last ⌃D covers the rest.
-        shell.interrupt()
-        Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            shell.interrupt()
-            try? await Task.sleep(for: .seconds(1.5))
-            if shell.isBusy { shell.sendEOF() }
-        }
+        shell(for: session).quitForeground()
     }
 
     /// Picks up a conversation that was ended, from its start card.

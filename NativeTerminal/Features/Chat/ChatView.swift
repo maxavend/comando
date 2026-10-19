@@ -44,7 +44,9 @@ struct ChatView: View {
         // Floats over the title bar and the top of the chat, like the contact
         // in Messages; too tall to fit inside the toolbar.
         .overlay(alignment: .top) {
-            SessionHeader(session: session, directory: directory, isRunning: shell?.isBusy ?? false)
+            // An open agent conversation counts as online, like a running program.
+            SessionHeader(session: session, directory: directory,
+                          isRunning: (shell?.isBusy ?? false) || controller.agentChats[session.id]?.isReady == true)
                 .padding(.top, SessionHeader.topInset)
                 .ignoresSafeArea(.container, edges: .top)
         }

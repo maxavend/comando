@@ -144,6 +144,35 @@ final class ShellSession {
     }
 
     func interrupt() { send([0x03]) }
+
+    /// Quits the running program, gently first: ⌃C twice (what agents and
+    /// most programs expect), then ⌃D, and only then a signal to its process
+    /// group. The shell itself stays.
+    func quitForeground() {
+        guard isBusy else { return }
+        interrupt()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, self.isBusy else { return }
+            self.interrupt()
+            try? await Task.sleep(for: .seconds(1.2))
+            guard self.isBusy else { return }
+            self.sendEOF()
+            try? await Task.sleep(for: .seconds(1.5))
+            guard self.isBusy else { return }
+            self.signalForeground(SIGTERM)
+            try? await Task.sleep(for: .seconds(2))
+            if self.isBusy { self.signalForeground(SIGKILL) }
+        }
+    }
+
+    /// The program in the terminal's foreground, never the shell.
+    private func signalForeground(_ signal: Int32) {
+        guard let process, process.childfd >= 0 else { return }
+        let group = tcgetpgrp(process.childfd)
+        guard group > 0, group != process.shellPid else { return }
+        killpg(group, signal)
+    }
     func sendEOF() { send([0x04]) }
 
     private func send(_ bytes: [UInt8]) {

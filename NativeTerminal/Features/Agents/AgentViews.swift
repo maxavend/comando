@@ -42,6 +42,10 @@ struct AgentStartCard: View {
                      : "Puedes retomarla donde quedó.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if isOpen, let session = entry.session, let chat = controller.agentChats[session.id] {
+                    AgentStatus(chat: chat, isInTerminal: controller.shells[session.id]?.isBusy ?? false)
+                        .padding(.top, 2)
+                }
                 HStack(spacing: Metrics.chipSpacing) {
                     if isOpen {
                         Button("Ver en la terminal", systemImage: "macwindow") {
@@ -65,6 +69,34 @@ struct AgentStartCard: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, Metrics.statusSpacing)
         }
+    }
+}
+
+/// Whether the agent is starting, ready, or couldn't start.
+private struct AgentStatus: View {
+    let chat: AgentChat
+    let isInTerminal: Bool
+
+    var body: some View {
+        HStack(spacing: Metrics.statusSpacing) {
+            if isInTerminal {
+                Image(systemName: "macwindow")
+                Text("Abierto en la terminal")
+            } else if let error = chat.startupError {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Text(error).lineLimit(2)
+            } else if chat.isReady {
+                Circle().fill(.green).frame(width: 7, height: 7)
+                Text("En línea · ya puedes escribir")
+            } else {
+                ProgressView().controlSize(.mini)
+                Text("Iniciando \(chat.kind.rawValue)…")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .animation(.smooth(duration: 0.25), value: chat.isReady)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -101,9 +133,7 @@ struct AgentExchangeView: View {
 
             if !entry.isFinished {
                 HStack(spacing: Metrics.composerSpacing) {
-                    Image(systemName: kind.symbol)
-                        .foregroundStyle(.tint)
-                        .symbolEffect(.pulse, options: .repeat(.continuous))
+                    IntelligenceSpinner(size: fontSize * 1.25)
                     ThinkingText(states: reply.steps.isEmpty
                                  ? [String(localized: "\(kind.rawValue) está pensando…")]
                                  : [String(localized: "\(kind.rawValue) está trabajando…")])

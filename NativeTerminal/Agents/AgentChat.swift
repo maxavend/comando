@@ -10,6 +10,10 @@ final class AgentChat {
     private(set) var conversationID: String?
     private(set) var permission: AgentPermission
     private(set) var isResponding = false
+    /// The CLI is up and waiting for a message.
+    private(set) var isReady = false
+    /// Why the CLI couldn't start, when it quit before being ready.
+    private(set) var startupError: String?
 
     @ObservationIgnored private var process: AgentProcess?
     @ObservationIgnored private var parser: any AgentOutputParser
@@ -33,6 +37,25 @@ final class AgentChat {
 
     var isInstalled: Bool { AgentProcess.executable(kind.rawValue, path: path) != nil }
 
+    /// Starts the CLI ahead of the first message, so it's ready when the
+    /// person writes. Per-message CLIs are ready right away.
+    func warmUp() {
+        startupError = nil
+        guard kind.transport == .persistent else {
+            isReady = isInstalled
+            return
+        }
+        guard process?.isRunning != true else { return }
+        isReady = false
+        start(message: nil)
+        // Some CLIs only introduce themselves after the first message.
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard let self, self.process?.isRunning == true else { return }
+            self.isReady = true
+        }
+    }
+
     /// Sends a message; its answer streams into `entry`.
     func send(_ message: String, into entry: CommandEntry, directory: String, path: [String]) {
         guard !isResponding else { return }
@@ -41,6 +64,7 @@ final class AgentChat {
         current = entry
         isResponding = true
         entry.agentReply = AgentReply()
+        startupError = nil
         switch kind.transport {
         case .persistent:
             if process?.isRunning != true { start(message: nil) }
@@ -77,6 +101,7 @@ final class AgentChat {
         process?.closeInput()
         process?.stop()
         process = nil
+        isReady = false
     }
 
     /// Ends the conversation and the CLI with it.
@@ -126,6 +151,7 @@ final class AgentChat {
         for event in parser.parse(line) {
             if case .conversation(let id) = event {
                 conversationID = id
+                isReady = true
                 onConversation(id)
                 continue
             }
@@ -142,7 +168,12 @@ final class AgentChat {
 
     private func exited(status: Int32, errors: String) {
         process = nil
-        guard isResponding else { return }
+        isReady = kind.transport == .perTurn
+        guard isResponding else {
+            // Quit on its own before any message: say why.
+            if status != 0, kind.transport == .persistent { startupError = Self.explain(errors, status: status, agent: kind) }
+            return
+        }
         // Quit before finishing the turn: explain with what it printed.
         finishTurn(with: .failed(Self.explain(errors, status: status, agent: kind)))
     }

@@ -4,7 +4,11 @@ struct SessionRow: View {
     let session: TerminalSession
     let shell: ShellSession?
 
+    @Environment(TerminalController.self) private var controller
+
     private var isRunning: Bool { shell?.isBusy ?? false }
+    /// Running, or an agent conversation open and ready: the avatar's green dot.
+    private var isOnline: Bool { isRunning || controller.agentChats[session.id]?.isReady == true }
 
     /// The last command, or the last request to the assistant with its star
     /// (stored as “✨ ” before the request).
@@ -17,7 +21,7 @@ struct SessionRow: View {
     var body: some View {
         let live = shell?.live
         HStack(spacing: Metrics.sidebarRowSpacing) {
-            SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex,
+            SessionAvatar(isRunning: isOnline, emoji: session.emoji, colorIndex: session.colorIndex,
                           symbol: SessionSymbol.symbol(for: session.directory))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {

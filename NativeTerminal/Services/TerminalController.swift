@@ -429,6 +429,8 @@ extension TerminalController: ShellSessionDelegate {
         entry.truncated = result.truncated
         entry.kind = result.wasInteractive ? .interactive : .command
         entry.transcript = result.transcript
+        // Back from the agent's own screen: the chat starts it up again.
+        if agentChats[shell.id] != nil, let session = entry.session { agentTerminalClosed(in: session) }
         let rendered = OutputRenderer.render(raw: output)
         RenderCache.shared[entry] = RenderCache.linked(rendered, for: entry)
         entry.plainOutput = String(rendered.plainText.prefix(CommandEntry.plainOutputLimit))
