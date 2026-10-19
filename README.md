@@ -39,8 +39,9 @@
 
 - **Chat de comandos.** Usa tu zsh y tu `~/.zshrc`. Muestra colores ANSI, enlaces a archivos y sitios web, barras de progreso y salidas largas plegadas.
 - **Programas interactivos.** `vim`, `top`, `ssh` y los REPL se abren en una terminal integrada dentro del chat.
-- **Asistente con Apple Intelligence.** Escribe lo que quieres con tus palabras y te propone el comando o la receta, o una herramienta para instalar. Todo corre en tu Mac y nada se ejecuta sin tu clic.
-- **Seguridad.** Pide confirmación antes de comandos riesgosos y ofrece mover a la Papelera en vez de usar `rm`.
+- **Asistente con Apple Intelligence.** Conversa contigo en tus palabras y recuerda lo que hablaron: te propone el comando, explica qué hace, aconseja herramientas y renombra muchos archivos de una vez sin pisar ninguno. Todo corre en tu Mac y nada se ejecuta sin tu clic.
+- **Agentes de IA como chat.** Escribe `agy`, `claude`, `codex` o `qwen` y sus respuestas llegan en burbujas, con sus herramientas como tarjetas y sus permisos como botones. Su pantalla original queda a un clic.
+- **Seguridad.** Pide confirmación antes de comandos riesgosos o de cambiar muchos archivos de una vez, mostrando qué cambia, y ofrece mover a la Papelera en vez de usar `rm`.
 - **Recetas (⌘K).** Tareas comunes explicadas en lenguaje simple.
 - **Herramientas (⇧⌘I).** Todo lo que instalaste con Homebrew, npm (de cada versión de Node), pipx y uv, con actualizaciones y opción de desinstalar.
 - **Guía.** Pregúntale al asistente “¿qué hace?”, “¿cómo cambio de carpeta?” o “¿qué atajos hay?”.

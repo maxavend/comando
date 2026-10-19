@@ -1,5 +1,24 @@
 # Cambios
 
+## 1.4 (19 de octubre de 2026)
+
+- Apple Intelligence conversa de verdad:
+  - Responde con sus propias palabras, con variedad y a medida que escribe, con negrita, código y listas.
+  - Recuerda la conversación de cada sesión: “comprime Entrevista.aiff” y luego “ahora pásalo a mp3” funciona.
+  - Explica comandos (“¿qué hace tar?”) y aconseja herramientas mirando tu carpeta, lo que tienes instalado, ejemplos reales y Homebrew.
+  - Filtros para que no invente archivos, no diga que ya hizo algo ni sugiera sudo o borrar.
+- Renombrar muchos archivos de una vez (“renombra todas las fotos como vacaciones”), numerados y sin reemplazar ninguno.
+- Freno para cambios masivos: antes de renombrar o mover muchos archivos aparece una confirmación con la lista de lo que cambia.
+- Los agentes de IA (agy, Claude Code, Codex, Qwen) conversan en burbujas:
+  - Sus herramientas aparecen como tarjetas y los permisos como botones.
+  - “Ver en la terminal” abre su pantalla y “Volver al chat” sigue la conversación.
+  - Avisa mientras inicia y cuando está en línea.
+- Los CLI de IA abiertos en la terminal se manejan desde el campo de abajo, incluso sus menús, y se cierran con “Terminar”.
+- Las sesiones toman un nombre según la conversación.
+- Borde de luz de Apple Intelligence en el campo y botón de enviar con sus colores, solo cuando responde ella.
+- Encabezado como el de Mensajes: avatar gris de 40 pt con el nombre al tamaño de macOS.
+- La bienvenida y la pantalla de inicio muestran la burbuja de Comando como símbolo.
+
 ## 1.3.1 (15 de octubre de 2026)
 
 - “Acerca de Comando” indica la licencia MIT.
