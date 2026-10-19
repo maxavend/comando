@@ -44,6 +44,16 @@ struct ComposerView: View {
     private var talksToAgent: Bool {
         phase == .interactive && AICommandLine.isAgent(shell?.live?.command ?? "")
     }
+    /// What's typed goes to an AI: the assistant, or an agent in chat mode.
+    private var talksToAI: Bool {
+        isAskingAssistant || (chatsWithAgent && !text.isEmpty)
+    }
+
+    /// An AI is answering in this session.
+    private var isAIWorking: Bool {
+        controller.assistantRequestsInFlight > 0 || agent?.isResponding == true
+    }
+
     /// Writing to an agent in chat mode, with the shell free.
     private var chatsWithAgent: Bool { agent != nil && !isRunning }
     private var isPasswordPrompt: Bool { phase == .running && (shell?.echoDisabled ?? false) }
@@ -103,20 +113,13 @@ struct ComposerView: View {
                     .padding(.horizontal, Metrics.composerFieldHorizontalPadding)
                     .padding(.vertical, Metrics.bubbleVerticalPadding)
                     .frame(minHeight: Metrics.composerControlSize)
-                    // Plain words tint the glass violet, with ✨ on the send
-                    // button: this goes to the assistant, not to the shell.
-                    .glassEffect(
-                        isAskingAssistant ? .regular.tint(IntelligenceGlyph.violet.opacity(0.25)) : .regular,
-                        in: .rect(cornerRadius: Metrics.composerControlSize / 2)
-                    )
-                    .animation(.smooth(duration: 0.25), value: isAskingAssistant)
-                    // Drawn over the glass and a little past its edge, so the
-                    // glow reads clearly instead of being frosted away.
+                    .glassEffect(.regular, in: .rect(cornerRadius: Metrics.composerControlSize / 2))
+                    // Words for an AI light up the field's edge, with ✨ on the
+                    // send button; while it answers, the light runs faster.
                     .overlay {
-                        // Also while the assistant answers, so the field shows it's working.
                         IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
-                                         isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0,
-                                         depth: 12, centerTint: 0.45)
+                                         isActive: talksToAI || isAIWorking,
+                                         isWorking: isAIWorking)
                     }
                 if let agent, agent.isResponding {
                     Button("Detener", systemImage: "stop.fill") { agent.stop() }
