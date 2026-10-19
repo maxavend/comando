@@ -17,7 +17,7 @@ struct SessionHeader: View {
     // avatar, and a 28-point capsule with the name in the body text style,
     // overlapping the avatar's lower edge a little.
     private static let avatarSize: CGFloat = 40
-    /// How far the name capsule reaches over the avatar.
+    /// How far the avatar reaches over the name capsule.
     private static let gap: CGFloat = -5
 
     @Environment(TerminalController.self) private var controller
@@ -28,10 +28,12 @@ struct SessionHeader: View {
         Button {
             isEditing = true
         } label: {
-            // Like Messages: the name's capsule in front, over the avatar's edge.
+            // Like Messages: the avatar in front, over the name capsule's edge.
             VStack(spacing: Self.gap) {
                 SessionAvatar(isRunning: isRunning, emoji: session.emoji, colorIndex: session.colorIndex,
                               size: Self.avatarSize, symbol: SessionSymbol.symbol(for: directory))
+                    // In front: the avatar sits over the capsule's top edge.
+                    .zIndex(1)
                 HStack(spacing: 2) {
                     Text(session.displayName)
                         .font(.body.weight(.semibold))
