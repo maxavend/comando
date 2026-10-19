@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.4.2 (19 de octubre de 2026)
+
+- Bajo el encabezado aparece lo que está abierto en la sesión (un agente en línea o un programa en la terminal), con Ver y Terminar, cuando su tarjeta ya no se ve.
+- Cuando un agente necesita la terminal, el chat lo explica con una tarjeta clara y un botón para abrirla.
+- Los mensajes cortos, como “¿sigues ahí?”, ya no le cambian el nombre a la sesión.
+
 ## 1.4.1 (19 de octubre de 2026)
 
 - Codex y Qwen ya no se quedan esperando en el modo chat: responden o muestran su error en segundos.
