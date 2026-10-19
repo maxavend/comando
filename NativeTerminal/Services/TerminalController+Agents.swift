@@ -127,7 +127,8 @@ extension TerminalController {
             var reply = entry.agentReply
             // The CLI's own error text is in the notice already.
             reply.steps.removeAll { $0.kind == .text && reason.contains($0.text.trimmingCharacters(in: .whitespacesAndNewlines)) }
-            reply.error = String(localized: "\(chat.kind.rawValue) necesita su pantalla para seguir (\(reason.prefix(120))). La abrí aquí abajo; cuando termines, vuelve al chat.")
+            reply.error = String(reason.prefix(300))
+            reply.openedTerminal = true
             reply.finish()
             entry.agentReply = reply
             entry.finishedAt = entry.finishedAt ?? .now

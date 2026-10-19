@@ -151,7 +151,7 @@ struct AgentExchangeView: View {
             }
 
             if let error = reply.error {
-                AgentError(kind: kind, message: error) {
+                AgentError(kind: kind, message: error, openedTerminal: reply.openedTerminal == true) {
                     if let session = entry.session { controller.openAgentInTerminal(in: session) }
                 }
                 .bubbleWidth(0.86, alignment: .leading)
@@ -312,26 +312,51 @@ private struct PermissionCard: View {
     }
 }
 
-/// What went wrong, and the terminal to fix it (signing in, choosing a model…).
+/// What went wrong, said simply, with the CLI's own words below and the
+/// terminal one click away (to sign in, update, or check its settings).
 private struct AgentError: View {
     let kind: AgentKind
     let message: String
+    var openedTerminal = false
     let onOpenTerminal: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Metrics.statusSpacing) {
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.secondary)
-                .symbolRenderingMode(.multicolor)
+        if message == String(localized: "Detenido") {
+            Label("Detenido", systemImage: "stop.circle")
                 .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-            if message != String(localized: "Detenido") {
-                Button("Abrir \(kind.rawValue) en la terminal", systemImage: "macwindow", action: onOpenTerminal)
-                    .buttonStyle(.link)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, Metrics.bubbleHorizontalPadding)
+        } else {
+            VStack(alignment: .leading, spacing: Metrics.statusSpacing) {
+                Label {
+                    Text(openedTerminal
+                         ? "Abrí la terminal de \(kind.displayName) para continuar"
+                         : "Para continuar, \(kind.displayName) necesita la terminal")
+                        .font(.callout.weight(.semibold))
+                } icon: {
+                    Image(systemName: "macwindow.badge.plus").foregroundStyle(.tint)
+                }
+                Text(openedTerminal
+                     ? "Hay algo que solo se puede hacer ahí, como iniciar sesión o confirmar. Cuando termines, vuelve al chat."
+                     : "Ahí puedes iniciar sesión, actualizarlo o revisar su configuración. Después vuelve al chat.")
                     .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                // The CLI's own message, for reference.
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !openedTerminal {
+                    Button("Abrir en la terminal", systemImage: "macwindow", action: onOpenTerminal)
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.regular)
+                        .padding(.top, 2)
+                }
             }
+            .padding(.vertical, Metrics.bubbleHorizontalPadding - Metrics.bubbleVerticalPadding)
+            .bubble(.reply)
         }
-        .padding(.horizontal, Metrics.bubbleHorizontalPadding)
     }
 }

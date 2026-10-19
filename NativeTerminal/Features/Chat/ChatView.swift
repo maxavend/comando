@@ -53,6 +53,9 @@ struct ChatView: View {
         // A conversation open before quitting picks up again.
         .task(id: session.id) { _ = controller.agentChat(for: session) }
         .safeAreaBar(edge: .bottom) {
+          VStack(spacing: Metrics.statusSpacing) {
+            // What's open, always in view: the green dot made visible.
+            SessionActivityBar(session: session, shell: shell)
             ComposerView(
                 text: $draft,
                 shell: shell,
@@ -64,6 +67,9 @@ struct ChatView: View {
                 agent: controller.agentChats[session.id],
                 onAgent: { controller.sendToAgent($0, in: session) }
             )
+          }
+          .animation(.smooth(duration: 0.25), value: controller.agentChats[session.id] != nil)
+          .animation(.smooth(duration: 0.25), value: shell?.phase == .interactive)
         }
         .dropDestination(for: URL.self) { urls, _ in
             handleDrop(urls)

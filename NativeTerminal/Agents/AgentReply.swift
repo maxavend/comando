@@ -24,6 +24,8 @@ nonisolated struct AgentReply: Codable, Hashable, Sendable {
     /// Actions the agent wasn't allowed to do this turn.
     var denied: [String] = []
     var error: String?
+    /// The error needs the CLI's own screen; Comando opened it.
+    var openedTerminal: Bool?
     var isFinished = false
 
     /// All the text, for search and the sidebar.
