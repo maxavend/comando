@@ -104,6 +104,24 @@ struct ComposerView: View {
     }
 
     private var controls: some View {
+        glassControls
+            // Words for an AI light up the field's edge, with ✨ on the send
+            // button; while it answers, the light runs faster. Drawn above the
+            // glass, so its rim and tint don't dull the colors.
+            .overlayPreferenceValue(FieldBoundsKey.self) { anchor in
+                GeometryReader { proxy in
+                    if let anchor {
+                        let rect = proxy[anchor]
+                        IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
+                                         isActive: talksToAI || isAIWorking, isWorking: isAIWorking)
+                            .frame(width: rect.width, height: rect.height)
+                            .offset(x: rect.minX, y: rect.minY)
+                    }
+                }
+            }
+    }
+
+    private var glassControls: some View {
         // Spacing 0 keeps each glass shape separate, so the send button changing
         // color never ripples into the field next to it.
         GlassEffectContainer(spacing: 0) {
@@ -114,13 +132,7 @@ struct ComposerView: View {
                     .padding(.vertical, Metrics.bubbleVerticalPadding)
                     .frame(minHeight: Metrics.composerControlSize)
                     .glassEffect(.regular, in: .rect(cornerRadius: Metrics.composerControlSize / 2))
-                    // Words for an AI light up the field's edge, with ✨ on the
-                    // send button; while it answers, the light runs faster.
-                    .overlay {
-                        IntelligenceGlow(shape: RoundedRectangle(cornerRadius: Metrics.composerControlSize / 2),
-                                         isActive: talksToAI || isAIWorking,
-                                         isWorking: isAIWorking)
-                    }
+                    .anchorPreference(key: FieldBoundsKey.self, value: .bounds) { $0 }
                 if let agent, agent.isResponding {
                     Button("Detener", systemImage: "stop.fill") { agent.stop() }
                         .buttonStyle(.glassCircle(.destructive))
@@ -484,5 +496,13 @@ struct ComposerView: View {
         guard showsPanel else { return .ignored }
         isPanelOpen = false
         return .handled
+    }
+}
+
+/// Where the message field is, so the AI light can be drawn above the glass.
+private struct FieldBoundsKey: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = value ?? nextValue()
     }
 }
