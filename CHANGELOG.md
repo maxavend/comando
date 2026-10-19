@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.4.1 (19 de octubre de 2026)
+
+- Codex y Qwen ya no se quedan esperando en el modo chat: responden o muestran su error en segundos.
+- Cuando un agente necesita su propia pantalla (iniciar sesión, actualizarse, confiar en la carpeta o responder una pregunta), Comando abre la terminal solo y explica por qué; al cerrarla, el chat sigue.
+- Si un agente no da señales en 45 segundos, también se abre su pantalla en vez de esperar para siempre.
+
 ## 1.4 (19 de octubre de 2026)
 
 - Apple Intelligence conversa de verdad:
