@@ -16,7 +16,7 @@ struct WelcomeView: View {
                         SymbolBadge(systemImage: symbol)
                     } else {
                         // The first step shows the app's own bubble.
-                        AppBubble(size: 96)
+                        AppBubbleBadge()
                     }
                 }
                 .frame(height: 96)

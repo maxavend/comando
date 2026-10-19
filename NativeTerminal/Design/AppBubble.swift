@@ -35,6 +35,29 @@ struct AppBubble: View {
     fileprivate static let scale: CGFloat = 1 / IconCanvas.side
 }
 
+/// The bubble drawn like an SF Symbol: the outline and the prompt in one
+/// color, with a stroke as heavy as a medium-weight symbol, so it sits among
+/// symbols without standing out.
+struct AppBubbleSymbol: View {
+    var size: CGFloat = 40
+
+    var body: some View {
+        // About the stroke of a medium-weight symbol at this size.
+        let line = size * 0.075
+        ZStack {
+            BubbleOutline()
+                .stroke(style: StrokeStyle(lineWidth: line, lineJoin: .round))
+            // The prompt where the app icon has it.
+            PromptGlyph()
+                .stroke(style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
+        }
+        // Keeps the stroke inside the frame.
+        .padding(line / 2)
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
 /// The part of the 1024-point icon canvas the bubble covers, as a square.
 private nonisolated enum IconCanvas {
     static let origin = CGPoint(x: 196, y: 160)
