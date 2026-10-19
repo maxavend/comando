@@ -24,6 +24,10 @@ struct EntryView: View {
             }
             if entry.kind == .assistant {
                 AssistantExchangeView(entry: entry, shell: shell, onEdit: onEdit)
+            } else if entry.kind == .agentStart {
+                AgentStartCard(entry: entry)
+            } else if entry.kind == .agent {
+                AgentExchangeView(entry: entry)
             } else {
                 commandExchange(live: live)
             }

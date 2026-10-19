@@ -31,6 +31,8 @@ final class TerminalController {
     private(set) var assistantRequestsInFlight = 0
 
     private(set) var shells: [UUID: ShellSession] = [:]
+    /// Open conversations with AI agent CLIs, by session.
+    var agentChats: [UUID: AgentChat] = [:]
 
     @ObservationIgnored let modelContext: ModelContext
     @ObservationIgnored let notifications = NotificationService()
@@ -164,7 +166,7 @@ final class TerminalController {
     // MARK: - Commands
 
     /// Handles text from the composer: a new command, or input for the running one.
-    func submit(_ text: String, in session: TerminalSession, confirmed: Bool = false) {
+    func submit(_ text: String, in session: TerminalSession, confirmed: Bool = false, bypassAgentChat: Bool = false) {
         let shell = shell(for: session)
         if shell.isBusy {
             shell.sendLine(text)
@@ -172,6 +174,12 @@ final class TerminalController {
         }
         let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !command.isEmpty else { return }
+        // `agy`, `claude`, `codex` or `qwen` on their own open as a chat.
+        if !bypassAgentChat, AppSettings.agentsAsChat, let kind = AgentKind(command: command),
+           AgentProcess.executable(kind.rawValue, path: shell.pathEntries) != nil {
+            startAgent(kind, command: command, in: session)
+            return
+        }
 
         if !confirmed, AppSettings.confirmRiskyCommands {
             // Deleting files always offers the recoverable option: the Trash.

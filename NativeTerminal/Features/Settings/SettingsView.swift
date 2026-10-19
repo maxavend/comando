@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage(AppSettings.interactiveCommandsKey) private var interactiveCommands = AppSettings.defaultInteractiveCommands
     @AppStorage(AppSettings.confirmRiskyCommandsKey) private var confirmRiskyCommands = true
     @AppStorage(AppSettings.assistantEnabledKey) private var assistantEnabled = true
+    @AppStorage(AppSettings.agentsAsChatKey) private var agentsAsChat = true
 
     var body: some View {
         Form {
@@ -63,6 +64,14 @@ struct SettingsView: View {
                 Text("Seguridad")
             } footer: {
                 Text("Por ejemplo, borrar carpetas completas, usar sudo o descartar cambios de Git.")
+            }
+
+            Section {
+                Toggle("Abrir los agentes de IA como chat", isOn: $agentsAsChat)
+            } header: {
+                Text("Agentes de IA")
+            } footer: {
+                Text("Al escribir agy, claude, codex o qwen, sus respuestas llegan como mensajes. Desactívalo para usar su pantalla original.")
             }
 
             Section {

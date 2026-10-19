@@ -17,6 +17,9 @@ struct ComposerView: View {
     @Binding var attachments: [URL]
     let onSubmit: (String) -> Void
     let onAsk: (String, [URL]) -> Void
+    /// An open conversation with an AI agent: messages go to it.
+    var agent: AgentChat?
+    var onAgent: (String) -> Void = { _ in }
 
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @Environment(TerminalController.self) private var controller
@@ -41,6 +44,8 @@ struct ComposerView: View {
     private var talksToAgent: Bool {
         phase == .interactive && AICommandLine.isAgent(shell?.live?.command ?? "")
     }
+    /// Writing to an agent in chat mode, with the shell free.
+    private var chatsWithAgent: Bool { agent != nil && !isRunning }
     private var isPasswordPrompt: Bool { phase == .running && (shell?.echoDisabled ?? false) }
 
     var body: some View {
@@ -113,7 +118,11 @@ struct ComposerView: View {
                                          isActive: isAskingAssistant || controller.assistantRequestsInFlight > 0,
                                          depth: 12, centerTint: 0.45)
                     }
-                if showsBusy {
+                if let agent, agent.isResponding {
+                    Button("Detener", systemImage: "stop.fill") { agent.stop() }
+                        .buttonStyle(.glassCircle(.destructive))
+                        .help("Detener la respuesta de \(agent.kind.rawValue)")
+                } else if showsBusy {
                     Button("Detener", systemImage: "stop.fill", action: interrupt)
                         .buttonStyle(.glassCircle(.destructive))
                         .help("Interrumpir el comando (⌘.)")
@@ -265,6 +274,7 @@ struct ComposerView: View {
     }
 
     private var placeholder: String {
+        if let agent, !isRunning { return String(localized: "Escríbele a \(agent.kind.displayName)") }
         if isRunning && !showsBusy { return String(localized: "Escribe un comando") }
         return switch phase {
         case .running:
@@ -289,6 +299,9 @@ struct ComposerView: View {
         if phase == .interactive {
             return talksToAgent && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
+        if chatsWithAgent {
+            return agent?.isResponding == false && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         // Empty lines are valid input for a running program (e.g. “Press Enter”).
         return isRunning || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -302,6 +315,12 @@ struct ComposerView: View {
         if talksToAgent {
             shell?.sendMessage(text)
             text = ""
+            return
+        }
+        if chatsWithAgent {
+            onAgent(text)
+            text = ""
+            historyIndex = nil
             return
         }
         let value = text
@@ -321,7 +340,7 @@ struct ComposerView: View {
 
     /// Plain words (not a command) go to the assistant when it's available.
     private var isAskingAssistant: Bool {
-        guard assistantEnabled, !isRunning, AssistantEngine.isAvailable else { return false }
+        guard assistantEnabled, !isRunning, agent == nil, AssistantEngine.isAvailable else { return false }
         return IntentDetector.isPlainLanguage(text, knownCommands: knownCommands)
     }
 

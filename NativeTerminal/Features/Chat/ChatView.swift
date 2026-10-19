@@ -48,6 +48,8 @@ struct ChatView: View {
                 .padding(.top, SessionHeader.topInset)
                 .ignoresSafeArea(.container, edges: .top)
         }
+        // A conversation open before quitting picks up again.
+        .task(id: session.id) { _ = controller.agentChat(for: session) }
         .safeAreaBar(edge: .bottom) {
             ComposerView(
                 text: $draft,
@@ -56,7 +58,9 @@ struct ChatView: View {
                 history: entries.map(\.command),
                 attachments: $attachments,
                 onSubmit: { controller.submit($0, in: session) },
-                onAsk: { controller.ask($0, attachments: $1, in: session) }
+                onAsk: { controller.ask($0, attachments: $1, in: session) },
+                agent: controller.agentChats[session.id],
+                onAgent: { controller.sendToAgent($0, in: session) }
             )
         }
         .dropDestination(for: URL.self) { urls, _ in

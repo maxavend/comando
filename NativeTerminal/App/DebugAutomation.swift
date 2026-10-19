@@ -91,6 +91,14 @@ enum DebugAutomation {
             controller.selectedShell?.interrupt()
         case "#send":
             controller.selectedShell?.sendRaw(Array(argument.replacing("\\r", with: "\r").utf8))
+        case "#agentterminal":
+            if let session = controller.selectedSession { controller.openAgentInTerminal(in: session) }
+        case "#agentchat":
+            if let session = controller.selectedSession { controller.returnToAgentChat(in: session) }
+        case "#allow":
+            if let session = controller.selectedSession {
+                controller.allowAgent(argument == "all" ? .all : .edits, in: session)
+            }
         case "#new":
             controller.createSession(directory: argument.isEmpty ? nil : ShellEscape.expandTilde(argument))
             try? await Task.sleep(for: .seconds(1))

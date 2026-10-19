@@ -20,6 +20,11 @@ final class TerminalSession {
     var emoji: String?
     /// Index into `SessionColor.all` for the avatar background.
     var colorIndex: Int = 0
+    /// The AI agent this session is talking to, if a conversation is open,
+    /// and the conversation's id so it resumes after relaunch.
+    var agentName: String?
+    var agentConversationID: String?
+    var agentPermissionRawValue: String?
 
     @Relationship(deleteRule: .cascade, inverse: \CommandEntry.session)
     var entries: [CommandEntry] = []

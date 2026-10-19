@@ -9,6 +9,10 @@ final class CommandEntry {
         case interactive
         /// A request in plain words answered by the assistant.
         case assistant
+        /// The start of a conversation with an AI agent CLI (`agy`, `claude`…).
+        case agentStart
+        /// A message to that agent and its reply.
+        case agent
     }
 
     var id: UUID = UUID()
@@ -38,6 +42,11 @@ final class CommandEntry {
     /// Which file the assistant still needs and tools it suggests installing.
     var assistantExtrasJSON: String?
     var assistantRanAt: Date?
+    /// The agent CLI this entry talks to (kind == .agentStart or .agent).
+    var agentName: String?
+    var agentReplyJSON: String?
+    /// On a start entry: the conversation, to resume it after it ended.
+    var agentConversationID: String?
     var session: TerminalSession?
 
     init(command: String, directory: String, session: TerminalSession) {
@@ -82,6 +91,13 @@ final class CommandEntry {
     var assistantExtras: AssistantExtras {
         get { Self.decode(assistantExtrasJSON) ?? AssistantExtras() }
         set { assistantExtrasJSON = newValue == AssistantExtras() ? nil : Self.encode(newValue) }
+    }
+
+    var agentKind: AgentKind? { agentName.flatMap(AgentKind.init(rawValue:)) }
+
+    var agentReply: AgentReply {
+        get { Self.decode(agentReplyJSON) ?? AgentReply() }
+        set { agentReplyJSON = Self.encode(newValue) }
     }
 
     var attachmentPaths: [String] {

@@ -35,6 +35,13 @@ nonisolated enum AppSettings {
         UserDefaults.standard.object(forKey: searchesToolsOnlineKey) as? Bool ?? true
     }
 
+    static let agentsAsChatKey = "agentsAsChat"
+
+    /// AI agent CLIs open as a chat, with their answers in bubbles.
+    static var agentsAsChat: Bool {
+        UserDefaults.standard.object(forKey: agentsAsChatKey) as? Bool ?? true
+    }
+
     static var interactiveCommands: Set<String> {
         let value = UserDefaults.standard.string(forKey: interactiveCommandsKey) ?? defaultInteractiveCommands
         return Set(value.split(whereSeparator: { $0 == " " || $0 == "," || $0 == "\n" }).map(String.init))
