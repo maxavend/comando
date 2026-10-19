@@ -97,6 +97,12 @@ enum DebugAutomation {
                 controller.runProposals(of: entry)
             }
             try? await Task.sleep(for: .milliseconds(600))
+        case "#confirm":
+            controller.confirmPendingCommand()
+            try? await Task.sleep(for: .milliseconds(600))
+        case "#trash":
+            controller.moveToTrashInstead()
+            try? await Task.sleep(for: .milliseconds(600))
         case "#finish":
             if let session = controller.selectedSession { controller.finishActivity(in: session) }
         case "#agentterminal":
@@ -131,6 +137,11 @@ enum DebugAutomation {
                 var frame = window.frame
                 frame.origin.y += frame.height - parts[1]
                 frame.size = CGSize(width: parts[0], height: parts[1])
+                // Snapshots at the sharpest scale: center on the Retina screen if there is one.
+                if let screen = sharpestScreen, (window.screen?.backingScaleFactor ?? 1) < screen.backingScaleFactor {
+                    let visible = screen.visibleFrame
+                    frame.origin = CGPoint(x: visible.midX - frame.width / 2, y: visible.midY - frame.height / 2)
+                }
                 window.setFrame(frame, display: true)
             }
             try? await Task.sleep(for: .milliseconds(500))
@@ -156,6 +167,10 @@ enum DebugAutomation {
             ?? NSApp.windows.first { $0.isVisible && $0.styleMask.contains(.titled) }
     }
 
+    private static var sharpestScreen: NSScreen? {
+        NSScreen.screens.max { $0.backingScaleFactor < $1.backingScaleFactor }
+    }
+
     private static func setAppearance(_ name: String) {
         NSApp.appearance = NSAppearance(named: name == "dark" ? .darkAqua : .aqua)
     }
@@ -176,6 +191,14 @@ enum DebugAutomation {
     /// the outside watcher to capture it.
     private static func requestSnapshot(named name: String, in folder: URL?) async {
         guard let folder, let window = mainWindow, let screen = window.screen ?? NSScreen.main else { return }
+        // Other windows (Tools, Settings) open on the main screen: bring them
+        // over the main window so they share its scale.
+        for other in NSApp.windows where other.isVisible && other != window && other.styleMask.contains(.titled)
+            && other.sheetParent == nil && other.screen != screen {
+            var frame = other.frame
+            frame.origin = CGPoint(x: window.frame.midX - frame.width / 2, y: window.frame.midY - frame.height / 2)
+            other.setFrame(frame, display: true)
+        }
         try? await Task.sleep(for: .milliseconds(700))
         let mainHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
         let frame = window.frame
