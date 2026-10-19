@@ -15,7 +15,9 @@ struct InteractiveTerminalCard: View {
                     .font(.system(size: fontSize))
                     .lineLimit(1)
                 Spacer()
-                Text("El teclado va directo al programa")
+                Text(AICommandLine.isAgent(live.command)
+                     ? "Escríbele aquí o en el campo de abajo"
+                     : "El teclado va directo al programa")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

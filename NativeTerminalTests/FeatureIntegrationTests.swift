@@ -251,6 +251,47 @@ final class FeatureIntegrationTests {
 
     /// Opening shells while other threads allocate and decode used to crash the
     /// forked child (“crashed on child side of fork pre-exec”).
+    // MARK: - CLI de IA
+
+    /// A stand-in for an AI agent: full screen, raw keys, Return read on its
+    /// own. Saves what it got and quits.
+    private static let fakeAgent = """
+    #!/usr/bin/python3
+    import os, sys, termios, tty
+    old = termios.tcgetattr(0)
+    tty.setraw(0)
+    sys.stdout.write("\\x1b[?1049h> ")
+    sys.stdout.flush()
+    got = b""
+    while True:
+        chunk = os.read(0, 256)
+        if chunk == b"\\r":
+            break
+        if b"\\r" in chunk:
+            got += b"[ENTER PEGADO]"
+            break
+        got += chunk
+    termios.tcsetattr(0, termios.TCSADRAIN, old)
+    sys.stdout.write("\\x1b[?1049l")
+    open("recibido.txt", "wb").write(got)
+    """
+
+    @Test func theFieldWritesToAnAIAgent() async throws {
+        let agent = folder.appending(path: "claude")
+        try Self.fakeAgent.write(to: agent, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: agent.path(percentEncoded: false))
+        let (session, shell) = try await makeSession()
+        controller.submit("./claude", in: session)
+        try await waitUntil("el agente toma la terminal") { shell.phase == .interactive }
+        #expect(AICommandLine.isAgent(shell.live?.command ?? ""))
+
+        shell.sendMessage("hola desde Comando")
+        let entry = try #require(entries(of: session).last)
+        try await waitUntil("el agente recibe el mensaje y termina") { entry.isFinished }
+        let received = try String(contentsOf: folder.appending(path: "recibido.txt"), encoding: .utf8)
+        #expect(received == "hola desde Comando")
+    }
+
     @Test func manyShellsOpenWhileOtherThreadsWork() async throws {
         let busy = Task.detached(priority: .high) {
             var total = 0

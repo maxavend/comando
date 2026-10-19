@@ -401,3 +401,15 @@ struct AssistantModelTests {
         #expect(reply.error != nil)
     }
 }
+
+@Suite struct AICommandLineTests {
+    @Test func recognizesAIAgents() {
+        for command in ["agy", "claude", "gemini --model pro", "codex", "qwen", "/opt/homebrew/bin/aider",
+                        "npx @google/gemini-cli", "npx @openai/codex", "ollama run llama3", "q chat", "./claude"] {
+            #expect(AICommandLine.isAgent(command), "\(command)")
+        }
+        for command in ["vim notas.md", "top", "ssh servidor", "python3", "ollama list", "q", "npx vite", "ls"] {
+            #expect(!AICommandLine.isAgent(command), "\(command)")
+        }
+    }
+}

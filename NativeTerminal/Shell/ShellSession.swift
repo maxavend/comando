@@ -128,6 +128,17 @@ final class ShellSession {
         send(Array((text + "\r").utf8))
     }
 
+    /// Sends a message to a program that reads keys one by one (an AI agent's
+    /// prompt): the text first, then Return on its own, so the program sees a
+    /// key press instead of a pasted line break.
+    func sendMessage(_ text: String) {
+        send(Array(text.utf8))
+        Task {
+            try? await Task.sleep(for: .milliseconds(60))
+            send([0x0D])
+        }
+    }
+
     func sendRaw<C: Collection>(_ bytes: C) where C.Element == UInt8 {
         send(Array(bytes))
     }

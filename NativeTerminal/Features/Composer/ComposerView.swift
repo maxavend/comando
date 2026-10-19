@@ -37,6 +37,10 @@ struct ComposerView: View {
 
     private var phase: ShellSession.Phase { shell?.phase ?? .notStarted }
     private var isRunning: Bool { phase == .running || phase == .interactive }
+    /// An AI agent has the terminal: the field writes to it.
+    private var talksToAgent: Bool {
+        phase == .interactive && AICommandLine.isAgent(shell?.live?.command ?? "")
+    }
     private var isPasswordPrompt: Bool { phase == .running && (shell?.echoDisabled ?? false) }
 
     var body: some View {
@@ -187,7 +191,7 @@ struct ComposerView: View {
             .font(.system(size: fontSize))
             .lineLimit(1...8)
             .focused($isFocused)
-            .disabled(phase == .interactive)
+            .disabled(phase == .interactive && !talksToAgent)
             .onSubmit(submit)
             .onKeyPress(.upArrow) { moveUp() }
             .onKeyPress(.downArrow) { moveDown() }
@@ -212,6 +216,7 @@ struct ComposerView: View {
             .accessibilityIdentifier("composer")
             #if DEBUG
             .onDebugAction("#tab") { _ in _ = completeWithTab() }
+            .onDebugAction("#submit") { _ in submit() }
             #endif
     }
 
@@ -254,7 +259,9 @@ struct ComposerView: View {
         case .running:
             String(localized: "Enviar entrada a \(runningProgram)")
         case .interactive:
-            String(localized: "\(runningProgram) está usando la terminal")
+            talksToAgent
+                ? String(localized: "Escríbele a \(runningProgram)")
+                : String(localized: "\(runningProgram) está usando la terminal")
         case .exited:
             String(localized: "El shell terminó · escribe para reiniciarlo")
         default:
@@ -268,7 +275,9 @@ struct ComposerView: View {
 
     private var canSubmit: Bool {
         if isPasswordPrompt { return true }
-        if phase == .interactive { return false }
+        if phase == .interactive {
+            return talksToAgent && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         // Empty lines are valid input for a running program (e.g. “Press Enter”).
         return isRunning || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -279,6 +288,11 @@ struct ComposerView: View {
             return
         }
         guard canSubmit else { return }
+        if talksToAgent {
+            shell?.sendMessage(text)
+            text = ""
+            return
+        }
         let value = text
         let asking = isAskingAssistant
         text = ""
