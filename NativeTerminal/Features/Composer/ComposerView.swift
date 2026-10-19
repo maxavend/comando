@@ -117,17 +117,6 @@ struct ComposerView: View {
                     }
                 }
             }
-            // The send button glows with it: it's Apple Intelligence that answers.
-            .overlayPreferenceValue(SendBoundsKey.self) { anchor in
-                GeometryReader { proxy in
-                    if let anchor {
-                        let rect = proxy[anchor]
-                        IntelligenceGlow(shape: Circle(), isActive: showsIntelligence, isWorking: isIntelligenceWorking)
-                            .frame(width: rect.width, height: rect.height)
-                            .offset(x: rect.minX, y: rect.minY)
-                    }
-                }
-            }
     }
 
     private var glassControls: some View {
@@ -154,16 +143,17 @@ struct ComposerView: View {
                 // Plain words go to the assistant: the arrow turns into ✨ in
                 // place, so nothing in the field shifts.
                 Button(action: submit) {
-                    Label(isAskingAssistant ? "Pedir al asistente" : "Enviar",
-                          systemImage: isAskingAssistant ? "sparkle" : "arrow.up")
+                    Label(showsIntelligence ? "Pedir al asistente" : "Enviar",
+                          systemImage: showsIntelligence ? "sparkle" : "arrow.up")
                         .contentTransition(.symbolEffect(.replace))
                 }
-                .buttonStyle(.glassCircle(.prominent))
+                // Filled with the Apple Intelligence colors when it will answer.
+                .buttonStyle(.glassCircle(showsIntelligence ? .intelligence(working: isIntelligenceWorking) : .prominent))
                 .disabled(!canSubmit)
                 .keyboardShortcut(.return, modifiers: .command)
                 .help(isAskingAssistant ? "Pedir al asistente (↩)" : "Enviar (↩)")
-                .animation(.smooth(duration: 0.2), value: isAskingAssistant)
-                .anchorPreference(key: SendBoundsKey.self, value: .bounds) { $0 }
+                .animation(.smooth(duration: 0.2), value: showsIntelligence)
+
             }
         }
     }
@@ -511,14 +501,6 @@ struct ComposerView: View {
 
 /// Where the message field is, so the AI light can be drawn above the glass.
 private struct FieldBoundsKey: PreferenceKey {
-    static let defaultValue: Anchor<CGRect>? = nil
-    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
-        value = value ?? nextValue()
-    }
-}
-
-/// Where the send button is, for the same light.
-private struct SendBoundsKey: PreferenceKey {
     static let defaultValue: Anchor<CGRect>? = nil
     static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
         value = value ?? nextValue()

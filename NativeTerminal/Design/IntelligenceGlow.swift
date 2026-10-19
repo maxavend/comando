@@ -143,3 +143,36 @@ private nonisolated struct WrappedTrim<S: Shape>: Shape {
         return path
     }
 }
+
+/// A circle filled with the Apple Intelligence colors, turning slowly and
+/// blending into each other, with a soft glow around it that grows a little
+/// while working. Still with Reduce Motion.
+struct IntelligenceFill: View {
+    var isWorking = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { context in
+            let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+            let angle = Angle.degrees(time.truncatingRemainder(dividingBy: 6) / 6 * 360)
+            let gradient = AngularGradient(colors: IntelligenceGlyph.spectrum, center: .center, angle: angle)
+            let breath = reduceMotion ? 1 : 0.8 + 0.2 * sin(time * 2.2)
+            ZStack {
+                // The glow around the button.
+                Circle()
+                    .fill(gradient)
+                    .blur(radius: 8)
+                    .opacity((isWorking ? 0.75 : 0.45) * breath)
+                // The fill, its colors softened into each other.
+                Circle()
+                    .fill(gradient)
+                    .blur(radius: 3)
+                    .clipShape(.circle)
+                    .saturation(1.3)
+            }
+        }
+        .animation(.smooth(duration: 0.4), value: isWorking)
+        .accessibilityHidden(true)
+    }
+}
