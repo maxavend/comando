@@ -26,6 +26,7 @@ struct ChatView: View {
     /// scrolling changes it; resizes and new output keep the last state.
     @State private var isPinnedToBottom = true
     @State private var isAtBottom = true
+    @State private var editingRecipe: SavedRecipe?
     #if DEBUG
     @State private var savingRecipeFrom: CommandEntry?
     #endif
@@ -209,17 +210,13 @@ struct ChatView: View {
             let info = await GitInfo.read(in: directory)
             if gitInfo != info { gitInfo = info }
         }
-        .sheet(isPresented: showingRecipes) {
-            RecipesView(
-                directory: directory,
-                onRun: { controller.submit($0, in: session) },
-                onInsert: { draft = $0 }
-            )
-        }
         .onChange(of: controller.draftRequest) { _, request in
             guard let request, controller.selectedSessionID == session.id else { return }
             draft = request
             controller.draftRequest = nil
+        }
+        .sheet(item: $editingRecipe) { recipe in
+            SavedRecipeEditor(editing: recipe)
         }
         .fileImporter(isPresented: pickingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
@@ -266,6 +263,15 @@ struct ChatView: View {
                 controller.isShowingRecipes = true
             }
             .help("Buscar qué hacer (⌘K)")
+            // A popover, like the system's: a click outside or Esc closes it.
+            .popover(isPresented: showingRecipes, arrowEdge: .bottom) {
+                RecipesView(
+                    directory: directory,
+                    onRun: { controller.submit($0, in: session) },
+                    onInsert: { draft = $0 },
+                    onEdit: { editingRecipe = $0 }
+                )
+            }
         }
         ToolbarItem(placement: .primaryAction) {
             Menu("Más", systemImage: "ellipsis") {

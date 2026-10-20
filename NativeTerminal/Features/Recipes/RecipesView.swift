@@ -2,15 +2,17 @@ import SwiftData
 import SwiftUI
 
 /// ⌘K: find a task by describing it, then run it or write it in the composer.
+/// Shown in a popover from the toolbar: a click outside or Esc closes it.
 struct RecipesView: View {
     let directory: String
     let onRun: (String) -> Void
     let onInsert: (String) -> Void
+    /// Edits one of “Mis recetas” (in a sheet over the chat, once this closes).
+    let onEdit: (SavedRecipe) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedRecipe.order) private var saved: [SavedRecipe]
-    @State private var editing: SavedRecipe?
     @State private var query = ""
     @State private var selection = 0
     @State private var chosen: Recipe?
@@ -31,9 +33,6 @@ struct RecipesView: View {
             }
         }
         .frame(width: 620, height: 520)
-        .sheet(item: $editing) { recipe in
-            SavedRecipeEditor(editing: recipe)
-        }
         #if DEBUG
         .onDebugAction("#query") { query = $0 }
         .onDebugAction("#choose") { _ in choose(at: selection, in: results) }
@@ -130,16 +129,12 @@ struct RecipesView: View {
 
             Divider()
 
-            HStack {
-                Text("↩ elegir · ↑↓ moverte · esc cerrar")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-                Button("Cerrar") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, Metrics.contentInset)
-            .padding(.vertical, Metrics.bubbleHorizontalPadding)
+            Text("↩ elegir · ↑↓ moverte · esc cerrar")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Metrics.contentInset)
+                .padding(.vertical, Metrics.bubbleHorizontalPadding)
         }
         .onAppear { isSearchFocused = true }
     }
@@ -163,7 +158,10 @@ struct RecipesView: View {
         }
         .contextMenu {
             if let item {
-                Button("Editar…", systemImage: "pencil") { editing = item }
+                Button("Editar…", systemImage: "pencil") {
+                    dismiss()
+                    onEdit(item)
+                }
                 Button("Duplicar", systemImage: "plus.square.on.square") { duplicate(item) }
                 Divider()
                 Button("Eliminar", systemImage: "trash", role: .destructive) { delete(item) }
