@@ -75,6 +75,8 @@ enum DebugAutomation {
             controller.selectInSidebar(Set(ids))
         case "#archive":
             if let session = controller.selectedSession { controller.archive([session]) }
+        case "#collapsegroup":
+            UserDefaults.standard.set(ShellEscape.expandTilde(argument), forKey: "collapsedSessionGroups")
         case "#grouping":
             UserDefaults.standard.set(argument, forKey: SessionGrouping.key)
         case "#pin":

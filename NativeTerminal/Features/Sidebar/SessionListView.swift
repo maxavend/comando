@@ -30,26 +30,28 @@ struct SessionListView: View {
         let archived = shown.filter(\.isArchived)
 
         List(selection: selection) {
-            if grouping == .folder {
-                if !pinned.isEmpty {
-                    Section("Fijadas") {
-                        rows(pinned, shells: shells)
-                    }
+            if !pinned.isEmpty {
+                Section("Fijadas") {
+                    rows(pinned, shells: shells)
                 }
+            }
+            if grouping == .folder {
                 // Most recently used folder first, like the sessions inside it.
                 ForEach(folderGroups(others), id: \.folder) { group in
-                    Section(isExpanded: isExpanded(group.folder)) {
-                        rows(group.sessions, shells: shells)
+                    let expanded = isExpanded(group.folder)
+                    Section {
+                        if expanded.wrappedValue {
+                            rows(group.sessions, shells: shells)
+                        }
                     } header: {
-                        groupHeader(group.folder)
+                        FolderGroupHeader(folder: group.folder, isExpanded: expanded) {
+                            controller.createSession(directory: group.folder)
+                        }
                     }
                 }
             } else if pinned.isEmpty {
                 rows(others, shells: shells)
             } else {
-                Section("Fijadas") {
-                    rows(pinned, shells: shells)
-                }
                 Section("Sesiones") {
                     rows(others, shells: shells)
                 }
@@ -145,24 +147,6 @@ struct SessionListView: View {
         )
     }
 
-    /// The folder's name, with a button for a new session there, like the
-    /// projects in a sidebar.
-    private func groupHeader(_ folder: String) -> some View {
-        HStack {
-            Label(FolderName.display(folder), systemImage: FolderName.systemImage(folder))
-                .labelStyle(.titleAndIcon)
-                .lineLimit(1)
-                .help(FolderName.breadcrumb(folder))
-            Spacer()
-            Button("Nueva sesión en \(FolderName.display(folder))", systemImage: "plus") {
-                controller.createSession(directory: folder)
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .help("Nueva sesión en \(FolderName.display(folder))")
-        }
-    }
-
     private func chosen(_ ids: Set<UUID>) -> [TerminalSession] {
         sessions.filter { ids.contains($0.id) }
     }
@@ -180,6 +164,8 @@ struct SessionListView: View {
         ForEach(sessions) { session in
             SessionRow(session: session, shell: shells[session.id])
                 .tag(session.id)
+                // A line between rows, none under the last row of a list or a group.
+                .listRowSeparator(session.id == sessions.last?.id ? .hidden : .visible)
                 // Like Mail and Messages: swipe left to archive or delete.
                 .swipeActions(edge: .trailing) {
                     Button("Eliminar", systemImage: "trash", role: .destructive) { deleting = [session] }
@@ -287,5 +273,51 @@ private struct SessionDeleteConfirmation: ViewModifier {
                  ? "Se cerrará su shell y se borrará su historial. Esta acción no se puede deshacer."
                  : "Se cerrarán sus shells y se borrará su historial. Esta acción no se puede deshacer. Si solo quieres sacarlas de la lista, archívalas.")
         }
+    }
+}
+
+/// A folder group's name in the sidebar, like a project in a sidebar: a
+/// chevron next to the name on hover folds or unfolds it (as does a click on
+/// the name), and + opens a new session there.
+private struct FolderGroupHeader: View {
+    let folder: String
+    @Binding var isExpanded: Bool
+    let onNewSession: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button {
+                withAnimation(.smooth(duration: 0.2)) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(FolderName.display(folder))
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .opacity(isHovering || !isExpanded ? 1 : 0)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .help(FolderName.breadcrumb(folder))
+            .accessibilityLabel(FolderName.display(folder))
+            .accessibilityValue(isExpanded ? Text("Desplegado") : Text("Plegado"))
+            .accessibilityHint(isExpanded ? Text("Pliega el grupo") : Text("Despliega el grupo"))
+            Spacer()
+            Button("Nueva sesión en \(FolderName.display(folder))", systemImage: "plus", action: onNewSession)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help("Nueva sesión en \(FolderName.display(folder))")
+        }
+        // Lines the + up with the times of the rows below, with room above
+        // the first row (its selection mustn't touch the name).
+        .padding(.trailing, 6)
+        .padding(.top, 6)
+        .padding(.bottom, 6)
+        .onHover { isHovering = $0 }
     }
 }

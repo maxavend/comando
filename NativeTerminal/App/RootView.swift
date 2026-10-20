@@ -31,7 +31,7 @@ struct RootView: View {
             SessionListView(sessions: sessions, searchText: $searchText, searchSelection: $searchSelection) {
                 searchOpenRequest += 1
             }
-                .navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 360)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 318, max: 380)
         } detail: {
             if !searchText.isEmpty {
                 SearchResultsView(query: searchText, sessions: sessions, selection: $searchSelection,

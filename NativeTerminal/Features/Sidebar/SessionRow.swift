@@ -20,26 +20,34 @@ struct SessionRow: View {
 
     var body: some View {
         let live = shell?.live
-        HStack(spacing: Metrics.sidebarRowSpacing) {
+        HStack(spacing: 0) {
+            // Like Messages: unread is a blue dot in the margin, not a number.
+            Circle()
+                .fill(.blue)
+                .frame(width: Metrics.unreadDotSize, height: Metrics.unreadDotSize)
+                .opacity(session.unreadCount > 0 ? 1 : 0)
+                .frame(width: Metrics.unreadGutter, alignment: .leading)
+                .accessibilityHidden(true)
             SessionAvatar(isRunning: isOnline, emoji: session.emoji, colorIndex: session.colorIndex,
                           symbol: session.avatarSymbol(for: session.directory))
-            VStack(alignment: .leading, spacing: 2) {
+                .padding(.trailing, Metrics.sidebarRowSpacing)
+            VStack(alignment: .leading, spacing: 1) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(session.displayName)
-                        .font(.headline)
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
                     Spacer(minLength: 4)
-                    // Both trailing items use the caption size, so the row never changes shape.
+                    // Both trailing items use the callout size, so the row never changes shape.
                     if isRunning {
                         Button("Detener", systemImage: "stop.circle.fill", action: stop)
                             .labelStyle(.iconOnly)
                             .buttonStyle(.borderless)
-                            .font(.caption)
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                             .help("Detener el comando")
                     } else {
                         Text(Self.timestamp(for: session.lastActivity))
-                            .font(.caption)
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -47,17 +55,20 @@ struct SessionRow: View {
                     ActivityLine(live: live)
                 } else {
                     lastLine
-                        .font(.subheadline)
+                        .font(.body)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2, reservesSpace: true)
                 }
             }
         }
         .padding(.vertical, Metrics.sidebarRowVerticalPadding)
-        .badge(session.unreadCount)
+        // The separator starts under the text, not under the avatar.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in
+            Metrics.unreadGutter + Metrics.avatarSize + Metrics.sidebarRowSpacing
+        }
         .help(FolderName.breadcrumb(session.directory))
         .accessibilityElement(children: .combine)
-        .accessibilityValue(isRunning ? Text("En ejecución") : Text(""))
+        .accessibilityValue(isRunning ? Text("En ejecución") : session.unreadCount > 0 ? Text("Sin leer") : Text(""))
     }
 
     private func stop() {
@@ -85,16 +96,17 @@ private struct ActivityLine: View {
     let live: LiveOutput
 
     var body: some View {
-        HStack(spacing: 5) {
+        // Two lines, like any preview, so the row keeps its height.
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
             Circle()
                 .fill(.green)
                 .frame(width: 6, height: 6)
                 .accessibilityHidden(true)
             Text(activity)
-                .lineLimit(1)
+                .lineLimit(2, reservesSpace: true)
                 .truncationMode(.middle)
         }
-        .font(.subheadline)
+        .font(.body)
         .foregroundStyle(.secondary)
     }
 

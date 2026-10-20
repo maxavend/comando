@@ -39,8 +39,10 @@ struct SidebarSearchField: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // 34 points tall, like the search field in Messages.
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.vertical, 8)
+        .frame(minHeight: 34)
         .glassEffect(.regular, in: .capsule)
         .contentShape(.capsule)
         .onTapGesture { isFocused = true }
