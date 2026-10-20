@@ -9,6 +9,8 @@ struct RootView: View {
     @State private var searchSelection = 0
     @State private var searchOpenRequest = 0
     @State private var editingRecipe: SavedRecipe?
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if DEBUG
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
@@ -53,15 +55,19 @@ struct RootView: View {
             }
         }
         .frame(minWidth: 680, minHeight: 440)
-        // ⌘K floats over the whole window, like Spotlight.
+        // ⌘K floats over the whole window, like Spotlight, over a dimmed
+        // window: a click on the dimmed part closes it.
         .overlay(alignment: .top) {
-            if controller.isShowingRecipes, let selected {
-                ZStack(alignment: .top) {
-                    // A click anywhere else closes it.
-                    Color.clear
-                        .contentShape(.rect)
+            ZStack(alignment: .top) {
+                if controller.isShowingRecipes {
+                    Color.black
+                        .opacity(colorScheme == .dark ? 0.45 : 0.16)
                         .ignoresSafeArea()
+                        .contentShape(.rect)
                         .onTapGesture { controller.isShowingRecipes = false }
+                        .transition(.opacity)
+                }
+                if controller.isShowingRecipes, let selected {
                     RecipesView(
                         directory: controller.shells[selected.id]?.directory ?? selected.directory,
                         onRun: { controller.submit($0, in: selected) },
@@ -70,11 +76,14 @@ struct RootView: View {
                         onClose: { controller.isShowingRecipes = false }
                     )
                     .padding(.top, 64)
-                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                    .transition(reduceMotion
+                                ? .opacity
+                                : .scale(scale: 0.94, anchor: .top).combined(with: .opacity).combined(with: .offset(y: -8)))
                 }
             }
+            .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(duration: 0.32, bounce: 0.16),
+                       value: controller.isShowingRecipes)
         }
-        .animation(.smooth(duration: 0.18), value: controller.isShowingRecipes)
         .sheet(item: $editingRecipe) { recipe in
             SavedRecipeEditor(editing: recipe)
         }
