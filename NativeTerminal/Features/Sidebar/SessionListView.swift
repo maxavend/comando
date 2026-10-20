@@ -52,19 +52,11 @@ struct SessionListView: View {
             // projects in a sidebar. While searching, only those with matches.
             if !isSearching || folders.contains(where: { !(inFolder[$0] ?? []).isEmpty }) {
                 Section {
-                    if folders.isEmpty {
-                        Button {
-                            controller.isAddingSidebarFolder = true
-                        } label: {
-                            Label("Agregar carpeta…", systemImage: "plus")
-                                .foregroundStyle(.secondary)
-                                .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 4)
-                        .help("Elige una carpeta, o arrástrala aquí desde Finder, para abrir terminales en ella con un clic.")
-                        .selectionDisabled()
-                        .listRowSeparator(.hidden)
+                    // An action row, like “Nuevo” at the top of a sidebar.
+                    if !isSearching {
+                        AddFolderRow { controller.isAddingSidebarFolder = true }
+                            .selectionDisabled()
+                            .listRowSeparator(.hidden)
                     }
                     ForEach(folders, id: \.self) { folder in
                         let items = inFolder[folder] ?? []
@@ -80,19 +72,6 @@ struct SessionListView: View {
                             }
                         }
                     }
-                } header: {
-                    HStack {
-                        Text("Carpetas")
-                        Spacer()
-                        Button("Agregar carpeta", systemImage: "folder.badge.plus") {
-                            controller.isAddingSidebarFolder = true
-                        }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.borderless)
-                        .help("Agregar una carpeta a la barra lateral")
-                    }
-                    // Lines the button up with the + and the times below.
-                    .padding(.trailing, 14)
                 }
             }
             if !loose.isEmpty {
@@ -367,5 +346,35 @@ private struct FolderRow: View {
             Divider()
             Button("Quitar de la barra lateral", systemImage: "minus.circle", action: onRemove)
         }
+    }
+}
+
+/// “Agregar carpeta”: a plus in a small circle and the label, like the
+/// action rows at the top of a sidebar.
+private struct AddFolderRow: View {
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+                    .background(.fill.secondary, in: .circle)
+                Text("Agregar carpeta")
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
+            .background(.fill.quaternary.opacity(isHovering ? 1 : 0), in: .rect(cornerRadius: 8, style: .continuous))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, -6)
+        .onHover { isHovering = $0 }
+        .help("Elige una carpeta, o arrástrala aquí desde Finder, para abrir terminales en ella con un clic.")
     }
 }

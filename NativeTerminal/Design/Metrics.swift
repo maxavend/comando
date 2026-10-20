@@ -68,12 +68,11 @@ nonisolated enum Metrics {
 
     // MARK: Sidebar
 
-    // As in the Messages sidebar (measured at 1:1): a 40-point avatar, the
-    // unread dot in a gutter before it, and two lines of preview reserved so
-    // every row has the same height.
+    // As in the Messages sidebar (measured at 1:1): a 40-point avatar and the
+    // unread dot in a gutter before it; the row is as tall as its text.
     static let avatarSize: CGFloat = 40
     static let sidebarRowSpacing: CGFloat = 10
-    static let sidebarRowVerticalPadding: CGFloat = 9
+    static let sidebarRowVerticalPadding: CGFloat = 6
     /// Room before the avatar for the unread dot.
     static let unreadGutter: CGFloat = 14
     static let unreadDotSize: CGFloat = 9

@@ -57,7 +57,7 @@ struct SessionRow: View {
                     lastLine
                         .font(.body)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2, reservesSpace: true)
+                        .lineLimit(2)
                 }
             }
         }
@@ -96,14 +96,13 @@ private struct ActivityLine: View {
     let live: LiveOutput
 
     var body: some View {
-        // Two lines, like any preview, so the row keeps its height.
         HStack(alignment: .firstTextBaseline, spacing: 5) {
             Circle()
                 .fill(.green)
                 .frame(width: 6, height: 6)
                 .accessibilityHidden(true)
             Text(activity)
-                .lineLimit(2, reservesSpace: true)
+                .lineLimit(1)
                 .truncationMode(.middle)
         }
         .font(.body)
