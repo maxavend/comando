@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SessionListView: View {
     let sessions: [TerminalSession]
@@ -16,11 +17,13 @@ struct SessionListView: View {
     /// Sessions with a command or output that matches the search.
     @State private var matchingIDs: Set<UUID> = []
     @AppStorage("showsArchivedSessions") private var showsArchived = false
-    @AppStorage(SessionGrouping.key) private var grouping = SessionGrouping.date
-    /// Folder groups the user folded, one path per line.
+    /// Folders the user added to the sidebar, one path per line.
+    @AppStorage(SidebarFolders.key) private var storedFolders = ""
+    /// Added folders the user folded, one path per line.
     @AppStorage("collapsedSessionGroups") private var collapsedGroups = ""
 
     var body: some View {
+        @Bindable var controller = controller
         let shells = controller.shells
 
         let shown = sessions.filter(matches)
@@ -28,6 +31,10 @@ struct SessionListView: View {
         let pinned = active.filter(\.isPinned)
         let others = active.filter { !$0.isPinned }
         let archived = shown.filter(\.isArchived)
+        let folders = SidebarFolders.list(storedFolders)
+        let inFolder = Dictionary(grouping: others) { SidebarFolders.folder(for: $0, among: folders) ?? "" }
+        let loose = inFolder[""] ?? []
+        let isSearching = !searchText.isEmpty
 
         // The search field sits above the list, like in Messages: no bar
         // around it, so no line or shade under it on scroll or hover.
@@ -41,25 +48,56 @@ struct SessionListView: View {
                     rows(pinned, shells: shells)
                 }
             }
-            if grouping == .folder {
-                // Most recently used folder first, like the sessions inside it.
-                ForEach(folderGroups(others), id: \.folder) { group in
-                    let expanded = isExpanded(group.folder)
-                    Section {
-                        if expanded.wrappedValue {
-                            rows(group.sessions, shells: shells)
+            // The folders the user added, each with its sessions, like
+            // projects in a sidebar. While searching, only those with matches.
+            if !isSearching || folders.contains(where: { !(inFolder[$0] ?? []).isEmpty }) {
+                Section {
+                    if folders.isEmpty {
+                        Button {
+                            controller.isAddingSidebarFolder = true
+                        } label: {
+                            Label("Agregar carpeta…", systemImage: "plus")
+                                .foregroundStyle(.secondary)
+                                .contentShape(.rect)
                         }
-                    } header: {
-                        FolderGroupHeader(folder: group.folder, isExpanded: expanded) {
-                            controller.createSession(directory: group.folder)
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 4)
+                        .help("Elige una carpeta, o arrástrala aquí desde Finder, para abrir terminales en ella con un clic.")
+                        .selectionDisabled()
+                        .listRowSeparator(.hidden)
+                    }
+                    ForEach(folders, id: \.self) { folder in
+                        let items = inFolder[folder] ?? []
+                        if !isSearching || !items.isEmpty {
+                            let expanded = isExpanded(folder)
+                            FolderRow(folder: folder, isExpanded: expanded,
+                                      onNewSession: { controller.createSession(directory: folder) },
+                                      onRemove: { storedFolders = SidebarFolders.removing(folder, from: storedFolders) })
+                                .selectionDisabled()
+                                .listRowSeparator(.hidden)
+                            if expanded.wrappedValue {
+                                rows(items, shells: shells)
+                            }
                         }
                     }
+                } header: {
+                    HStack {
+                        Text("Carpetas")
+                        Spacer()
+                        Button("Agregar carpeta", systemImage: "folder.badge.plus") {
+                            controller.isAddingSidebarFolder = true
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.borderless)
+                        .help("Agregar una carpeta a la barra lateral")
+                    }
+                    // Lines the button up with the + and the times below.
+                    .padding(.trailing, 14)
                 }
-            } else if pinned.isEmpty {
-                rows(others, shells: shells)
-            } else {
+            }
+            if !loose.isEmpty {
                 Section("Sesiones") {
-                    rows(others, shells: shells)
+                    rows(loose, shells: shells)
                 }
             }
             if !archived.isEmpty {
@@ -77,6 +115,19 @@ struct SessionListView: View {
             }
         }
         .listStyle(.sidebar)
+        // A folder dragged from Finder becomes one of the sidebar's folders.
+        .dropDestination(for: URL.self) { urls, _ in
+            let added = urls.filter(\.hasDirectoryPath)
+            for url in added {
+                storedFolders = SidebarFolders.adding(url.path(percentEncoded: false), to: storedFolders)
+            }
+            return !added.isEmpty
+        }
+        .fileImporter(isPresented: $controller.isAddingSidebarFolder, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                storedFolders = SidebarFolders.adding(url.path(percentEncoded: false), to: storedFolders)
+            }
+        }
         .contextMenu(forSelectionType: UUID.self) { ids in
             menu(for: chosen(ids))
         }
@@ -125,17 +176,6 @@ struct SessionListView: View {
     }
 
     // MARK: - Folder groups
-
-    private func folderGroups(_ sessions: [TerminalSession]) -> [(folder: String, sessions: [TerminalSession])] {
-        var order: [String] = []
-        var members: [String: [TerminalSession]] = [:]
-        for session in sessions {
-            let folder = SessionGroup.folder(for: session)
-            if members[folder] == nil { order.append(folder) }
-            members[folder, default: []].append(session)
-        }
-        return order.map { ($0, members[$0] ?? []) }
-    }
 
     private func isExpanded(_ folder: String) -> Binding<Bool> {
         Binding(
@@ -277,13 +317,14 @@ private struct SessionDeleteConfirmation: ViewModifier {
     }
 }
 
-/// A folder group's name in the sidebar, like a project in a sidebar: a
-/// chevron next to the name on hover folds or unfolds it (as does a click on
-/// the name), and + opens a new session there.
-private struct FolderGroupHeader: View {
+/// One of the folders added to the sidebar: its name, a chevron next to it on
+/// hover that folds or unfolds its sessions (as does a click on the name), and
+/// + for a new session there.
+private struct FolderRow: View {
     let folder: String
     @Binding var isExpanded: Bool
     let onNewSession: () -> Void
+    let onRemove: () -> Void
 
     @State private var isHovering = false
 
@@ -292,11 +333,13 @@ private struct FolderGroupHeader: View {
             Button {
                 withAnimation(.smooth(duration: 0.2)) { isExpanded.toggle() }
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Text(FolderName.display(folder))
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
                     Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .opacity(isHovering || !isExpanded ? 1 : 0)
                         .accessibilityHidden(true)
@@ -306,19 +349,23 @@ private struct FolderGroupHeader: View {
             .buttonStyle(.plain)
             .help(FolderName.breadcrumb(folder))
             .accessibilityLabel(FolderName.display(folder))
-            .accessibilityValue(isExpanded ? Text("Desplegado") : Text("Plegado"))
-            .accessibilityHint(isExpanded ? Text("Pliega el grupo") : Text("Despliega el grupo"))
-            Spacer()
+            .accessibilityValue(isExpanded ? Text("Desplegada") : Text("Plegada"))
+            Spacer(minLength: 8)
             Button("Nueva sesión en \(FolderName.display(folder))", systemImage: "plus", action: onNewSession)
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
                 .help("Nueva sesión en \(FolderName.display(folder))")
         }
-        // Lines the + up with the times of the rows below, with room above
-        // the first row (its selection mustn't touch the name).
-        .padding(.trailing, 6)
-        .padding(.top, 6)
-        .padding(.bottom, 6)
+        .padding(.vertical, 4)
         .onHover { isHovering = $0 }
+        .contextMenu {
+            Button("Nueva sesión aquí", systemImage: "plus", action: onNewSession)
+            Button("Mostrar en Finder", systemImage: "folder") {
+                NSWorkspace.shared.open(URL(filePath: folder, directoryHint: .isDirectory))
+            }
+            Divider()
+            Button("Quitar de la barra lateral", systemImage: "minus.circle", action: onRemove)
+        }
     }
 }

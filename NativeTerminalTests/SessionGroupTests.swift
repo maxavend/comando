@@ -2,44 +2,36 @@ import Foundation
 import Testing
 @testable import NativeTerminal
 
-/// The folder each session is listed under when the sidebar groups by folder.
+/// The folders added to the sidebar and the sessions listed under each.
 @MainActor
 struct SessionGroupTests {
-    private let root: URL
+    private let folders = ["/tmp/tienda", "/tmp/tienda/api", "/tmp/fotos"]
 
-    init() throws {
-        root = FileManager.default.temporaryDirectory
-            .appending(path: "nt-group-\(UUID().uuidString.prefix(6))")
-            .resolvingSymlinksInPath()
-        try FileManager.default.createDirectory(at: root.appending(path: "tienda/.git"), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: root.appending(path: "tienda/src/carrito"), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: root.appending(path: "fotos"), withIntermediateDirectories: true)
+    @Test func aSessionGoesUnderTheDeepestFolderThatHoldsIt() {
+        #expect(SidebarFolders.folder(for: TerminalSession(directory: "/tmp/tienda/src"), among: folders) == "/tmp/tienda")
+        #expect(SidebarFolders.folder(for: TerminalSession(directory: "/tmp/tienda/api/v2"), among: folders) == "/tmp/tienda/api")
+        #expect(SidebarFolders.folder(for: TerminalSession(directory: "/tmp/fotos"), among: folders) == "/tmp/fotos")
+        #expect(SidebarFolders.folder(for: TerminalSession(directory: "/tmp/tiendas"), among: folders) == nil)
     }
 
-    private func path(_ relative: String) -> String {
-        root.appending(path: relative).path(percentEncoded: false).trimmingSuffix("/")
-    }
-
-    @Test func sessionsInsideARepositoryShareItsGroup() {
-        let deep = TerminalSession(directory: path("tienda/src/carrito"))
-        #expect(SessionGroup.folder(for: deep) == path("tienda"))
-    }
-
-    @Test func otherSessionsUseTheFolderTheyOpenedIn() {
-        let photos = TerminalSession(directory: path("fotos"))
-        #expect(SessionGroup.folder(for: photos) == path("fotos"))
-    }
-
-    @Test func theGroupStaysWhenTheShellMoves() {
-        let session = TerminalSession(directory: path("fotos"))
-        session.directory = path("tienda")
-        #expect(SessionGroup.folder(for: session) == path("fotos"))
+    @Test func itStaysWhenTheShellMoves() {
+        let session = TerminalSession(directory: "/tmp/fotos")
+        session.directory = "/tmp/tienda"
+        #expect(SidebarFolders.folder(for: session, among: folders) == "/tmp/fotos")
     }
 
     @Test func olderSessionsUseTheOldestFolderTheyVisited() {
-        let session = TerminalSession(directory: path("tienda/src"))
+        let session = TerminalSession(directory: "/tmp/otra")
         session.startDirectory = nil
-        session.recentDirectories = [path("tienda/src"), path("fotos")]
-        #expect(SessionGroup.folder(for: session) == path("fotos"))
+        session.recentDirectories = ["/tmp/otra", "/tmp/fotos/2024"]
+        #expect(SidebarFolders.folder(for: session, among: folders) == "/tmp/fotos")
+    }
+
+    @Test func addsEachFolderOnceAndRemovesIt() {
+        var stored = SidebarFolders.adding("/tmp/tienda/", to: "")
+        stored = SidebarFolders.adding("/tmp/tienda", to: stored)
+        stored = SidebarFolders.adding("/tmp/fotos", to: stored)
+        #expect(SidebarFolders.list(stored) == ["/tmp/tienda", "/tmp/fotos"])
+        #expect(SidebarFolders.list(SidebarFolders.removing("/tmp/tienda", from: stored)) == ["/tmp/fotos"])
     }
 }

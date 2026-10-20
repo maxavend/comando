@@ -77,8 +77,10 @@ enum DebugAutomation {
             if let session = controller.selectedSession { controller.archive([session]) }
         case "#collapsegroup":
             UserDefaults.standard.set(ShellEscape.expandTilde(argument), forKey: "collapsedSessionGroups")
-        case "#grouping":
-            UserDefaults.standard.set(argument, forKey: SessionGrouping.key)
+        case "#addfolder":
+            let stored = UserDefaults.standard.string(forKey: SidebarFolders.key) ?? ""
+            UserDefaults.standard.set(SidebarFolders.adding(ShellEscape.expandTilde(argument), to: stored),
+                                      forKey: SidebarFolders.key)
         case "#pin":
             controller.selectedSession?.isPinned = true
         case "#style":

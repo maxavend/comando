@@ -1,40 +1,40 @@
 import Foundation
 
-/// The folder a session belongs to in the sidebar, grouped by folder: its Git
-/// repository if it was opened inside one, otherwise the folder it was opened
-/// in. It doesn't change when the shell moves to another folder.
+/// The folders the user added to the sidebar, and which of them each session
+/// belongs to: the deepest added folder that holds the folder the session was
+/// opened in. A session doesn't change folder when its shell moves.
 @MainActor
-enum SessionGroup {
-    static func folder(for session: TerminalSession) -> String {
-        // Sessions from before 1.5 don't know where they started: the oldest
-        // folder they visited is the closest guess.
-        let start = session.startDirectory ?? session.recentDirectories.last ?? session.directory
-        if let cached = cache[start] { return cached }
-        let folder = repositoryRoot(containing: start) ?? start
-        cache[start] = folder
-        return folder
+enum SidebarFolders {
+    /// UserDefaults key: the added folders, one path per line, in order.
+    static let key = "sidebarFolders"
+
+    static func list(_ stored: String) -> [String] {
+        stored.split(separator: "\n").map(String.init)
     }
 
-    private static var cache: [String: String] = [:]
-
-    /// The nearest folder up from `path` with a `.git`, without leaving the
-    /// home folder.
-    static func repositoryRoot(containing path: String) -> String? {
-        let home = NSHomeDirectory()
-        var current = path
-        while current != "/" && !current.isEmpty {
-            if FileManager.default.fileExists(atPath: current + "/.git") { return current }
-            if current == home { return nil }
-            current = (current as NSString).deletingLastPathComponent
-        }
-        return nil
+    static func adding(_ folder: String, to stored: String) -> String {
+        let folder = folder.count > 1 ? folder.trimmingSuffix("/") : folder
+        var folders = list(stored)
+        guard !folders.contains(folder) else { return stored }
+        folders.append(folder)
+        return folders.joined(separator: "\n")
     }
-}
 
-/// How the sidebar lists the sessions (Visualización › Agrupar sesiones).
-enum SessionGrouping: String, CaseIterable {
-    case date
-    case folder
+    static func removing(_ folder: String, from stored: String) -> String {
+        list(stored).filter { $0 != folder }.joined(separator: "\n")
+    }
 
-    static let key = "sessionGrouping"
+    /// Where the session was opened. Sessions from before 1.5 don't know: the
+    /// oldest folder they visited is the closest guess.
+    static func startFolder(of session: TerminalSession) -> String {
+        session.startDirectory ?? session.recentDirectories.last ?? session.directory
+    }
+
+    /// The added folder the session belongs to, if any.
+    static func folder(for session: TerminalSession, among folders: [String]) -> String? {
+        let start = startFolder(of: session)
+        return folders
+            .filter { start == $0 || start.hasPrefix($0 == "/" ? "/" : $0 + "/") }
+            .max { $0.count < $1.count }
+    }
 }

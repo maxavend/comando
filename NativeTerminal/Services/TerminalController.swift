@@ -43,6 +43,8 @@ final class TerminalController {
     var isShowingWelcome = false
     /// Presents the recipes finder (⌘K) for the selected session.
     var isShowingRecipes = false
+    /// Presents the folder picker that adds a folder to the sidebar.
+    var isAddingSidebarFolder = false
     /// Text to place in the selected session's composer (from a recipe or hint).
     var draftRequest: String?
     /// Bumped when a command installs or removes tools, so lists reload.
