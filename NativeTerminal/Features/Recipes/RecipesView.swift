@@ -38,6 +38,8 @@ struct RecipesView: View {
                         list(results)
                     }
                 }
+                // Nothing inside goes past the rounded corners.
+                .clipShape(.rect(cornerRadius: 26, style: .continuous))
                 .glassEffect(.regular, in: .rect(cornerRadius: 26, style: .continuous))
             }
         }
@@ -140,10 +142,10 @@ struct RecipesView: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 12)
                     }
-                    // Like Spotlight: no scroll bar on the glass (a legacy one
-                    // would sit outside its rounded corner); ↑ ↓ and the
-                    // trackpad still scroll.
-                    .scrollIndicators(.hidden)
+                    // Like Spotlight: no scroll bar on the glass, even with
+                    // “Mostrar barras de desplazamiento: Siempre” (.hidden
+                    // keeps that one); ↑ ↓ and the trackpad still scroll.
+                    .scrollIndicators(.never)
                     .frame(height: 440)
                     .onChange(of: selection) { _, index in
                         if results.indices.contains(index) {
