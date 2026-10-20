@@ -142,10 +142,10 @@ struct RecipesView: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 12)
                     }
-                    // Like Spotlight: no scroll bar on the glass, even with
-                    // “Mostrar barras de desplazamiento: Siempre” (.hidden
-                    // keeps that one); ↑ ↓ and the trackpad still scroll.
-                    .scrollIndicators(.never)
+                    // Like Spotlight: the scroll bar sits inside the panel,
+                    // clear of its rounded corners.
+                    .contentMargins(.vertical, 22, for: .scrollIndicators)
+                    .contentMargins(.trailing, 6, for: .scrollIndicators)
                     .frame(height: 440)
                     .onChange(of: selection) { _, index in
                         if results.indices.contains(index) {
