@@ -140,6 +140,10 @@ struct RecipesView: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 12)
                     }
+                    // Like Spotlight: no scroll bar on the glass (a legacy one
+                    // would sit outside its rounded corner); ↑ ↓ and the
+                    // trackpad still scroll.
+                    .scrollIndicators(.hidden)
                     .frame(height: 440)
                     .onChange(of: selection) { _, index in
                         if results.indices.contains(index) {
