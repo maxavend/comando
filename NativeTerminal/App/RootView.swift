@@ -38,6 +38,8 @@ struct RootView: View {
                                   openRequest: searchOpenRequest) {
                     searchText = ""
                 }
+            } else if controller.selectedSessionIDs.count > 1 {
+                MultipleSessionsView(sessions: sessions.filter { controller.selectedSessionIDs.contains($0.id) })
             } else if let selected {
                 ChatView(session: selected)
                     .id(selected.id)

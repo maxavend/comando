@@ -19,6 +19,9 @@ final class TerminalSession {
     var recentDirectories: [String] = []
     /// Pinned sessions stay at the top of the sidebar.
     var isPinned: Bool = false
+    /// Archived sessions keep their history, without a shell, in their own
+    /// section at the bottom of the sidebar.
+    var isArchived: Bool = false
     /// Optional emoji shown in the avatar instead of the terminal symbol.
     var emoji: String?
     /// An SF Symbol the person chose for the avatar; otherwise one that

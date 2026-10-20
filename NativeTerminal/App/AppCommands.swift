@@ -16,6 +16,15 @@ struct AppCommands: Commands {
                 controller.createSession(directory: controller.selectedShellDirectory)
             }
             .keyboardShortcut("t", modifiers: [.command, .option])
+
+            Divider()
+
+            // As in Mail: the selected sessions, one or several.
+            Button("Archivar") {
+                let sessions = controller.selectedSessionIDs.compactMap { controller.session(withID: $0) }
+                controller.archive(sessions.filter { !$0.isArchived })
+            }
+            .keyboardShortcut("a", modifiers: [.command, .control])
         }
 
         CommandGroup(replacing: .help) {

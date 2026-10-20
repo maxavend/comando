@@ -9,9 +9,27 @@ import SwiftData
 final class TerminalController {
     var selectedSessionID: UUID? {
         didSet {
+            // Choosing a session anywhere but the sidebar (a new one, a
+            // search result) replaces a selection of several.
+            if !isSelectingInSidebar, let selectedSessionID, selectedSessionIDs != [selectedSessionID] {
+                selectedSessionIDs = [selectedSessionID]
+            }
             guard oldValue != selectedSessionID else { return }
             markSelectedAsRead()
         }
+    }
+    /// The sessions selected in the sidebar; more than one shows what can be
+    /// done with all of them instead of a chat.
+    var selectedSessionIDs: Set<UUID> = []
+    @ObservationIgnored private var isSelectingInSidebar = false
+
+    /// The sidebar's own selection, which can hold several sessions.
+    func selectInSidebar(_ ids: Set<UUID>) {
+        selectedSessionIDs = ids
+        guard let first = ids.first, ids.count == 1 || !ids.contains(selectedSessionID ?? first) else { return }
+        isSelectingInSidebar = true
+        selectedSessionID = first
+        isSelectingInSidebar = false
     }
     /// An entry the chat should scroll to (from search results).
     var focusedEntryID: UUID?
@@ -68,7 +86,7 @@ final class TerminalController {
         let sessions = (try? modelContext.fetch(FetchDescriptor<TerminalSession>(
             sortBy: [SortDescriptor(\.lastActivity, order: .reverse)]
         ))) ?? []
-        if let first = sessions.first {
+        if let first = sessions.first(where: { !$0.isArchived }) ?? sessions.first {
             selectedSessionID = first.id
         } else {
             selectedSessionID = createSession().id
@@ -125,9 +143,9 @@ final class TerminalController {
 
     /// Moves the selection up or down the sidebar (which is sorted by activity).
     func selectAdjacentSession(offset: Int) {
-        let sessions = (try? modelContext.fetch(FetchDescriptor<TerminalSession>(
+        let sessions = ((try? modelContext.fetch(FetchDescriptor<TerminalSession>(
             sortBy: [SortDescriptor(\.lastActivity, order: .reverse)]
-        ))) ?? []
+        ))) ?? []).filter { !$0.isArchived }
         guard !sessions.isEmpty else { return }
         let index = sessions.firstIndex { $0.id == selectedSessionID } ?? 0
         let next = (index + offset + sessions.count) % sessions.count
@@ -198,6 +216,8 @@ final class TerminalController {
 
     /// Handles text from the composer: a new command, or input for the running one.
     func submit(_ text: String, in session: TerminalSession, confirmed: Bool = false, bypassAgentChat: Bool = false) {
+        // Writing in an archived session brings it back.
+        if session.isArchived { unarchive([session]) }
         let shell = shell(for: session)
         if shell.isBusy {
             shell.sendLine(text)
@@ -270,6 +290,7 @@ final class TerminalController {
 
     /// Sends a plain-language request to the assistant, with any attached files.
     func ask(_ text: String, attachments: [URL], in session: TerminalSession) {
+        if session.isArchived { unarchive([session]) }
         let request = IntentDetector.request(from: text)
         guard !request.isEmpty else { return }
         let shell = shell(for: session)
@@ -605,5 +626,49 @@ extension TerminalController: ShellSessionDelegate {
 
     func shellSessionDidExit(_ shell: ShellSession) {
         save()
+    }
+}
+
+/// Archiving and deleting several sessions at once, from the sidebar.
+extension TerminalController {
+    /// Closes their shells and agent conversations and moves them to
+    /// “Archivadas”, keeping their history. Writing in one brings it back.
+    func archive(_ sessions: [TerminalSession]) {
+        for session in sessions {
+            agentChats.removeValue(forKey: session.id)?.end()
+            shells.removeValue(forKey: session.id)?.terminate()
+            session.isArchived = true
+            session.isPinned = false
+        }
+        save()
+        moveSelectionOff(sessions.map(\.id))
+    }
+
+    func unarchive(_ sessions: [TerminalSession]) {
+        for session in sessions { session.isArchived = false }
+        save()
+    }
+
+    func delete(_ sessions: [TerminalSession]) {
+        let ids = sessions.map(\.id)
+        for session in sessions {
+            agentChats.removeValue(forKey: session.id)?.end()
+            shells.removeValue(forKey: session.id)?.terminate()
+            modelContext.delete(session)
+        }
+        save()
+        moveSelectionOff(ids)
+    }
+
+    /// Selects the most recent session left in the list, or a new one.
+    private func moveSelectionOff(_ ids: [UUID]) {
+        selectedSessionIDs.subtract(ids)
+        guard let selectedSessionID, ids.contains(selectedSessionID) || selectedSessionIDs.isEmpty else { return }
+        let remaining = ((try? modelContext.fetch(FetchDescriptor<TerminalSession>(
+            sortBy: [SortDescriptor(\.lastActivity, order: .reverse)]
+        ))) ?? []).filter { !$0.isArchived && !ids.contains($0.id) }
+        let next = remaining.first?.id ?? createSession().id
+        selectedSessionIDs = [next]
+        self.selectedSessionID = next
     }
 }

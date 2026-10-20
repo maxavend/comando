@@ -67,6 +67,14 @@ enum DebugAutomation {
             }
             for window in NSApp.windows where window.isVisible { walk(window, depth: 0) }
             try? lines.joined(separator: "\n").write(toFile: out, atomically: false, encoding: .utf8)
+        case "#multiselect":
+            // The first N sessions of the sidebar.
+            let ids = ((try? controller.modelContext.fetch(FetchDescriptor<TerminalSession>(
+                sortBy: [SortDescriptor(\.lastActivity, order: .reverse)]
+            ))) ?? []).filter { !$0.isArchived }.prefix(Int(argument) ?? 2).map(\.id)
+            controller.selectInSidebar(Set(ids))
+        case "#archive":
+            if let session = controller.selectedSession { controller.archive([session]) }
         case "#pin":
             controller.selectedSession?.isPinned = true
         case "#style":

@@ -10,20 +10,23 @@ struct SessionListView: View {
     @Environment(TerminalController.self) private var controller
     @State private var renaming: TerminalSession?
     @State private var newName = ""
-    @State private var deleting: TerminalSession?
+    /// Sessions waiting for the delete confirmation.
+    @State private var deleting: [TerminalSession] = []
     @State private var customizing: TerminalSession?
     /// Sessions with a command or output that matches the search.
     @State private var matchingIDs: Set<UUID> = []
+    @AppStorage("showsArchivedSessions") private var showsArchived = false
 
     var body: some View {
-        @Bindable var controller = controller
         let shells = controller.shells
 
         let shown = sessions.filter(matches)
-        let pinned = shown.filter(\.isPinned)
-        let others = shown.filter { !$0.isPinned }
+        let active = shown.filter { !$0.isArchived }
+        let pinned = active.filter(\.isPinned)
+        let others = active.filter { !$0.isPinned }
+        let archived = shown.filter(\.isArchived)
 
-        List(selection: $controller.selectedSessionID) {
+        List(selection: selection) {
             if pinned.isEmpty {
                 rows(others, shells: shells)
             } else {
@@ -34,8 +37,25 @@ struct SessionListView: View {
                     rows(others, shells: shells)
                 }
             }
+            if !archived.isEmpty {
+                // Open while searching, so a match in an archived session shows.
+                Section(isExpanded: searchText.isEmpty ? $showsArchived : .constant(true)) {
+                    rows(archived, shells: shells)
+                } header: {
+                    HStack {
+                        Text("Archivadas")
+                        Spacer()
+                        Text(archived.count, format: .number)
+                            .monospacedDigit()
+                    }
+                }
+            }
         }
         .listStyle(.sidebar)
+        .contextMenu(forSelectionType: UUID.self) { ids in
+            menu(for: chosen(ids))
+        }
+        .onDeleteCommand { deleting = chosen(controller.selectedSessionIDs) }
         .overlay {
             if shown.isEmpty, !searchText.isEmpty {
                 Text("Ninguna sesión coincide")
@@ -72,13 +92,20 @@ struct SessionListView: View {
         .sheet(item: $customizing) { session in
             SessionAppearanceEditor(session: session) { controller.save() }
         }
-        .confirmationDialog("¿Eliminar esta sesión?", item: $deleting) { session in
-            Button("Eliminar sesión", role: .destructive) {
-                controller.delete(session)
-            }
-        } message: { _ in
-            Text("Se cerrará su shell y se borrará su historial. Esta acción no se puede deshacer.")
-        }
+        .sessionDeleteConfirmation($deleting)
+    }
+
+    /// The sidebar selection: one session opens its chat, several show what
+    /// can be done with all of them.
+    private var selection: Binding<Set<UUID>> {
+        Binding(
+            get: { controller.selectedSessionIDs },
+            set: { controller.selectInSidebar($0) }
+        )
+    }
+
+    private func chosen(_ ids: Set<UUID>) -> [TerminalSession] {
+        sessions.filter { ids.contains($0.id) }
     }
 
     private func matches(_ session: TerminalSession) -> Bool {
@@ -94,14 +121,45 @@ struct SessionListView: View {
         ForEach(sessions) { session in
             SessionRow(session: session, shell: shells[session.id])
                 .tag(session.id)
-                .contextMenu {
-                    contextMenu(for: session)
+                // Like Mail and Messages: swipe left to archive or delete.
+                .swipeActions(edge: .trailing) {
+                    Button("Eliminar", systemImage: "trash", role: .destructive) { deleting = [session] }
+                    if session.isArchived {
+                        Button("Desarchivar", systemImage: "tray.and.arrow.up") { controller.unarchive([session]) }
+                    } else {
+                        Button("Archivar", systemImage: "archivebox") { controller.archive([session]) }
+                            .tint(.indigo)
+                    }
                 }
         }
     }
 
+    // MARK: - Context menu
+
     @ViewBuilder
-    private func contextMenu(for session: TerminalSession) -> some View {
+    private func menu(for sessions: [TerminalSession]) -> some View {
+        if sessions.count == 1, let session = sessions.first {
+            singleMenu(for: session)
+        } else if !sessions.isEmpty {
+            let archived = sessions.allSatisfy(\.isArchived)
+            if archived {
+                Button("Desarchivar \(sessions.count) sesiones", systemImage: "tray.and.arrow.up") {
+                    controller.unarchive(sessions)
+                }
+            } else {
+                Button("Archivar \(sessions.count) sesiones", systemImage: "archivebox") {
+                    controller.archive(sessions)
+                }
+            }
+            Divider()
+            Button("Eliminar \(sessions.count) sesiones…", systemImage: "trash", role: .destructive) {
+                deleting = sessions
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func singleMenu(for session: TerminalSession) -> some View {
         if let shell = controller.shells[session.id], shell.isBusy {
             Button("Detener comando", systemImage: "stop.circle") { shell.interrupt() }
             if let url = shell.live?.localURL {
@@ -109,9 +167,11 @@ struct SessionListView: View {
             }
             Divider()
         }
-        Button(session.isPinned ? "Dejar de fijar" : "Fijar arriba", systemImage: session.isPinned ? "pin.slash" : "pin") {
-            session.isPinned.toggle()
-            controller.save()
+        if !session.isArchived {
+            Button(session.isPinned ? "Dejar de fijar" : "Fijar arriba", systemImage: session.isPinned ? "pin.slash" : "pin") {
+                session.isPinned.toggle()
+                controller.save()
+            }
         }
         Button("Personalizar…", systemImage: "face.smiling") {
             customizing = session
@@ -127,11 +187,46 @@ struct SessionListView: View {
             NSWorkspace.shared.open(URL(filePath: session.directory, directoryHint: .isDirectory))
         }
         Divider()
+        if session.isArchived {
+            Button("Desarchivar", systemImage: "tray.and.arrow.up") { controller.unarchive([session]) }
+        } else {
+            Button("Archivar", systemImage: "archivebox") { controller.archive([session]) }
+        }
         Button("Limpiar historial", systemImage: "clear") {
             controller.clearHistory(of: session)
         }
         Button("Eliminar sesión…", systemImage: "trash", role: .destructive) {
-            deleting = session
+            deleting = [session]
+        }
+    }
+}
+
+extension View {
+    /// Asks before deleting one or more sessions; empty means no question.
+    func sessionDeleteConfirmation(_ sessions: Binding<[TerminalSession]>) -> some View {
+        modifier(SessionDeleteConfirmation(sessions: sessions))
+    }
+}
+
+private struct SessionDeleteConfirmation: ViewModifier {
+    @Binding var sessions: [TerminalSession]
+
+    @Environment(TerminalController.self) private var controller
+
+    func body(content: Content) -> some View {
+        let count = sessions.count
+        content.confirmationDialog(
+            count == 1 ? "¿Eliminar esta sesión?" : "¿Eliminar \(count) sesiones?",
+            isPresented: Binding(get: { !sessions.isEmpty }, set: { if !$0 { sessions = [] } })
+        ) {
+            Button(count == 1 ? "Eliminar sesión" : "Eliminar \(count) sesiones", role: .destructive) {
+                controller.delete(sessions)
+                sessions = []
+            }
+        } message: {
+            Text(count == 1
+                 ? "Se cerrará su shell y se borrará su historial. Esta acción no se puede deshacer."
+                 : "Se cerrarán sus shells y se borrará su historial. Esta acción no se puede deshacer. Si solo quieres sacarlas de la lista, archívalas.")
         }
     }
 }
