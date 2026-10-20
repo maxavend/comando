@@ -19,8 +19,11 @@ struct SessionListView: View {
     @AppStorage("showsArchivedSessions") private var showsArchived = false
     /// Folders the user added to the sidebar, one path per line.
     @AppStorage(SidebarFolders.key) private var storedFolders = ""
-    /// Added folders the user folded, one path per line.
+    /// Added folders the user folded, one path per line (kept between launches).
     @AppStorage("collapsedSessionGroups") private var collapsedGroups = ""
+    /// The same, as view state: List animates rows in and out for a change
+    /// of @State, not of UserDefaults.
+    @State private var collapsed: Set<String> = []
 
     var body: some View {
         @Bindable var controller = controller
@@ -44,8 +47,10 @@ struct SessionListView: View {
             .padding(.bottom, 6)
         List(selection: selection) {
             if !pinned.isEmpty {
-                Section("Fijadas") {
+                Section {
                     rows(pinned, shells: shells)
+                } header: {
+                    SidebarHeading("Fijadas")
                 }
             }
             // The folders the user added, each with its sessions, like
@@ -75,8 +80,10 @@ struct SessionListView: View {
                 }
             }
             if !loose.isEmpty {
-                Section("Sesiones") {
+                Section {
                     rows(loose, shells: shells)
+                } header: {
+                    SidebarHeading("Sesiones")
                 }
             }
             if !archived.isEmpty {
@@ -85,10 +92,11 @@ struct SessionListView: View {
                     rows(archived, shells: shells)
                 } header: {
                     HStack {
-                        Text("Archivadas")
+                        SidebarHeading("Archivadas")
                         Spacer()
                         Text(archived.count, format: .number)
                             .monospacedDigit()
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -117,6 +125,11 @@ struct SessionListView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+        }
+        .onAppear { collapsed = Set(SidebarFolders.list(collapsedGroups)) }
+        .onChange(of: collapsedGroups) { _, stored in
+            let folders = Set(SidebarFolders.list(stored))
+            if folders != collapsed { collapsed = folders }
         }
         .task(id: searchText) {
             matchingIDs = Set(controller.search(searchText, in: nil).compactMap { $0.session?.id })
@@ -158,11 +171,10 @@ struct SessionListView: View {
 
     private func isExpanded(_ folder: String) -> Binding<Bool> {
         Binding(
-            get: { !searchText.isEmpty || !collapsedGroups.split(separator: "\n").contains(Substring(folder)) },
+            get: { !searchText.isEmpty || !collapsed.contains(folder) },
             set: { expanded in
-                var folders = collapsedGroups.split(separator: "\n").map(String.init).filter { $0 != folder }
-                if !expanded { folders.append(folder) }
-                collapsedGroups = folders.joined(separator: "\n")
+                if expanded { collapsed.remove(folder) } else { collapsed.insert(folder) }
+                collapsedGroups = collapsed.sorted().joined(separator: "\n")
             }
         )
     }
@@ -310,12 +322,10 @@ private struct FolderRow: View {
     var body: some View {
         HStack(spacing: 4) {
             Button {
-                withAnimation(.smooth(duration: 0.2)) { isExpanded.toggle() }
+                withAnimation(.smooth(duration: 0.28)) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: 5) {
-                    Text(FolderName.display(folder))
-                        .font(.body.weight(.semibold))
-                        .lineLimit(1)
+                    SidebarHeading(FolderName.display(folder))
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
@@ -337,6 +347,9 @@ private struct FolderRow: View {
                 .help("Nueva sesión en \(FolderName.display(folder))")
         }
         .padding(.vertical, 4)
+        // A row starts 2 points further in than a section header: this lines
+        // the folder's name up with “Sesiones”.
+        .padding(.leading, -2)
         .onHover { isHovering = $0 }
         .contextMenu {
             Button("Nueva sesión aquí", systemImage: "plus", action: onNewSession)
@@ -376,5 +389,21 @@ private struct AddFolderRow: View {
         .padding(.horizontal, -6)
         .onHover { isHovering = $0 }
         .help("Elige una carpeta, o arrástrala aquí desde Finder, para abrir terminales en ella con un clic.")
+    }
+}
+
+/// The sidebar's headings — sections and added folders alike — in one style:
+/// body text, semibold, secondary, instead of small header caps.
+private struct SidebarHeading: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(nil)
+            .lineLimit(1)
     }
 }
