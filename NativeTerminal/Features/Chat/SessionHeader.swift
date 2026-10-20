@@ -22,7 +22,6 @@ struct SessionHeader: View {
 
     @Environment(TerminalController.self) private var controller
     @State private var isEditing = false
-    @State private var isHovering = false
 
     var body: some View {
         Button {
@@ -44,20 +43,14 @@ struct SessionHeader: View {
                 }
                 .padding(.horizontal, 9)
                 .padding(.vertical, 6)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .glassEffect(.regular, in: .capsule)
             }
-            .scaleEffect(isHovering ? 1.03 : 1)
-            .animation(.smooth(duration: 0.15), value: isHovering)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
         .help("En \(ShellEscape.abbreviate(directory)). Clic para cambiar su nombre, emoji y color.")
         .accessibilityLabel("Sesión \(session.displayName), en \(FolderName.display(directory))")
         .accessibilityHint("Cambia su nombre, emoji y color")
-        #if DEBUG
-        .onDebugAction("#editappearance") { _ in isEditing = true }
-        #endif
         #if DEBUG
         .onDebugAction("#editappearance") { _ in isEditing = true }
         #endif

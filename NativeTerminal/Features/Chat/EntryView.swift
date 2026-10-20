@@ -11,6 +11,7 @@ struct EntryView: View {
     @Environment(TerminalController.self) private var controller
     @State private var isExplaining = false
     @State private var isHovering = false
+    @State private var isSavingRecipe = false
 
     var body: some View {
         let live = shell?.live
@@ -54,6 +55,9 @@ struct EntryView: View {
         // a line under every command.
         CommandBubble(command: entry.command)
             .contextMenu { commandMenu }
+            .sheet(isPresented: $isSavingRecipe) {
+                SavedRecipeEditor(command: entry.command, directory: entry.directory)
+            }
             .popover(isPresented: $isExplaining, arrowEdge: .leading) {
                 CommandBreakdownView(command: entry.command)
             }
@@ -83,6 +87,8 @@ struct EntryView: View {
         Button("Editar y volver a enviar", systemImage: "pencil", action: edit)
         Button("Volver a ejecutar", systemImage: "arrow.clockwise", action: rerun)
             .disabled(shell?.isBusy ?? false)
+        Divider()
+        Button("Guardar como receta…", systemImage: "bookmark") { isSavingRecipe = true }
     }
 
     private func copyCommand() { Pasteboard.copy(entry.command) }

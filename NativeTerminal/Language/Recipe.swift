@@ -7,6 +7,11 @@ nonisolated struct Recipe: Identifiable, Sendable {
         case system = "Tu Mac"
         case network = "Red"
         case development = "Desarrollo"
+        /// Saved by the user from a command in the chat.
+        case mine = "Mis recetas"
+
+        /// The categories of the built-in recipes.
+        static var builtIn: [Category] { allCases.filter { $0 != .mine } }
     }
 
     let id: String
@@ -17,6 +22,8 @@ nonisolated struct Recipe: Identifiable, Sendable {
     /// Extra words people might search with.
     let keywords: [String]
     let parameters: [RecipeParameter]
+    /// A saved recipe's color (a `SessionColor` index); nil for built-in ones.
+    let tint: Int?
     /// Builds the command from the parameter values (already trimmed).
     let build: @Sendable ([String: String]) -> String
 
@@ -28,6 +35,7 @@ nonisolated struct Recipe: Identifiable, Sendable {
         category: Category,
         keywords: [String] = [],
         parameters: [RecipeParameter] = [],
+        tint: Int? = nil,
         build: @escaping @Sendable ([String: String]) -> String
     ) {
         self.id = id
@@ -37,6 +45,7 @@ nonisolated struct Recipe: Identifiable, Sendable {
         self.category = category
         self.keywords = keywords
         self.parameters = parameters
+        self.tint = tint
         self.build = build
     }
 

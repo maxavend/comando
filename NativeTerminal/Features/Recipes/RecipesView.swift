@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// ⌘K: find a task by describing it, then run it or write it in the composer.
@@ -7,6 +8,9 @@ struct RecipesView: View {
     let onInsert: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SavedRecipe.order) private var saved: [SavedRecipe]
+    @State private var editing: SavedRecipe?
     @State private var query = ""
     @State private var selection = 0
     @State private var chosen: Recipe?
@@ -27,6 +31,9 @@ struct RecipesView: View {
             }
         }
         .frame(width: 620, height: 520)
+        .sheet(item: $editing) { recipe in
+            SavedRecipeEditor(editing: recipe)
+        }
         #if DEBUG
         .onDebugAction("#query") { query = $0 }
         .onDebugAction("#choose") { _ in choose(at: selection, in: results) }
@@ -34,7 +41,29 @@ struct RecipesView: View {
         #endif
     }
 
-    private var results: [Recipe] { RecipeBook.search(query) }
+    /// The user's own recipes first, then the built-in ones.
+    private var results: [Recipe] { mine + RecipeBook.search(query) }
+
+    private var mine: [Recipe] {
+        saved.map { $0.recipe(in: directory) }.filter { $0.matches(query) }
+    }
+
+    /// “Mis recetas” by group, in the order the user left them.
+    private func mineByGroup(_ results: [Recipe]) -> [(group: String, items: [(offset: Int, element: Recipe)])] {
+        let items = results.enumerated().filter { $0.element.category == .mine }
+        var groups: [String] = []
+        for item in items {
+            let group = savedRecipe(for: item.element)?.group ?? ""
+            if !groups.contains(group) { groups.append(group) }
+        }
+        return groups.map { group in
+            (group, items.filter { (savedRecipe(for: $0.element)?.group ?? "") == group })
+        }
+    }
+
+    private func savedRecipe(for recipe: Recipe) -> SavedRecipe? {
+        saved.first { "saved-\($0.id.uuidString)" == recipe.id }
+    }
 
     private var list: some View {
         let results = results
@@ -62,15 +91,24 @@ struct RecipesView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(Recipe.Category.allCases, id: \.self) { category in
+                            if saved.isEmpty && query.isEmpty {
+                                Label("Guarda tus propios comandos: clic derecho en uno del chat › Guardar como receta.",
+                                      systemImage: "bookmark")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, Metrics.bubbleHorizontalPadding)
+                                    .padding(.top, Metrics.exchangeSpacing)
+                            }
+                            ForEach(mineByGroup(results), id: \.group) { group, items in
+                                sectionHeader(group.isEmpty ? Recipe.Category.mine.rawValue : group)
+                                ForEach(items, id: \.element.id) { index, recipe in
+                                    savedRow(recipe, index: index, in: results)
+                                }
+                            }
+                            ForEach(Recipe.Category.builtIn, id: \.self) { category in
                                 let items = results.enumerated().filter { $0.element.category == category }
                                 if !items.isEmpty {
-                                    Text(category.rawValue)
-                                        .font(.caption.bold())
-                                        .foregroundStyle(.secondary)
-                                        .padding(.horizontal, Metrics.bubbleHorizontalPadding)
-                                        .padding(.top, Metrics.exchangeSpacing)
-                                        .padding(.bottom, Metrics.statusSpacing)
+                                    sectionHeader(category.rawValue)
                                     ForEach(items, id: \.element.id) { index, recipe in
                                         RecipeRow(recipe: recipe, isSelected: index == selection) {
                                             choose(at: index, in: results)
@@ -104,6 +142,73 @@ struct RecipesView: View {
             .padding(.vertical, Metrics.bubbleHorizontalPadding)
         }
         .onAppear { isSearchFocused = true }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.bold())
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, Metrics.bubbleHorizontalPadding)
+            .padding(.top, Metrics.exchangeSpacing)
+            .padding(.bottom, Metrics.statusSpacing)
+    }
+
+    /// One of “Mis recetas”: edited from its menu, reordered by dragging it
+    /// onto another (which also moves it to that one's group).
+    @ViewBuilder
+    private func savedRow(_ recipe: Recipe, index: Int, in results: [Recipe]) -> some View {
+        let item = savedRecipe(for: recipe)
+        RecipeRow(recipe: recipe, isSelected: index == selection) {
+            choose(at: index, in: results)
+        }
+        .contextMenu {
+            if let item {
+                Button("Editar…", systemImage: "pencil") { editing = item }
+                Button("Duplicar", systemImage: "plus.square.on.square") { duplicate(item) }
+                Divider()
+                Button("Eliminar", systemImage: "trash", role: .destructive) { delete(item) }
+            }
+        }
+        .draggable(item?.id.uuidString ?? "")
+        .dropDestination(for: String.self) { ids, _ in
+            guard let id = ids.first, let target = item else { return false }
+            return move(id, before: target)
+        }
+    }
+
+    private func duplicate(_ recipe: SavedRecipe) {
+        let copy = SavedRecipe(title: String(localized: "\(recipe.title) (copia)"), command: recipe.command,
+                               directory: recipe.directory)
+        copy.words = recipe.words
+        copy.parameters = recipe.parameters
+        copy.systemImage = recipe.systemImage
+        copy.colorIndex = recipe.colorIndex
+        copy.group = recipe.group
+        copy.staysInFolder = recipe.staysInFolder
+        modelContext.insert(copy)
+        reorder(insert: copy, after: recipe)
+    }
+
+    private func delete(_ recipe: SavedRecipe) {
+        modelContext.delete(recipe)
+        try? modelContext.save()
+    }
+
+    private func move(_ id: String, before target: SavedRecipe) -> Bool {
+        guard let moved = saved.first(where: { $0.id.uuidString == id }), moved !== target else { return false }
+        var ordered = saved.filter { $0 !== moved }
+        ordered.insert(moved, at: ordered.firstIndex { $0 === target } ?? ordered.endIndex)
+        moved.group = target.group
+        for (position, recipe) in ordered.enumerated() { recipe.order = position }
+        try? modelContext.save()
+        return true
+    }
+
+    private func reorder(insert new: SavedRecipe, after previous: SavedRecipe) {
+        var ordered = saved.filter { $0 !== new }
+        ordered.insert(new, at: (ordered.firstIndex { $0 === previous } ?? ordered.endIndex - 1) + 1)
+        for (position, recipe) in ordered.enumerated() { recipe.order = position }
+        try? modelContext.save()
     }
 
     private func move(by offset: Int, count: Int) -> KeyPress.Result {
@@ -145,12 +250,16 @@ private struct RecipeRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Metrics.bubbleHorizontalPadding) {
-                Image(systemName: recipe.systemImage)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.tint)
-                    .frame(width: 28, height: 28)
-                    .background(.tint.quaternary, in: .rect(cornerRadius: 7))
-                    .accessibilityHidden(true)
+                if let tint = recipe.tint {
+                    RecipeTile(systemImage: recipe.systemImage, colorIndex: tint)
+                } else {
+                    Image(systemName: recipe.systemImage)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.tint)
+                        .frame(width: 28, height: 28)
+                        .background(.tint.quaternary, in: .rect(cornerRadius: 7))
+                        .accessibilityHidden(true)
+                }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(recipe.title)
                     Text(recipe.detail)

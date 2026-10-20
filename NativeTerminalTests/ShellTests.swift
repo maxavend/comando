@@ -73,3 +73,19 @@ struct CompletionProviderTests {
         #expect(suggestions.first?.kind == .history)
     }
 }
+
+struct ShellLanguageTests {
+    private let installed: Set<String> = ["es_ES.UTF-8", "es_MX.UTF-8", "en_US.UTF-8", "pt_BR.UTF-8"]
+
+    @Test func keepsAnInstalledRegion() {
+        #expect(ShellIntegration.language(for: "es", region: "MX", available: installed) == "es_MX.UTF-8")
+    }
+
+    /// There is no es_CL.UTF-8 on macOS: `cal` printed “setlocale: No such file or directory”.
+    @Test func fallsBackWhenTheRegionHasNoLocale() {
+        #expect(ShellIntegration.language(for: "es", region: "CL", available: installed) == "es_ES.UTF-8")
+        #expect(ShellIntegration.language(for: "pt", region: "PT", available: installed) == "pt_BR.UTF-8")
+        #expect(ShellIntegration.language(for: "xx", region: "YY", available: installed) == "en_US.UTF-8")
+        #expect(ShellIntegration.language(for: nil, region: nil, available: installed) == "en_US.UTF-8")
+    }
+}

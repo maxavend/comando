@@ -26,6 +26,9 @@ struct ChatView: View {
     /// scrolling changes it; resizes and new output keep the last state.
     @State private var isPinnedToBottom = true
     @State private var isAtBottom = true
+    #if DEBUG
+    @State private var savingRecipeFrom: CommandEntry?
+    #endif
 
     init(session: TerminalSession) {
         self.session = session
@@ -185,6 +188,10 @@ struct ChatView: View {
             isRenaming = true
         }
         .onDebugAction("#delete") { _ in isConfirmingDelete = true }
+        .onDebugAction("#saverecipe") { _ in savingRecipeFrom = entries.last { $0.kind == .command } }
+        .sheet(item: $savingRecipeFrom) { entry in
+            SavedRecipeEditor(command: entry.command, directory: entry.directory)
+        }
         #endif
         .navigationTitle(session.displayName)
         .navigationSubtitle(subtitle(for: directory))
@@ -235,29 +242,30 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private func toolbar(directory: String) -> some ToolbarContent {
-        // Keeps the middle of the bar free for the floating session header, and
-        // the buttons on the trailing side.
+        // Leading: where the session is (its folder and branch). Middle: kept
+        // free for the floating session header. Trailing: what to do.
+        ToolbarItem(placement: .navigation) {
+            FolderMenu(session: session, directory: directory)
+        }
+        if let gitInfo {
+            ToolbarItem(placement: .navigation) {
+                GitMenu(info: gitInfo, isBusy: controller.shells[session.id]?.isBusy ?? false) {
+                    controller.submit($0, in: session)
+                }
+            }
+        }
+
         ToolbarItem(placement: .principal) {
             Color.clear.frame(width: 160, height: 1)
                 .accessibilityHidden(true)
         }
         .sharedBackgroundVisibility(.hidden)
 
-        if let gitInfo {
-            ToolbarItem(placement: .primaryAction) {
-                GitMenu(info: gitInfo, isBusy: controller.shells[session.id]?.isBusy ?? false) {
-                    controller.submit($0, in: session)
-                }
-            }
-        }
         ToolbarItem(placement: .primaryAction) {
             Button("Recetas", systemImage: "wand.and.sparkles") {
                 controller.isShowingRecipes = true
             }
             .help("Buscar qué hacer (⌘K)")
-        }
-        ToolbarItem(placement: .primaryAction) {
-            FolderMenu(session: session, directory: directory)
         }
         ToolbarItem(placement: .primaryAction) {
             Menu("Más", systemImage: "ellipsis") {

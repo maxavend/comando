@@ -58,10 +58,25 @@ nonisolated enum ShellIntegration {
 
     private static var defaultLanguage: String {
         let locale = Locale.current
-        if let language = locale.language.languageCode?.identifier, let region = locale.region?.identifier {
-            return "\(language)_\(region).UTF-8"
+        return language(for: locale.language.languageCode?.identifier, region: locale.region?.identifier)
+    }
+
+    /// A `LANG` the system actually has. Many regions have no locale of their
+    /// own (there is no es_CL.UTF-8, and `cal` or `git` then complain), so it
+    /// falls back to the language's main region, then any region, then English.
+    static func language(for language: String?, region: String?,
+                         available: Set<String> = installedLocales) -> String {
+        guard let language else { return "en_US.UTF-8" }
+        let candidates = [region.map { "\(language)_\($0).UTF-8" }, "\(language)_\(language.uppercased()).UTF-8"]
+        if let match = candidates.compactMap({ $0 }).first(where: available.contains) {
+            return match
         }
-        return "en_US.UTF-8"
+        return available.filter { $0.hasPrefix("\(language)_") && $0.hasSuffix(".UTF-8") }.sorted().first
+            ?? "en_US.UTF-8"
+    }
+
+    private static var installedLocales: Set<String> {
+        Set((try? FileManager.default.contentsOfDirectory(atPath: "/usr/share/locale")) ?? [])
     }
 
     /// Each wrapper sources the user's file with `ZDOTDIR` pointing at the

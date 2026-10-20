@@ -7,10 +7,16 @@ struct FolderMenu: View {
     let directory: String
 
     var body: some View {
-        Menu("Carpeta", systemImage: "folder") {
+        // Names the folder, so the leading side of the bar says where you are.
+        Menu {
             FolderMenuItems(session: session, directory: directory)
+        } label: {
+            Label(FolderName.display(directory), systemImage: "folder")
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
         }
-        .help("Ir a otra carpeta")
+        .accessibilityLabel("Carpeta \(FolderName.display(directory))")
+        .help("En \(FolderName.breadcrumb(directory)). Ir a otra carpeta")
     }
 }
 

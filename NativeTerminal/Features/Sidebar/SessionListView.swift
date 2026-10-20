@@ -2,19 +2,26 @@ import SwiftUI
 
 struct SessionListView: View {
     let sessions: [TerminalSession]
+    /// While searching, only the sessions that match stay in the list.
+    @Binding var searchText: String
+    @Binding var searchSelection: Int
+    let onSearchSubmit: () -> Void
 
     @Environment(TerminalController.self) private var controller
     @State private var renaming: TerminalSession?
     @State private var newName = ""
     @State private var deleting: TerminalSession?
     @State private var customizing: TerminalSession?
+    /// Sessions with a command or output that matches the search.
+    @State private var matchingIDs: Set<UUID> = []
 
     var body: some View {
         @Bindable var controller = controller
         let shells = controller.shells
 
-        let pinned = sessions.filter(\.isPinned)
-        let others = sessions.filter { !$0.isPinned }
+        let shown = sessions.filter(matches)
+        let pinned = shown.filter(\.isPinned)
+        let others = shown.filter { !$0.isPinned }
 
         List(selection: $controller.selectedSessionID) {
             if pinned.isEmpty {
@@ -29,6 +36,22 @@ struct SessionListView: View {
             }
         }
         .listStyle(.sidebar)
+        .overlay {
+            if shown.isEmpty, !searchText.isEmpty {
+                Text("Ninguna sesión coincide")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        // At the top of the sidebar, like Messages; the scope is chosen above the results.
+        .safeAreaBar(edge: .top) {
+            SidebarSearchField(text: $searchText, selection: $searchSelection, onSubmit: onSearchSubmit)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 6)
+        }
+        .task(id: searchText) {
+            matchingIDs = Set(controller.search(searchText, in: nil).compactMap { $0.session?.id })
+        }
         .toolbar {
             ToolbarItem {
                 Button("Nueva sesión", systemImage: "square.and.pencil") {
@@ -56,6 +79,14 @@ struct SessionListView: View {
         } message: { _ in
             Text("Se cerrará su shell y se borrará su historial. Esta acción no se puede deshacer.")
         }
+    }
+
+    private func matches(_ session: TerminalSession) -> Bool {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+        return matchingIDs.contains(session.id)
+            || session.displayName.localizedStandardContains(query)
+            || FolderName.breadcrumb(session.directory).localizedStandardContains(query)
     }
 
     @ViewBuilder

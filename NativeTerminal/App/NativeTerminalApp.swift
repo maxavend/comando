@@ -50,7 +50,7 @@ struct NativeTerminalApp: App {
         #endif
         let configuration = ModelConfiguration(name)
         do {
-            return try ModelContainer(for: TerminalSession.self, CommandEntry.self, configurations: configuration)
+            return try ModelContainer(for: TerminalSession.self, CommandEntry.self, SavedRecipe.self, configurations: configuration)
         } catch {
             fatalError("No se pudo abrir la base de datos: \(error)")
         }
