@@ -17,6 +17,8 @@ final class TerminalSession {
     var unreadCount: Int = 0
     /// Folders visited in this session, most recent first.
     var recentDirectories: [String] = []
+    /// The folder the session was opened in; it stays when the shell moves.
+    var startDirectory: String?
     /// Pinned sessions stay at the top of the sidebar.
     var isPinned: Bool = false
     /// Archived sessions keep their history, without a shell, in their own
@@ -46,6 +48,7 @@ final class TerminalSession {
 
     init(directory: String) {
         self.directory = directory
+        self.startDirectory = directory
     }
 
     /// The avatar's symbol: the one chosen, or one that fits the folder.

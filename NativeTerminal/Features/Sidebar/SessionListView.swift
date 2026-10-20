@@ -16,6 +16,9 @@ struct SessionListView: View {
     /// Sessions with a command or output that matches the search.
     @State private var matchingIDs: Set<UUID> = []
     @AppStorage("showsArchivedSessions") private var showsArchived = false
+    @AppStorage(SessionGrouping.key) private var grouping = SessionGrouping.date
+    /// Folder groups the user folded, one path per line.
+    @AppStorage("collapsedSessionGroups") private var collapsedGroups = ""
 
     var body: some View {
         let shells = controller.shells
@@ -27,7 +30,21 @@ struct SessionListView: View {
         let archived = shown.filter(\.isArchived)
 
         List(selection: selection) {
-            if pinned.isEmpty {
+            if grouping == .folder {
+                if !pinned.isEmpty {
+                    Section("Fijadas") {
+                        rows(pinned, shells: shells)
+                    }
+                }
+                // Most recently used folder first, like the sessions inside it.
+                ForEach(folderGroups(others), id: \.folder) { group in
+                    Section(isExpanded: isExpanded(group.folder)) {
+                        rows(group.sessions, shells: shells)
+                    } header: {
+                        groupHeader(group.folder)
+                    }
+                }
+            } else if pinned.isEmpty {
                 rows(others, shells: shells)
             } else {
                 Section("Fijadas") {
@@ -102,6 +119,48 @@ struct SessionListView: View {
             get: { controller.selectedSessionIDs },
             set: { controller.selectInSidebar($0) }
         )
+    }
+
+    // MARK: - Folder groups
+
+    private func folderGroups(_ sessions: [TerminalSession]) -> [(folder: String, sessions: [TerminalSession])] {
+        var order: [String] = []
+        var members: [String: [TerminalSession]] = [:]
+        for session in sessions {
+            let folder = SessionGroup.folder(for: session)
+            if members[folder] == nil { order.append(folder) }
+            members[folder, default: []].append(session)
+        }
+        return order.map { ($0, members[$0] ?? []) }
+    }
+
+    private func isExpanded(_ folder: String) -> Binding<Bool> {
+        Binding(
+            get: { !searchText.isEmpty || !collapsedGroups.split(separator: "\n").contains(Substring(folder)) },
+            set: { expanded in
+                var folders = collapsedGroups.split(separator: "\n").map(String.init).filter { $0 != folder }
+                if !expanded { folders.append(folder) }
+                collapsedGroups = folders.joined(separator: "\n")
+            }
+        )
+    }
+
+    /// The folder's name, with a button for a new session there, like the
+    /// projects in a sidebar.
+    private func groupHeader(_ folder: String) -> some View {
+        HStack {
+            Label(FolderName.display(folder), systemImage: FolderName.systemImage(folder))
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+                .help(FolderName.breadcrumb(folder))
+            Spacer()
+            Button("Nueva sesión en \(FolderName.display(folder))", systemImage: "plus") {
+                controller.createSession(directory: folder)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .help("Nueva sesión en \(FolderName.display(folder))")
+        }
     }
 
     private func chosen(_ ids: Set<UUID>) -> [TerminalSession] {

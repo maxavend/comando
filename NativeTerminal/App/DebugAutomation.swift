@@ -75,6 +75,8 @@ enum DebugAutomation {
             controller.selectInSidebar(Set(ids))
         case "#archive":
             if let session = controller.selectedSession { controller.archive([session]) }
+        case "#grouping":
+            UserDefaults.standard.set(argument, forKey: SessionGrouping.key)
         case "#pin":
             controller.selectedSession?.isPinned = true
         case "#style":

@@ -4,6 +4,7 @@ struct AppCommands: Commands {
     let controller: TerminalController
 
     @Environment(\.openWindow) private var openWindow
+    @AppStorage(SessionGrouping.key) private var grouping = SessionGrouping.date
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -25,6 +26,15 @@ struct AppCommands: Commands {
                 controller.archive(sessions.filter { !$0.isArchived })
             }
             .keyboardShortcut("a", modifiers: [.command, .control])
+        }
+
+        // Like Finder's “Agrupar por”: the sidebar by date or by folder.
+        CommandGroup(before: .sidebar) {
+            Picker("Agrupar sesiones", selection: $grouping) {
+                Text("Por fecha").tag(SessionGrouping.date)
+                Text("Por carpeta").tag(SessionGrouping.folder)
+            }
+            Divider()
         }
 
         CommandGroup(replacing: .help) {
