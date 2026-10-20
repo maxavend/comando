@@ -26,7 +26,6 @@ struct ChatView: View {
     /// scrolling changes it; resizes and new output keep the last state.
     @State private var isPinnedToBottom = true
     @State private var isAtBottom = true
-    @State private var editingRecipe: SavedRecipe?
     #if DEBUG
     @State private var savingRecipeFrom: CommandEntry?
     #endif
@@ -215,9 +214,6 @@ struct ChatView: View {
             draft = request
             controller.draftRequest = nil
         }
-        .sheet(item: $editingRecipe) { recipe in
-            SavedRecipeEditor(editing: recipe)
-        }
         .fileImporter(isPresented: pickingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
                 controller.navigate(to: url.path(percentEncoded: false), in: session)
@@ -263,15 +259,6 @@ struct ChatView: View {
                 controller.isShowingRecipes = true
             }
             .help("Buscar qué hacer (⌘K)")
-            // A popover, like the system's: a click outside or Esc closes it.
-            .popover(isPresented: showingRecipes, arrowEdge: .bottom) {
-                RecipesView(
-                    directory: directory,
-                    onRun: { controller.submit($0, in: session) },
-                    onInsert: { draft = $0 },
-                    onEdit: { editingRecipe = $0 }
-                )
-            }
         }
         ToolbarItem(placement: .primaryAction) {
             Menu("Más", systemImage: "ellipsis") {
@@ -302,13 +289,6 @@ struct ChatView: View {
     private func subtitle(for directory: String) -> String {
         let breadcrumb = FolderName.breadcrumb(directory)
         return breadcrumb == session.displayName ? "" : breadcrumb
-    }
-
-    private var showingRecipes: Binding<Bool> {
-        Binding(
-            get: { controller.isShowingRecipes && controller.selectedSessionID == session.id },
-            set: { controller.isShowingRecipes = $0 }
-        )
     }
 
     private var pickingFolder: Binding<Bool> {

@@ -8,6 +8,7 @@ struct RootView: View {
     @State private var searchText = ""
     @State private var searchSelection = 0
     @State private var searchOpenRequest = 0
+    @State private var editingRecipe: SavedRecipe?
     #if DEBUG
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
@@ -52,6 +53,31 @@ struct RootView: View {
             }
         }
         .frame(minWidth: 680, minHeight: 440)
+        // ⌘K floats over the whole window, like Spotlight.
+        .overlay(alignment: .top) {
+            if controller.isShowingRecipes, let selected {
+                ZStack(alignment: .top) {
+                    // A click anywhere else closes it.
+                    Color.clear
+                        .contentShape(.rect)
+                        .ignoresSafeArea()
+                        .onTapGesture { controller.isShowingRecipes = false }
+                    RecipesView(
+                        directory: controller.shells[selected.id]?.directory ?? selected.directory,
+                        onRun: { controller.submit($0, in: selected) },
+                        onInsert: { controller.draftRequest = $0 },
+                        onEdit: { editingRecipe = $0 },
+                        onClose: { controller.isShowingRecipes = false }
+                    )
+                    .padding(.top, 64)
+                    .transition(.scale(scale: 0.97, anchor: .top).combined(with: .opacity))
+                }
+            }
+        }
+        .animation(.smooth(duration: 0.18), value: controller.isShowingRecipes)
+        .sheet(item: $editingRecipe) { recipe in
+            SavedRecipeEditor(editing: recipe)
+        }
 
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.markSelectedAsRead()

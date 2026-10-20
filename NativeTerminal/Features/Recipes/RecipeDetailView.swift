@@ -49,6 +49,7 @@ struct RecipeDetailView: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
             .scrollDisabled(true)
 
             Spacer(minLength: 0)

@@ -2,15 +2,16 @@ import SwiftData
 import SwiftUI
 
 /// ⌘K: find a task by describing it, then run it or write it in the composer.
-/// Shown in a popover from the toolbar: a click outside or Esc closes it.
+/// Floats over the window like Spotlight: a glass search capsule with the
+/// results in a glass panel under it. A click outside or Esc closes it.
 struct RecipesView: View {
     let directory: String
     let onRun: (String) -> Void
     let onInsert: (String) -> Void
     /// Edits one of “Mis recetas” (in a sheet over the chat, once this closes).
     let onEdit: (SavedRecipe) -> Void
+    let onClose: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedRecipe.order) private var saved: [SavedRecipe]
     @State private var query = ""
@@ -19,25 +20,62 @@ struct RecipesView: View {
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
-        Group {
-            if let chosen {
-                RecipeDetailView(
-                    recipe: chosen,
-                    directory: directory,
-                    onBack: { self.chosen = nil },
-                    onRun: finish(running:),
-                    onInsert: finish(inserting:)
-                )
-            } else {
-                list
+        let results = results
+        GlassEffectContainer(spacing: 12) {
+            VStack(spacing: 12) {
+                searchField(results)
+                Group {
+                    if let chosen {
+                        RecipeDetailView(
+                            recipe: chosen,
+                            directory: directory,
+                            onBack: { self.chosen = nil },
+                            onRun: finish(running:),
+                            onInsert: finish(inserting:)
+                        )
+                        .frame(height: 440)
+                    } else {
+                        list(results)
+                    }
+                }
+                .glassEffect(.regular, in: .rect(cornerRadius: 26, style: .continuous))
             }
         }
-        .frame(width: 620, height: 520)
+        .frame(width: 640)
+        .onAppear { isSearchFocused = true }
         #if DEBUG
         .onDebugAction("#query") { query = $0 }
         .onDebugAction("#choose") { _ in choose(at: selection, in: results) }
-        .onDebugAction("#close") { _ in dismiss() }
+        .onDebugAction("#close") { _ in onClose() }
         #endif
+    }
+
+    /// The search capsule, like Spotlight's.
+    private func searchField(_ results: [Recipe]) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField("Busca qué hacer: comprimir, espacio, puerto…", text: $query)
+                .textFieldStyle(.plain)
+                .font(.title2)
+                .focused($isSearchFocused)
+                .onSubmit { choose(at: selection, in: results) }
+                .onKeyPress(.downArrow) { move(by: 1, count: results.count) }
+                .onKeyPress(.upArrow) { move(by: -1, count: results.count) }
+                .onChange(of: query) {
+                    selection = 0
+                    chosen = nil
+                }
+                // Esc steps back from a recipe's options, then closes.
+                .onExitCommand {
+                    if chosen != nil { chosen = nil } else { onClose() }
+                }
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 54)
+        .glassEffect(.regular, in: .capsule)
     }
 
     /// The user's own recipes first, then the built-in ones.
@@ -64,28 +102,11 @@ struct RecipesView: View {
         saved.first { "saved-\($0.id.uuidString)" == recipe.id }
     }
 
-    private var list: some View {
-        let results = results
-        return VStack(spacing: 0) {
-            HStack(spacing: Metrics.composerSpacing) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                TextField("¿Qué quieres hacer? Por ejemplo: comprimir, espacio, puerto", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.title3)
-                    .focused($isSearchFocused)
-                    .onSubmit { choose(at: selection, in: results) }
-                    .onKeyPress(.downArrow) { move(by: 1, count: results.count) }
-                    .onKeyPress(.upArrow) { move(by: -1, count: results.count) }
-                    .onChange(of: query) { selection = 0 }
-            }
-            .padding(Metrics.contentInset)
-
-            Divider()
-
+    private func list(_ results: [Recipe]) -> some View {
+        VStack(spacing: 0) {
             if results.isEmpty {
                 ContentUnavailableView.search(text: query)
+                    .frame(height: 220)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -116,9 +137,10 @@ struct RecipesView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, Metrics.contentInset - Metrics.bubbleHorizontalPadding)
-                        .padding(.bottom, Metrics.transcriptVerticalInset)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                     }
+                    .frame(height: 440)
                     .onChange(of: selection) { _, index in
                         if results.indices.contains(index) {
                             proxy.scrollTo(results[index].id, anchor: .center)
@@ -127,16 +149,7 @@ struct RecipesView: View {
                 }
             }
 
-            Divider()
-
-            Text("↩ elegir · ↑↓ moverte · esc cerrar")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Metrics.contentInset)
-                .padding(.vertical, Metrics.bubbleHorizontalPadding)
         }
-        .onAppear { isSearchFocused = true }
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -159,7 +172,7 @@ struct RecipesView: View {
         .contextMenu {
             if let item {
                 Button("Editar…", systemImage: "pencil") {
-                    dismiss()
+                    onClose()
                     onEdit(item)
                 }
                 Button("Duplicar", systemImage: "plus.square.on.square") { duplicate(item) }
@@ -228,12 +241,12 @@ struct RecipesView: View {
     }
 
     private func finish(running command: String) {
-        dismiss()
+        onClose()
         onRun(command)
     }
 
     private func finish(inserting command: String) {
-        dismiss()
+        onClose()
         onInsert(command)
     }
 }
