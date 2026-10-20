@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.5 (20 de octubre de 2026)
+
+- Buscador en la barra lateral, en vidrio como el de Mensajes (⌘F). Los resultados vienen por secciones: sesiones, comandos, la línea exacta de una salida, carpetas, tus recetas y las recetas incluidas. Se recorren con ↑ ↓ y se abren con ↩, y al final siempre está “Preguntar a Comando”.
+- Mis recetas: clic derecho en un comando del chat › Guardar como receta. Le pones nombre, símbolo y color, eliges qué partes se preguntan al usarla, su grupo y si corre siempre en su carpeta. Aparecen arriba en ⌘K y en la búsqueda, con editar, duplicar, eliminar y arrastrar para ordenar.
+- Seleccionar varias sesiones con ⌘-clic o ⇧-clic para archivarlas o eliminarlas juntas. Las archivadas quedan abajo, con su historial; escribir en una la trae de vuelta. ⌃⌘A archiva.
+- Visualización › Agrupar sesiones › Por carpeta: por repositorio o por la carpeta donde se abrió cada sesión.
+- El encabezado ordena por jerarquía: la carpeta y la rama a la izquierda, las acciones a la derecha. El avatar ya no crece al pasar el mouse.
+- `cal` y otros programas ya no fallan con “setlocale”: la shell usa un idioma instalado en el Mac.
+
 ## 1.4.4 (19 de octubre de 2026)
 
 - El editor de la sesión permite elegir un SF Symbol para el avatar, además de un emoji; el primero es el automático según la carpeta.
