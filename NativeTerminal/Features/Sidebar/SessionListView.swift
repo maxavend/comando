@@ -29,6 +29,12 @@ struct SessionListView: View {
         let others = active.filter { !$0.isPinned }
         let archived = shown.filter(\.isArchived)
 
+        // The search field sits above the list, like in Messages: no bar
+        // around it, so no line or shade under it on scroll or hover.
+        VStack(spacing: 0) {
+        SidebarSearchField(text: $searchText, selection: $searchSelection, onSubmit: onSearchSubmit)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 6)
         List(selection: selection) {
             if !pinned.isEmpty {
                 Section("Fijadas") {
@@ -82,12 +88,6 @@ struct SessionListView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        // At the top of the sidebar, like Messages; the scope is chosen above the results.
-        .safeAreaBar(edge: .top) {
-            SidebarSearchField(text: $searchText, selection: $searchSelection, onSubmit: onSearchSubmit)
-                .padding(.horizontal, 10)
-                .padding(.bottom, 6)
-        }
         .task(id: searchText) {
             matchingIDs = Set(controller.search(searchText, in: nil).compactMap { $0.session?.id })
         }
@@ -112,6 +112,7 @@ struct SessionListView: View {
             SessionAppearanceEditor(session: session) { controller.save() }
         }
         .sessionDeleteConfirmation($deleting)
+        }
     }
 
     /// The sidebar selection: one session opens its chat, several show what
