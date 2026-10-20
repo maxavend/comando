@@ -4,9 +4,10 @@
 
 - Buscador en la barra lateral, en vidrio como el de Mensajes (⌘F). Los resultados vienen por secciones: sesiones, comandos, la línea exacta de una salida, carpetas, tus recetas y las recetas incluidas. Se recorren con ↑ ↓ y se abren con ↩, y al final siempre está “Preguntar a Comando”.
 - Mis recetas: clic derecho en un comando del chat › Guardar como receta. Le pones nombre, símbolo y color, eliges qué partes se preguntan al usarla, su grupo y si corre siempre en su carpeta. Aparecen arriba en ⌘K y en la búsqueda, con editar, duplicar, eliminar y arrastrar para ordenar.
+- ⌘K se abre como Spotlight: una cápsula de búsqueda y el panel de resultados en vidrio, sobre la ventana oscurecida. Un clic fuera o Esc lo cierran.
 - Seleccionar varias sesiones con ⌘-clic o ⇧-clic para archivarlas o eliminarlas juntas. Las archivadas quedan abajo, con su historial; escribir en una la trae de vuelta. ⌃⌘A archiva.
 - Carpetas en la barra lateral: agrega las que usas (con el botón o arrastrándolas desde Finder) y cada una agrupa sus sesiones, se pliega con un chevron y tiene un + para abrir una terminal ahí.
-- La barra lateral tiene las medidas de Mensajes: avatares más grandes, punto azul de no leído, dos líneas de vista previa y separadores finos.
+- La barra lateral tiene las medidas de Mensajes: avatares más grandes, punto azul de no leído, hasta dos líneas de vista previa y separadores finos.
 - El encabezado ordena por jerarquía: la carpeta y la rama a la izquierda, las acciones a la derecha. El avatar ya no crece al pasar el mouse.
 - `cal` y otros programas ya no fallan con “setlocale”: la shell usa un idioma instalado en el Mac.
 
