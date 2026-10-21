@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.6 (21 de octubre de 2026)
+
+- La fila de cada sesión es más limpia, como en Mensajes: el punto verde del avatar dice que algo corre, la segunda línea muestra solo el comando y la hora está siempre. Ya no hay botón de detener ni punto de no leído.
+- Las salidas largas, mientras corren o ya terminadas, se pliegan a sus últimas 10 filas, también cuando son pocas líneas muy largas. “Ver más” las abre con un resorte, sin saltos, y “Ver todo” abre la salida completa.
+- El clic derecho en un comando del chat vuelve a mostrar su menú, con Copiar comando y Guardar como receta. Antes aparecía el menú de texto de macOS.
+- Menos controles repetidos: “Estás en…” en el chat es solo texto (la carpeta se cambia con el botón de arriba), el nombre se edita en Personalizar, el menú + solo inserta rutas y Recetas se abre con la varita o ⌘K.
+- Más aire bajo los títulos de la barra lateral.
+
 ## 1.5 (20 de octubre de 2026)
 
 - Buscador en la barra lateral, en vidrio como el de Mensajes (⌘F). Los resultados vienen por secciones: sesiones, comandos, la línea exacta de una salida, carpetas, tus recetas y las recetas incluidas. Se recorren con ↑ ↓ y se abren con ↩, y al final siempre está “Preguntar a Comando”.
