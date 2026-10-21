@@ -16,6 +16,10 @@ enum DebugAutomation {
 
     static var storeName: String? { environment["NATIVETERM_STORE"] }
 
+    /// `NATIVETERM_SLOWMO`: how many times slower animations run, to see
+    /// every frame of one in window captures.
+    static var slowMotion: Double { environment["NATIVETERM_SLOWMO"].flatMap(Double.init) ?? 1 }
+
     static func start(controller: TerminalController) {
         if let appearance = environment["NATIVETERM_APPEARANCE"] {
             setAppearance(appearance)
@@ -96,7 +100,7 @@ enum DebugAutomation {
         case "#welcome":
             controller.isShowingWelcome = true
             try? await Task.sleep(for: .seconds(1))
-        case "#type", "#submit", "#editappearance", "#saverecipe", "#recipeword", "#recipetitle", "#recipesave", "#delete", "#search", "#scope", "#showall", "#tab", "#next", "#query", "#choose", "#attach", "#tools", "#toolsection", "#toolselect":
+        case "#type", "#submit", "#editappearance", "#saverecipe", "#recipeword", "#recipetitle", "#recipesave", "#delete", "#search", "#scope", "#showall", "#fold", "#scrolltop", "#tab", "#next", "#query", "#choose", "#attach", "#tools", "#toolsection", "#toolselect":
             var object = argument
             if action == "#showall" { object = lastEntryID(controller)?.uuidString ?? "" }
             NotificationCenter.default.post(name: .debugAction, object: "\(action) \(object)")
@@ -157,6 +161,9 @@ enum DebugAutomation {
                     frame.origin = CGPoint(x: visible.midX - frame.width / 2, y: visible.midY - frame.height / 2)
                 }
                 window.setFrame(frame, display: true)
+                // NATIVETERM_FLOAT keeps the window above others: hidden, it
+                // stops updating and the script stalls.
+                if environment["NATIVETERM_FLOAT"] != nil { window.level = .floating }
             }
             try? await Task.sleep(for: .milliseconds(500))
         default:

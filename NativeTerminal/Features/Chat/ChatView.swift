@@ -14,6 +14,7 @@ struct ChatView: View {
     @State private var isConfirmingDelete = false
     @State private var highlightedEntryID: UUID?
     @State private var lastWidth: CGFloat = 800
+    @State private var transcriptHeight: CGFloat = 600
     /// Width of the transcript content; less than the view when a scroller takes space.
     @State private var contentWidth: CGFloat = 800
     @State private var position = ScrollPosition(edge: .bottom)
@@ -103,6 +104,7 @@ struct ChatView: View {
                     .id(entry.id)
                 }
             }
+            .environment(\.transcriptHeight, transcriptHeight)
             .padding(.horizontal, Metrics.contentInset)
             // Clear of the floating header's name, which hangs below the bar.
             .padding(.top, Metrics.transcriptVerticalInset + SessionHeader.overhang)
@@ -140,6 +142,12 @@ struct ChatView: View {
                 isPinnedToBottom = isAtBottom
             }
         }
+        #if DEBUG
+        .onDebugAction("#scrolltop") { _ in
+            isPinnedToBottom = false
+            position.scrollTo(edge: .top)
+        }
+        #endif
         .onChange(of: entries.last?.id) {
             // Jump without animating: an animated scroll slides the new bubble
             // underneath the composer's glass, which reads as a flicker.
@@ -151,6 +159,7 @@ struct ChatView: View {
         }
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
             lastWidth = size.width
+            transcriptHeight = size.height
             followOutput()
         }
         .onChange(of: fontSize) {
@@ -336,7 +345,12 @@ struct ChatView: View {
     /// Keeps the newest output in view while the transcript is pinned to the bottom.
     private func followOutput() {
         guard isPinnedToBottom else { return }
-        position.scrollTo(edge: .bottom)
+        // Never animated, even inside an animation that changed the content
+        // (an output unfolding): an animated scroll lags the content and the
+        // transcript flashes empty.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { position.scrollTo(edge: .bottom) }
     }
 
     private func reveal(_ entryID: UUID?) async {
@@ -350,4 +364,10 @@ struct ChatView: View {
         try? await Task.sleep(for: .seconds(2))
         withAnimation(.smooth) { highlightedEntryID = nil }
     }
+}
+
+extension EnvironmentValues {
+    /// How tall the transcript is on screen: as far as an unfolding output
+    /// needs to animate.
+    @Entry var transcriptHeight: CGFloat = 600
 }

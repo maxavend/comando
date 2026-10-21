@@ -11,9 +11,14 @@ struct OutputBubble: View {
     var onShowAll: (() -> Void)?
 
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
+    @Environment(\.transcriptHeight) private var transcriptHeight
     @State private var isHovering = false
-    @State private var isExpanded = false
     @State private var textHeight: CGFloat = 0
+    /// 0 folded, 1 open as far as the eye can see; animated.
+    @State private var openness: CGFloat = 0
+    /// Open all the way, past what fits on screen.
+    @State private var isFullyOpen = false
+    @State private var foldGeneration = 0
 
     /// Long output folds to the height of its last rows, which is usually
     /// where the result or the error is, and which follow along while it runs.
@@ -23,42 +28,42 @@ struct OutputBubble: View {
 
     var body: some View {
         let lineHeight = Metrics.singleLineBubbleHeight(fontSize: fontSize, monospaced: monospaced) - Metrics.bubbleVerticalPadding * 2
-        let foldedHeight = lineHeight * CGFloat(Self.foldedRows)
-        // Past the threshold only the last lines are laid out, which is cheap
-        // and still taller than the fold.
-        let hasManyLines = (lineCount ?? 0) > Self.foldThreshold
-        let isFoldable = lineCount != nil && (hasManyLines || textHeight > lineHeight * CGFloat(Self.foldThreshold) * 0.7)
-        let isFolded = isFoldable && !isExpanded
+        let isFoldable = lineCount != nil
+            && ((lineCount ?? 0) > Self.foldThreshold || textHeight > lineHeight * CGFloat(Self.foldThreshold) * 0.7)
+        let folded = min(textHeight, lineHeight * CGFloat(Self.foldedRows))
+        let fold = Fold(
+            isActive: isFoldable && textHeight > 0,
+            folded: folded,
+            open: textHeight,
+            // What moves on screen: at most the transcript's height. The rest
+            // of a long output is added (or removed) at once, out of view.
+            onScreen: min(textHeight, max(folded, transcriptHeight)),
+            isFullyOpen: isFullyOpen,
+            openness: openness
+        )
         let firstLineCenter = Metrics.singleLineBubbleHeight(fontSize: fontSize, monospaced: monospaced) / 2
         let gap = Metrics.replySpacing
         TextWithFooter(spacing: Metrics.bubbleVerticalPadding) {
-            LinkAwareText(content: isFolded && hasManyLines ? output.lastLines(Self.foldedRows) : output)
+            LinkAwareText(content: output)
                 .font(.system(size: fontSize, design: monospaced ? .monospaced : .default))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { textHeight = $0 }
-                .frame(height: isFolded ? min(textHeight, foldedHeight) : nil, alignment: .bottom)
-                .clipped()
-                // The rows above the fold fade out instead of being cut.
-                .mask {
-                    LinearGradient(stops: [.init(color: isFolded && textHeight > foldedHeight + 1 ? .clear : .black, location: 0),
-                                           .init(color: .black, location: isFolded ? 0.25 : 0)],
-                                   startPoint: .top, endPoint: .bottom)
-                }
+                .modifier(FoldWindow(fold: fold))
             if isFoldable {
                 // One link: unfold here; when even that is cut short, the
                 // whole output opens in a window.
                 HStack(spacing: Metrics.bubbleHorizontalPadding) {
-                    if !isFolded, let onShowAll {
+                    if openness > 0, let onShowAll {
                         Button("Ver todo", action: onShowAll)
                     }
-                    Button(isFolded ? "Ver más" : "Ver menos") {
-                        withAnimation(.smooth(duration: 0.2)) { isExpanded.toggle() }
-                    }
+                    Button(openness > 0 ? "Ver menos" : "Ver más", action: toggle)
                 }
                 .buttonStyle(.link)
                 .pointerStyle(.link)
                 .foregroundStyle(.tint)
+                // The links change at once; only the bubble moves.
+                .transaction { $0.animation = nil }
             }
         }
         .bubble(.reply)
@@ -70,9 +75,73 @@ struct OutputBubble: View {
                 .opacity(isHovering ? 1 : 0)
         }
         .onHover { isHovering = $0 }
+        #if DEBUG
+        .onDebugAction("#fold") { _ in toggle() }
+        #endif
         .modifier(OutputWidth(isColumns: monospaced))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Salida")
+    }
+
+    /// A spring, like a disclosure in Apple's apps, over the stretch you can
+    /// see: opening, the rows above the fold come down into view (at the
+    /// bottom of the transcript, what's above moves up with them) and the
+    /// rest is added out of sight; closing does the reverse.
+    private func toggle() {
+        foldGeneration += 1
+        let generation = foldGeneration
+        var duration = 0.45
+        #if DEBUG
+        duration *= DebugAutomation.slowMotion
+        #endif
+        if openness == 0 {
+            withAnimation(.smooth(duration: duration)) { openness = 1 } completion: {
+                if generation == foldGeneration { isFullyOpen = true }
+            }
+        } else {
+            isFullyOpen = false
+            withAnimation(.smooth(duration: duration)) { openness = 0 }
+        }
+    }
+}
+
+/// How a long output is folded right now.
+private struct Fold {
+    var isActive: Bool
+    var folded: CGFloat
+    var open: CGFloat
+    var onScreen: CGFloat
+    var isFullyOpen: Bool
+    var openness: CGFloat
+
+    var visible: CGFloat { isFullyOpen ? open : folded + (onScreen - folded) * openness }
+}
+
+/// The window over the text: its last rows, growing upward as it opens, with
+/// the rows above the fold fading out while it's closed. Animatable, so the
+/// transcript lays it out on every frame and keeps up with it.
+private struct FoldWindow: ViewModifier, Animatable {
+    var fold: Fold
+
+    var animatableData: CGFloat {
+        get { fold.openness }
+        set { fold.openness = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        if fold.isActive {
+            let fade = fold.open > fold.folded + 1 ? 1 - fold.openness : 0
+            content
+                .frame(height: fold.visible, alignment: .bottom)
+                .clipped()
+                .mask {
+                    LinearGradient(stops: [.init(color: .black.opacity(1 - fade), location: 0),
+                                           .init(color: .black, location: 0.25 * fade)],
+                                   startPoint: .top, endPoint: .bottom)
+                }
+        } else {
+            content
+        }
     }
 }
 
