@@ -9,8 +9,6 @@ struct SessionListView: View {
     let onSearchSubmit: () -> Void
 
     @Environment(TerminalController.self) private var controller
-    @State private var renaming: TerminalSession?
-    @State private var newName = ""
     /// Sessions waiting for the delete confirmation.
     @State private var deleting: [TerminalSession] = []
     @State private var customizing: TerminalSession?
@@ -51,6 +49,7 @@ struct SessionListView: View {
                     rows(pinned, shells: shells)
                 } header: {
                     SidebarHeading("Fijadas")
+                        .padding(.bottom, Metrics.sidebarHeadingSpacing)
                 }
             }
             // The folders the user added, each with its sessions, like
@@ -84,6 +83,7 @@ struct SessionListView: View {
                     rows(loose, shells: shells)
                 } header: {
                     SidebarHeading("Sesiones")
+                        .padding(.bottom, Metrics.sidebarHeadingSpacing)
                 }
             }
             if !archived.isEmpty {
@@ -98,6 +98,7 @@ struct SessionListView: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.bottom, Metrics.sidebarHeadingSpacing)
                 }
             }
         }
@@ -141,15 +142,6 @@ struct SessionListView: View {
                 }
                 .help("Nueva sesión (⌘T)")
             }
-        }
-        .alert("Renombrar sesión", item: $renaming) { session in
-            TextField("Nombre", text: $newName)
-            Button("Renombrar") {
-                controller.rename(session, to: newName)
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: { _ in
-            Text("Déjalo vacío para usar el nombre de la carpeta.")
         }
         .sheet(item: $customizing) { session in
             SessionAppearanceEditor(session: session) { controller.save() }
@@ -250,12 +242,9 @@ struct SessionListView: View {
                 controller.save()
             }
         }
+        // Name, symbol and color in one place.
         Button("Personalizar…", systemImage: "face.smiling") {
             customizing = session
-        }
-        Button("Renombrar…", systemImage: "pencil") {
-            newName = session.customName ?? ""
-            renaming = session
         }
         Button("Nueva sesión en esta carpeta", systemImage: "plus.square.on.square") {
             controller.createSession(directory: controller.shells[session.id]?.directory ?? session.directory)

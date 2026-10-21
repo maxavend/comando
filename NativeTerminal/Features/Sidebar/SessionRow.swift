@@ -21,13 +21,6 @@ struct SessionRow: View {
     var body: some View {
         let live = shell?.live
         HStack(spacing: 0) {
-            // Like Messages: unread is a blue dot in the margin, not a number.
-            Circle()
-                .fill(.blue)
-                .frame(width: Metrics.unreadDotSize, height: Metrics.unreadDotSize)
-                .opacity(session.unreadCount > 0 ? 1 : 0)
-                .frame(width: Metrics.unreadGutter, alignment: .leading)
-                .accessibilityHidden(true)
             SessionAvatar(isRunning: isOnline, emoji: session.emoji, colorIndex: session.colorIndex,
                           symbol: session.avatarSymbol(for: session.directory))
                 .padding(.trailing, Metrics.sidebarRowSpacing)
@@ -37,42 +30,32 @@ struct SessionRow: View {
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
                     Spacer(minLength: 4)
-                    // Both trailing items use the callout size, so the row never changes shape.
-                    if isRunning {
-                        Button("Detener", systemImage: "stop.circle.fill", action: stop)
-                            .labelStyle(.iconOnly)
-                            .buttonStyle(.borderless)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .help("Detener el comando")
+                    Text(Self.timestamp(for: session.lastActivity))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                // Running is said once, by the avatar's dot: this line shows only what runs.
+                Group {
+                    if let live {
+                        Text(Self.activity(live))
+                            .lineLimit(1)
                     } else {
-                        Text(Self.timestamp(for: session.lastActivity))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                        lastLine
+                            .lineLimit(2)
                     }
                 }
-                if let live {
-                    ActivityLine(live: live)
-                } else {
-                    lastLine
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
+                .font(.body)
+                .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, Metrics.sidebarRowVerticalPadding)
         // The separator starts under the text, not under the avatar.
         .alignmentGuide(.listRowSeparatorLeading) { _ in
-            Metrics.unreadGutter + Metrics.avatarSize + Metrics.sidebarRowSpacing
+            Metrics.avatarSize + Metrics.sidebarRowSpacing
         }
         .help(FolderName.breadcrumb(session.directory))
         .accessibilityElement(children: .combine)
-        .accessibilityValue(isRunning ? Text("En ejecución") : session.unreadCount > 0 ? Text("Sin leer") : Text(""))
-    }
-
-    private func stop() {
-        shell?.interrupt()
+        .accessibilityValue(isRunning ? Text("En ejecución") : Text(""))
     }
 
     /// Messages-style timestamps: time today, “Ayer”, then the date.
@@ -89,31 +72,13 @@ struct SessionRow: View {
         }
         return date.formatted(date: .numeric, time: .omitted)
     }
-}
 
-/// What a running session is doing, in place of its last command.
-private struct ActivityLine: View {
-    let live: LiveOutput
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Circle()
-                .fill(.green)
-                .frame(width: 6, height: 6)
-                .accessibilityHidden(true)
-            Text(activity)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
-        .font(.body)
-        .foregroundStyle(.secondary)
-    }
-
-    private var activity: String {
+    /// What a running session is doing, in place of its last command: the
+    /// address it serves, or the command itself.
+    static func activity(_ live: LiveOutput) -> String {
         if let url = live.localURL, let host = url.host {
-            let port = url.port.map { ":\($0)" } ?? ""
-            return String(localized: "Activo · \(host)\(port)")
+            return host + (url.port.map { ":\($0)" } ?? "")
         }
-        return String(localized: "Ejecutando: \(live.command)")
+        return live.command
     }
 }

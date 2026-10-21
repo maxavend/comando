@@ -101,16 +101,15 @@ final class FeatureUITests: XCTestCase {
 
     // MARK: - 7. Salidas largas
 
-    func testFoldAndSearch() {
-        run("seq 1 80", wait: 2)
-        let expand = app.buttons["Mostrar 70 líneas anteriores"]
+    func testFoldAndShowAll() {
+        run("seq 1 400", wait: 2)
+        let expand = app.buttons["Ver más"]
         XCTAssertTrue(expand.waitForExistence(timeout: 3), "La salida larga no se plegó")
         expand.click()
-        XCTAssertTrue(app.buttons["Mostrar menos"].waitForExistence(timeout: 2), "No se desplegó la salida")
-        app.buttons["Buscar…"].firstMatch.click()
-        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 3) || app.textFields["Buscar"].exists,
-                      "La hoja no abrió con la barra de búsqueda")
-        attach("buscar-en-salida")
+        XCTAssertTrue(app.buttons["Ver menos"].waitForExistence(timeout: 2), "No se desplegó la salida")
+        app.buttons["Ver todo"].firstMatch.click()
+        XCTAssertTrue(app.buttons["Listo"].firstMatch.waitForExistence(timeout: 3), "No se abrió la salida completa")
+        attach("ver-toda-la-salida")
         app.buttons["Listo"].firstMatch.click()
     }
 

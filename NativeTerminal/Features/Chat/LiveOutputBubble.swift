@@ -15,14 +15,18 @@ struct LiveOutputBubble: View {
                 // The progress line becomes a native bar; the rest stays as text.
                 let rest = Self.rendered(Array(lines[..<progressLine]))
                 if !rest.isEmpty {
-                    OutputBubble(output: OutputLinker.linkifyURLs(rest.preview), plainText: rest.plainText, monospaced: rest.isTabular)
+                    bubble(rest)
                 }
                 ProgressBubble(progress: progress)
             } else {
-                let rendered = Self.rendered(lines)
-                OutputBubble(output: OutputLinker.linkifyURLs(rendered.preview), plainText: rendered.plainText, monospaced: rendered.isTabular)
+                bubble(Self.rendered(lines))
             }
         }
+    }
+
+    private func bubble(_ rendered: RenderedOutput) -> some View {
+        OutputBubble(output: OutputLinker.linkifyURLs(rendered.preview), plainText: rendered.plainText,
+                     monospaced: rendered.isTabular, lineCount: rendered.previewLines)
     }
 
     private static func rendered(_ lines: [[Cell]]) -> RenderedOutput {

@@ -5,7 +5,6 @@ struct EmptyChatView: View {
     let directory: String
     let onRun: (String) -> Void
     let onPickFolder: () -> Void
-    let onShowRecipes: () -> Void
 
     var body: some View {
         VStack(spacing: Metrics.exchangeSpacing) {
@@ -15,7 +14,7 @@ struct EmptyChatView: View {
                 Text("¿Qué quieres hacer?")
                     .font(.title3.bold())
                 Label {
-                    Text("Estás en \(Text(FolderName.display(directory)).bold()). Escribe un comando abajo o prueba una de estas opciones.")
+                    Text("Estás en \(Text(FolderName.phrase(directory)).bold()). Escribe un comando abajo o prueba una de estas opciones.")
                 } icon: {
                     Image(systemName: FolderName.systemImage(directory))
                 }
@@ -42,11 +41,6 @@ struct EmptyChatView: View {
                 }
             }
             .frame(maxWidth: 480)
-
-            Button("Ver más ideas en Recetas (⌘K)", systemImage: "wand.and.sparkles", action: onShowRecipes)
-                .buttonStyle(.link)
-                .pointerStyle(.link)
-                .foregroundStyle(.tint)
         }
         .padding(Metrics.contentInset)
     }

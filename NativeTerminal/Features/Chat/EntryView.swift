@@ -19,8 +19,7 @@ struct EntryView: View {
             if showsTimestamp || showsDirectory {
                 ExchangeHeader(
                     date: showsTimestamp ? entry.startedAt : nil,
-                    directory: showsDirectory ? entry.directory : nil,
-                    session: entry.session
+                    directory: showsDirectory ? entry.directory : nil
                 )
             }
             if entry.kind == .assistant {
@@ -75,7 +74,7 @@ struct EntryView: View {
         } else {
             FinishedResponseView(entry: entry, onRerun: rerun, onEdit: onEdit, onOpenFolder: openFolder)
             if let folder = entry.movedTo {
-                LocationNotice(folder: folder, session: entry.session)
+                LocationNotice(folder: folder)
             }
         }
     }

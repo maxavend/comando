@@ -4,10 +4,9 @@ import SwiftUI
 /// notices Messages shows between bubbles.
 struct LocationNotice: View {
     let folder: String
-    var session: TerminalSession?
 
     var body: some View {
-        FolderNotice(folder: folder, session: session, isChange: true)
+        FolderNotice(folder: folder, isChange: true)
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)

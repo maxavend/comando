@@ -244,24 +244,15 @@ struct ComposerView: View {
     }
 
     private var actionsMenu: some View {
+        // Only what has no other place: recipes, stopping and the rest live
+        // in the toolbar, the red button and the menu bar.
         Menu {
-            Button("Recetas…", systemImage: "wand.and.sparkles") {
-                controller.isShowingRecipes = true
-            }
-            Divider()
             Button("Insertar ruta de archivo…", systemImage: "doc.badge.plus") {
                 isImporting = true
             }
             Button("Insertar carpeta actual", systemImage: "folder") {
                 text += (text.isEmpty || text.hasSuffix(" ") ? "" : " ") + ShellEscape.path(URL(filePath: directory))
             }
-            Divider()
-            Button("Detener comando", systemImage: "stop") { shell?.interrupt() }
-                .disabled(!isRunning)
-            Button("Enviar fin de entrada (EOF)", systemImage: "eject") { shell?.sendEOF() }
-                .disabled(!isRunning)
-            Button("Abrir como terminal", systemImage: "macwindow") { shell?.openInTerminal() }
-                .disabled(phase != .running)
         } label: {
             Label("Acciones", systemImage: "plus")
         }

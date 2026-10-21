@@ -21,24 +21,17 @@ struct FolderMenu: View {
 }
 
 /// Where the session can go: up, the usual places, recent folders, any
-/// folder, or the folder in Finder. `shown` is a folder the chat names (an
-/// earlier exchange's), offered first when the shell has moved on.
+/// folder, or the folder in Finder.
 struct FolderMenuItems: View {
     let session: TerminalSession
     let directory: String
-    var shown: String?
 
     @Environment(TerminalController.self) private var controller
 
     var body: some View {
         let isBusy = controller.shells[session.id]?.isBusy ?? false
-        let folder = shown ?? directory
-        Section(FolderName.breadcrumb(folder)) {
-            if folder != directory {
-                Button("Volver a \(FolderName.display(folder))", systemImage: "arrow.uturn.backward") { go(to: folder) }
-                    .disabled(isBusy)
-            }
-            Button("Mostrar en Finder", systemImage: "macwindow") { showInFinder(folder) }
+        Section(FolderName.breadcrumb(directory)) {
+            Button("Mostrar en Finder", systemImage: "macwindow") { showInFinder(directory) }
             Button("Subir un nivel", systemImage: "arrow.up", action: goUp)
                 .disabled(isBusy || directory == "/")
         }
@@ -48,7 +41,7 @@ struct FolderMenuItems: View {
                     .disabled(isBusy || place == directory)
             }
         }
-        let recents = session.recentDirectories.filter { $0 != directory && $0 != folder && !FolderPlaces.standard.contains($0) }
+        let recents = session.recentDirectories.filter { $0 != directory && !FolderPlaces.standard.contains($0) }
         if !recents.isEmpty {
             Section("Recientes") {
                 ForEach(recents.prefix(5), id: \.self) { recent in

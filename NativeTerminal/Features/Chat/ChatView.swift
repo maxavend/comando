@@ -11,8 +11,6 @@ struct ChatView: View {
     @Query private var entries: [CommandEntry]
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @State private var draft = ""
-    @State private var isRenaming = false
-    @State private var newName = ""
     @State private var isConfirmingDelete = false
     @State private var highlightedEntryID: UUID?
     @State private var lastWidth: CGFloat = 800
@@ -119,8 +117,7 @@ struct ChatView: View {
                 EmptyChatView(
                     directory: directory,
                     onRun: { controller.submit($0, in: session) },
-                    onPickFolder: { controller.isPickingFolder = true },
-                    onShowRecipes: { controller.isShowingRecipes = true }
+                    onPickFolder: { controller.isPickingFolder = true }
                 )
             }
         }
@@ -183,10 +180,6 @@ struct ChatView: View {
         #if DEBUG
         .onDebugAction("#type") { draft = $0 }
         .onDebugAction("#attach") { attachments.append(URL(filePath: $0)) }
-        .onDebugAction("#rename") { _ in
-            newName = session.customName ?? ""
-            isRenaming = true
-        }
         .onDebugAction("#delete") { _ in isConfirmingDelete = true }
         .onDebugAction("#saverecipe") { _ in savingRecipeFrom = entries.last { $0.kind == .command } }
         .sheet(item: $savingRecipeFrom) { entry in
@@ -218,13 +211,6 @@ struct ChatView: View {
             if case .success(let url) = result {
                 controller.navigate(to: url.path(percentEncoded: false), in: session)
             }
-        }
-        .alert("Renombrar sesión", isPresented: $isRenaming) {
-            TextField("Nombre", text: $newName)
-            Button("Renombrar") { controller.rename(session, to: newName) }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Déjalo vacío para usar el nombre de la carpeta.")
         }
         .confirmationDialog("¿Eliminar esta sesión?", isPresented: $isConfirmingDelete) {
             Button("Eliminar sesión", role: .destructive) { controller.delete(session) }
@@ -261,11 +247,8 @@ struct ChatView: View {
             .help("Buscar qué hacer (⌘K)")
         }
         ToolbarItem(placement: .primaryAction) {
+            // The name is edited from the session's capsule in the middle of the bar.
             Menu("Más", systemImage: "ellipsis") {
-                Button("Renombrar…", systemImage: "pencil") {
-                    newName = session.customName ?? ""
-                    isRenaming = true
-                }
                 Button("Reiniciar shell", systemImage: "arrow.clockwise") {
                     controller.restartShell(of: session)
                 }

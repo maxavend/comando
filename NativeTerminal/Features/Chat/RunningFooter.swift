@@ -4,7 +4,8 @@ import SwiftUI
 ///
 /// While output keeps coming it reads “Ejecutando”. Once a command goes quiet
 /// (a dev server waiting for requests, a program waiting for input) it reads
-/// “Sigue activo” instead of spinning forever, and offers to stop it.
+/// “Sigue activo” instead of spinning forever. Stopping it is the composer's
+/// red button, so it isn't offered here too.
 struct RunningFooter: View {
     let live: LiveOutput
     let shell: ShellSession
@@ -50,20 +51,9 @@ struct RunningFooter: View {
                         .pointerStyle(.link)
                         .foregroundStyle(.tint)
                         .help("Cierra \(ShellSession.firstWord(of: live.command))")
-                } else if isQuiet {
-                    Text("·")
-                    Button("Detener", action: stop)
-                        .buttonStyle(.link)
-                        .pointerStyle(.link)
-                        .foregroundStyle(.tint)
-                        .help("Detener el comando (⌘.)")
                 }
             }
         }
-    }
-
-    private func stop() {
-        shell.interrupt()
     }
 
     private func quit() {
