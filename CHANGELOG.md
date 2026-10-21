@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.6.1 (21 de octubre de 2026)
+
+- La guía explica bien cómo cambiar de carpeta: con el botón de carpeta, arriba a la izquierda. Ya no dice que se presione “Estás en…”, que desde la 1.6 es solo texto.
+
 ## 1.6 (21 de octubre de 2026)
 
 - La fila de cada sesión es más limpia, como en Mensajes: el punto verde del avatar dice que algo corre, la segunda línea muestra solo el comando y la hora está siempre. Ya no hay botón de detener ni punto de no leído.
