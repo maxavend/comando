@@ -19,7 +19,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/chat-oscuro.png">
-    <img src="docs/images/chat-claro.png" alt="Comando con comandos de git y un pedido al asistente para comprimir un audio">
+    <img src="docs/images/chat-claro.png" alt="Comando con un pedido al asistente para comprimir un audio y, en la barra lateral, otra sesión con un servidor en marcha">
   </picture>
 </p>
 
@@ -45,7 +45,7 @@
 - **Recetas (⌘K).** Tareas comunes explicadas en lenguaje simple.
 - **Herramientas (⇧⌘I).** Todo lo que instalaste con Homebrew, npm (de cada versión de Node), pipx y uv, con actualizaciones y opción de desinstalar.
 - **Guía.** Pregúntale al asistente “¿qué hace?”, “¿cómo cambio de carpeta?” o “¿qué atajos hay?”.
-- **Carpetas.** Presiona “Estás en…” sobre los mensajes para ir a otra carpeta o abrirla en Finder.
+- **Carpetas.** El botón de carpeta, arriba a la izquierda, te lleva a otra o la abre en Finder; sobre los mensajes queda dicho dónde corrió cada uno.
 - **Sesiones.** Se guardan en la barra lateral, con su historial, su carpeta, un emoji y un color.
 
 ## Pregúntale qué hace

@@ -122,7 +122,7 @@ nonisolated enum AppGuide {
             (String(localized: "Comando es una terminal con forma de chat: escribes un comando, o lo que quieres hacer en tus palabras, y la respuesta llega como un mensaje."), [
                 item("apple.terminal", "Escribe comandos", "Como en cualquier terminal, con tu zsh y tu configuración: ls, git status, npm run dev."),
                 item("sparkle", "Pide en tus palabras", "«Comprime este video» o «sube mis cambios»: el asistente te propone el comando y tú decides si se ejecuta."),
-                item("folder", "Muévete entre carpetas", "Presiona «Estás en…» sobre los mensajes para ir a otra carpeta o abrirla en Finder."),
+                item("folder", "Muévete entre carpetas", "El botón de carpeta, arriba a la izquierda, te lleva a otra o la abre en Finder."),
                 item("sidebar.left", "Trabaja en varias sesiones", "Cada sesión es un shell aparte, con su carpeta y su historial. ⌘T abre una nueva."),
                 item("shippingbox", "Ordena tus herramientas", "⇧⌘I muestra lo que tienes instalado con Homebrew y npm, para actualizarlo o quitarlo."),
             ])
@@ -144,7 +144,7 @@ nonisolated enum AppGuide {
             ])
         case .folders:
             (String(localized: "Cada sesión trabaja en una carpeta, y sobre los mensajes te dice en cuál estás."), [
-                item("folder", "Presiona «Estás en…»", "Abre un menú para ir a otra carpeta, a una reciente o mostrarla en Finder."),
+                item("folder", "El botón de carpeta", "Arriba a la izquierda: abre un menú para ir a otra carpeta, a una reciente o mostrarla en Finder."),
                 item("arrow.up", "Sube un nivel", "⌘↑ va a la carpeta que contiene la actual."),
                 item("house", "Lugares de siempre", "⇧⌘H Inicio, ⇧⌘D Escritorio, ⇧⌘O Documentos y ⌥⌘L Descargas."),
                 item("folder.badge.questionmark", "Cualquier carpeta", "⇧⌘G abre el selector de carpetas. También puedes escribir cd como siempre."),
