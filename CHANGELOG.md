@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.7.1 (22 de octubre de 2026)
+
+- El asistente encuentra tus recetas aunque las pidas con otras palabras: “abre otro ChatGPT” usa tu receta “Levanta clon de ChatGPT”, porque abrir, levantar o correr cuentan como lo mismo, y otro, segundo o clon también. “Abre ChatGPT” sigue abriendo la app normal.
+- Una pregunta como “¿qué es ChatGPT?” ya no ejecuta una receta tuya.
+- Si guardaste una receta de varias líneas con la 1.6.1 o antes, bórrala y guárdala de nuevo desde el chat: esas versiones perdían los saltos de línea al guardarla.
+
 ## 1.7 (22 de octubre de 2026)
 
 - Copiar lo que enviaste: al pasar el mouse por tu comando o tu pedido aparece el botón de copiar, igual que en la salida. Puedes llegar a él en diagonal desde cualquier parte de la burbuja sin que se esconda, y nunca se ven dos a la vez.
