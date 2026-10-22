@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.7 (22 de octubre de 2026)
+
+- Copiar lo que enviaste: al pasar el mouse por tu comando o tu pedido aparece el botón de copiar, igual que en la salida. Puedes llegar a él en diagonal desde cualquier parte de la burbuja sin que se esconda, y nunca se ven dos a la vez.
+- El clic derecho en cualquier parte de un mensaje que enviaste abre su menú (Copiar, Editar, Guardar como receta), también sobre el texto. Antes salía el menú de texto de macOS.
+- “Guardar como receta” respeta los comandos de varias líneas: cada línea se guarda y se ejecuta como la escribiste.
+- El asistente usa tus recetas: si pides con tus palabras algo que guardaste (“levanta el clon de ChatGPT”), te propone tu receta.
+- El botón de recetas de la barra es un marcador, como “Guardar como receta”. La varita se confundía con Apple Intelligence.
+- Cerrar apps con palabras: “cierra Safari” la cierra como Salir, “fuerza el cierre de Siri” la cierra a la fuerza y “reinicia el Dock” lo vuelve a abrir. Nueva receta para vaciar la caché de DNS.
+- El asistente sabe más de terminal: busca en las páginas de tldr, entre los comandos que tienes, el que sirve para tu pedido (“¿cuánto tiempo lleva encendido el Mac?” → uptime).
+- Los comandos que escribe Apple Intelligence ya no se descartan por ser riesgosos: se muestran y piden confirmación antes de ejecutarse. kill, killall y pkill siempre avisan.
+
 ## 1.6.1 (21 de octubre de 2026)
 
 - La guía explica bien cómo cambiar de carpeta: con el botón de carpeta, arriba a la izquierda. Ya no dice que se presione “Estás en…”, que desde la 1.6 es solo texto.
