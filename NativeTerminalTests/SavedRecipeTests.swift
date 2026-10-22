@@ -83,6 +83,13 @@ struct SavedRecipeTests {
         }
         #expect(AssistantEngine.savedRecipe(for: "levanta la tienda", inventory: inventory)?.title == "Levantar la tienda")
         #expect(AssistantEngine.savedRecipe(for: "comprime un audio", inventory: inventory) == nil)
+        // Other words for the same thing.
+        for request in ["Quiero abrir otro ChatGPT, porfa", "abre un segundo ChatGPT", "corre mi receta de ChatGPT"] {
+            #expect(AssistantEngine.savedRecipe(for: request, inventory: inventory)?.title == "Levantar un clon de ChatGPT", "\(request)")
+        }
+        // The app itself, and a question, aren't the recipe.
+        #expect(AssistantEngine.savedRecipe(for: "abre ChatGPT", inventory: inventory) == nil)
+        #expect(AssistantEngine.savedRecipe(for: "¿qué es ChatGPT?", inventory: inventory) == nil)
     }
 
     @Test func suggestsASymbolForTheProgram() {

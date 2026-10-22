@@ -1665,15 +1665,43 @@ nonisolated enum AssistantEngine {
         )
     }
 
-    /// The person's own recipe whose name says what the request asks for
-    /// (“levantar el clon de ChatGPT” → “Levantar un clon de ChatGPT”).
+    /// The person's own recipe the request asks for, in their words: it
+    /// must name all that the recipe's name does (“otro ChatGPT” for “Levanta
+    /// clon de ChatGPT”), with words of its command counting too (“mi ChatGPT
+    /// personal”). “Abre ChatGPT” opens the app; “¿qué es ChatGPT?” is a question.
     static func savedRecipe(for request: String, inventory: ToolInventory) -> Recipe? {
         let words = normalized(request)
-        // Two shared words, or every word of a short request.
-        let needed = min(2, max(1, keywords(in: words).count))
-        let scored = inventory.savedRecipes.map { ($0, overlap(words, $0)) }
-        return scored.filter { $0.1 >= needed }.max { $0.1 < $1.1 }?.0
+        guard !asksForMeaning(words) else { return nil }
+        let wanted = recipeTerms(request)
+        let mentionsRecipe = wanted.contains { $0.hasPrefix("recet") }
+        func has(_ term: String) -> Bool {
+            wanted.contains { $0 == term || (min($0.count, term.count) >= 4 && ($0.hasPrefix(term) || term.hasPrefix($0))) }
+        }
+        let scored = inventory.savedRecipes.compactMap { recipe -> (Recipe, Int)? in
+            let name = recipeTerms(([recipe.title] + recipe.keywords).joined(separator: " ")).subtracting(["·run"])
+            let named = name.filter(has).count
+            guard named > 0 else { return nil }
+            let fromCommand = recipeTerms(recipe.command(with: [:])).subtracting(name).subtracting(["·run"]).filter(has).count
+            guard named + fromCommand >= name.count || mentionsRecipe else { return nil }
+            return (recipe, named + fromCommand)
+        }
+        return scored.max { $0.1 < $1.1 }?.0
     }
+
+    /// The words of a recipe or a request, with the verbs that mean running
+    /// it (abrir, levantar, correr…) as one, and “otro, segundo, clon” as one.
+    static func recipeTerms(_ text: String) -> Set<String> {
+        Set(keywords(in: text).map { word in
+            if runVerbs.contains(where: word.hasPrefix) { return "·run" }
+            if copyWords.contains(where: word.hasPrefix) { return "·copy" }
+            return word
+        })
+    }
+
+    private static let runVerbs = [
+        "abr", "levant", "lanz", "inici", "arranc", "corre", "corra", "ejecut", "prend", "open", "run", "start", "launch",
+    ]
+    private static let copyWords = ["otr", "segund", "clon", "copia", "duplic", "paralel"]
 
     /// One of “Mis recetas”, filled like any recipe and named as the person's own.
     static func useSavedRecipe(_ recipe: Recipe, request: String, inventory: ToolInventory) -> AssistantReply {

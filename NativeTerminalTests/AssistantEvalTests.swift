@@ -107,4 +107,34 @@ struct AssistantEvalTests {
         }
         print("SCORE total \(passed)/\(cases.count)")
     }
+
+    /// The person's own recipes, asked for in other words than their name.
+    @Test func savedRecipeScore() async {
+        var context = ToolInventory(directory: "/Users/demo", executables: Set(ExecutableIndex.shared.names(for: ["/usr/bin", "/bin"])))
+        context.apps = InstalledApps.list()
+        let clone = SavedRecipe(title: "Levanta clon de ChatGPT", command: """
+            PROFILE="$HOME/Library/Application Support/ChatGPT Personal"
+            "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT" --user-data-dir="$PROFILE"
+            """, directory: "/Users/demo")
+        let shop = SavedRecipe(title: "Levantar la tienda", command: "npm run dev", directory: "/Users/demo/tienda")
+        context.savedRecipes = [clone, shop].map { $0.recipe(in: "/Users/demo") }
+        let cases: [(request: String, usesClone: Bool)] = [
+            ("Quiero abrir otro ChatGPT, porfa", true),
+            ("abre un segundo ChatGPT", true),
+            ("levanta el clon de chatgpt", true),
+            ("quiero mi ChatGPT personal", true),
+            ("corre mi receta de ChatGPT", true),
+            ("abre ChatGPT", false),
+            ("¿qué es ChatGPT?", false),
+            ("comprime un audio", false),
+        ]
+        var passed = 0
+        for (request, usesClone) in cases {
+            let reply = await AssistantEngine.plainReply(to: request, inventory: context, conversational: true)
+            let used = reply.proposals.contains { $0.command == clone.command }
+            if used == usesClone { passed += 1 }
+            print("RECETA \(used == usesClone ? "✓" : "✗") «\(request)» ⌘ \(reply.proposals.map(\.command)) \(reply.explanation)")
+        }
+        print("RECETA total \(passed)/\(cases.count)")
+    }
 }
