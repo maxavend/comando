@@ -88,6 +88,7 @@ actor ToolKnowledge {
         }
         // Ready in memory before the first search.
         _ = loadedFormulae()
+        _ = loadedPageIndex()
     }
 
     private static func isStale(_ url: URL, days: Double) -> Bool {
@@ -208,6 +209,86 @@ actor ToolKnowledge {
     }
 
     // MARK: - tldr
+
+    /// tldr pages as counted words, to rank them against a request.
+    private struct PageIndex {
+        struct Page {
+            var command: String
+            var description: String
+            var terms: [String: Int]
+            var length: Int
+        }
+        var pages: [Page] = []
+        var documentFrequency: [String: Int] = [:]
+        var averageLength = 1.0
+    }
+
+    private var pageIndex: PageIndex?
+
+    private func loadedPageIndex() -> PageIndex {
+        if let pageIndex { return pageIndex }
+        var index = PageIndex()
+        for language in ["es", "en"] {
+            for platform in ["osx", "common"] {
+                let folder = tldrURL.appending(path: "\(language)/\(platform)", directoryHint: .isDirectory)
+                for file in (try? FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))) ?? [] where file.hasSuffix(".md") {
+                    guard let text = try? String(contentsOf: folder.appending(path: file), encoding: .utf8) else { continue }
+                    let command = String(file.dropLast(3))
+                    let page = Self.parse(text, isSpanish: language == "es")
+                    // What it does and what each example is for, in words.
+                    let words = Self.searchTerms(([command, page.description] + page.examples.map(\.0)).joined(separator: " "))
+                    var terms: [String: Int] = [:]
+                    for word in words { terms[word, default: 0] += 1 }
+                    for word in terms.keys { index.documentFrequency[word, default: 0] += 1 }
+                    index.pages.append(.init(command: command, description: page.description, terms: terms, length: words.count))
+                }
+            }
+        }
+        index.averageLength = max(1, Double(index.pages.map(\.length).reduce(0, +)) / Double(max(index.pages.count, 1)))
+        // Not kept until the pages are there: they arrive after the first download.
+        if !index.pages.isEmpty { pageIndex = index }
+        return index
+    }
+
+    /// Commands this Mac has whose tldr page shares the most telling words
+    /// with what was asked (ranked like a search engine, BM25): “¿cuánto
+    /// tiempo lleva encendido el Mac?” finds uptime, “force quit” pkill.
+    /// `queries` are the request and the model's English keywords.
+    func searchPages(_ queries: [String], among executables: Set<String>, limit: Int = 4) -> [(command: String, description: String, score: Double)] {
+        let index = loadedPageIndex()
+        let wanted = Set(queries.flatMap(Self.searchTerms))
+        guard !wanted.isEmpty, !index.pages.isEmpty else { return [] }
+        let count = Double(index.pages.count)
+        var best: [String: (description: String, score: Double)] = [:]
+        for page in index.pages where executables.contains(page.command) {
+            var score = 0.0
+            for word in wanted {
+                guard let frequency = page.terms[word].map(Double.init), let documents = index.documentFrequency[word].map(Double.init) else { continue }
+                let rarity = log(1 + (count - documents + 0.5) / (documents + 0.5))
+                score += rarity * frequency * 2.2 / (frequency + 1.2 * (0.25 + 0.75 * Double(page.length) / index.averageLength))
+            }
+            if score > best[page.command]?.score ?? 0 { best[page.command] = (page.description, score) }
+        }
+        return best.map { (command: $0.key, description: $0.value.description, score: $0.value.score) }
+            .sorted { $0.score > $1.score }
+            .prefix(limit).map { $0 }
+    }
+
+    /// Words for the page search: no accents or filler, cut to their first
+    /// five letters so “comprimir” and “comprime” meet.
+    static func searchTerms(_ text: String) -> [String] {
+        AssistantEngine.normalized(text)
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { $0.count >= 2 && !searchStopwords.contains($0) }
+            .map { String($0.prefix(5)) }
+    }
+
+    private static let searchStopwords: Set<String> = [
+        "the", "an", "of", "to", "in", "for", "and", "or", "with", "on", "by", "from", "as", "is", "it", "its", "this", "that",
+        "all", "be", "into", "using", "use", "given", "specific", "de", "la", "el", "los", "las", "un", "una", "en", "y", "o",
+        "con", "por", "para", "del", "al", "que", "se", "su", "sus", "como", "mi", "mis", "este", "esta", "quiero", "hola",
+    ]
 
     /// The tldr page for a command, in Spanish when there is one.
     func examples(for command: String) -> ToolExamples? {

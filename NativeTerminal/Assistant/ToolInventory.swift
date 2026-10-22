@@ -38,6 +38,8 @@ nonisolated struct ToolInventory: Sendable {
     var apps: [InstalledApp] = []
     var git: GitInfo?
     var gitHasRemote = false
+    /// The person's own recipes (“Mis recetas”), asked for in their words.
+    var savedRecipes: [Recipe] = []
 
     func has(_ tool: String) -> Bool { executables.contains(tool) }
 

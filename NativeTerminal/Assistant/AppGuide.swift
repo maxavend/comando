@@ -140,7 +140,7 @@ nonisolated enum AppGuide {
                 item("stop.fill", "Detén lo que corre", "⌘. interrumpe el comando que está trabajando."),
                 item("info.circle", "Entiende un comando", "Pasa el mouse sobre tu mensaje para ver qué hace, o haz clic derecho para verlo paso a paso."),
                 item("macwindow", "Programas interactivos", "vim, top o ssh se abren como una terminal dentro del chat; al salir vuelves a la conversación."),
-                item("wand.and.sparkles", "Recetas", "¿No sabes qué escribir? ⌘K abre tareas comunes listas para usar."),
+                item("bookmark", "Recetas", "El marcador de arriba a la derecha (⌘K) abre tareas comunes y las tuyas. Guarda un comando con clic derecho sobre tu mensaje, y luego pídelo con tus palabras."),
             ])
         case .folders:
             (String(localized: "Cada sesión trabaja en una carpeta, y sobre los mensajes te dice en cuál estás."), [
@@ -166,7 +166,7 @@ nonisolated enum AppGuide {
         case .shortcuts:
             (String(localized: "Los atajos más útiles de Comando:"), [
                 item("plus", "⌘T", "Nueva sesión (⌥⌘T, en la misma carpeta)."),
-                item("wand.and.sparkles", "⌘K", "Recetas: tareas comunes listas para usar."),
+                item("bookmark", "⌘K", "Recetas: tareas comunes y las que guardaste."),
                 item("stop.fill", "⌘.", "Detener el comando que corre."),
                 item("arrow.up", "⌘↑", "Subir un nivel de carpeta; ⇧⌘G para ir a cualquiera."),
                 item("shippingbox", "⇧⌘I", "Herramientas instaladas."),

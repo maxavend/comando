@@ -250,10 +250,11 @@ struct ChatView: View {
         .sharedBackgroundVisibility(.hidden)
 
         ToolbarItem(placement: .primaryAction) {
-            Button("Recetas", systemImage: "wand.and.sparkles") {
+            // A bookmark, like “Guardar como receta…”: a wand read as Apple Intelligence.
+            Button("Recetas", systemImage: "bookmark") {
                 controller.isShowingRecipes = true
             }
-            .help("Buscar qué hacer (⌘K)")
+            .help("Recetas (⌘K)")
         }
         ToolbarItem(placement: .primaryAction) {
             // The name is edited from the session's capsule in the middle of the bar.

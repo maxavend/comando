@@ -106,3 +106,128 @@ nonisolated struct BubbleShape: Shape {
         return body.union(tail.applying(transform))
     }
 }
+
+extension View {
+    /// Shows `accessory` (a copy button) just outside the bubble, centered on
+    /// its first line, while the pointer is over the bubble; `beside` sits
+    /// further out and shows itself from `isHovering`.
+    ///
+    /// Like the safe triangle of a submenu, the pointer can cut across to the
+    /// accessory from anywhere on the bubble: the strip between them, as tall
+    /// as the bubble, counts as the bubble, and leaving waits a moment. Only
+    /// one bubble shows its accessory: the next one hovered takes over at once.
+    func bubbleAccessory<Accessory: View, Beside: View>(
+        on edge: HorizontalEdge,
+        firstLineCenter: CGFloat,
+        isHovering: Binding<Bool>,
+        @ViewBuilder accessory: () -> Accessory,
+        @ViewBuilder beside: () -> Beside = { EmptyView() }
+    ) -> some View {
+        modifier(BubbleAccessory(edge: edge, firstLineCenter: firstLineCenter, isHovering: isHovering,
+                                 accessory: accessory(), beside: beside()))
+    }
+}
+
+private struct BubbleAccessory<Accessory: View, Beside: View>: ViewModifier {
+    let edge: HorizontalEdge
+    let firstLineCenter: CGFloat
+    @Binding var isHovering: Bool
+    let accessory: Accessory
+    let beside: Beside
+
+    @State private var isOverBubble = false
+    @State private var isOverStrip = false
+    @State private var isOverAccessory = false
+    @State private var accessoryWidth: CGFloat = 0
+    @State private var leaving: Task<Void, Never>?
+    @State private var id = UUID()
+    private var owner = BubbleAccessoryOwner.shared
+
+    private let gap = Metrics.replySpacing
+
+    func body(content: Content) -> some View {
+        let isLeading = edge == .leading
+        content
+            .onHover { isOverBubble = $0; update() }
+            .overlay(alignment: isLeading ? .leading : .trailing) {
+                Color.clear
+                    .frame(width: gap + accessoryWidth)
+                    .frame(maxHeight: .infinity)
+                    .contentShape(.rect)
+                    .onHover { isOverStrip = $0; update() }
+                    .alignmentGuide(isLeading ? .leading : .trailing) { $0[isLeading ? .trailing : .leading] }
+                    .accessibilityHidden(true)
+            }
+            .overlay(alignment: isLeading ? .topLeading : .topTrailing) {
+                HStack(spacing: Metrics.composerSpacing) {
+                    if isLeading { beside }
+                    accessory
+                        .opacity(isHovering ? 1 : 0)
+                        .onHover { isOverAccessory = $0; update() }
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { accessoryWidth = $0 }
+                    if !isLeading { beside }
+                }
+                .alignmentGuide(isLeading ? .leading : .trailing) {
+                    isLeading ? $0[.trailing] + gap : $0[.leading] - gap
+                }
+                .alignmentGuide(.top) { $0[VerticalAlignment.center] - firstLineCenter }
+            }
+            .onChange(of: owner.id) { _, newOwner in
+                // Another bubble was hovered: give way without waiting.
+                if newOwner != id {
+                    leaving?.cancel()
+                    isHovering = false
+                }
+            }
+    }
+
+    private func update() {
+        leaving?.cancel()
+        if isOverBubble || isOverStrip || isOverAccessory {
+            owner.id = id
+            isHovering = true
+        } else {
+            leaving = Task {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                isHovering = false
+                if owner.id == id { owner.id = nil }
+            }
+        }
+    }
+}
+
+/// The bubble whose accessory is showing, so two never show at once.
+@Observable
+private final class BubbleAccessoryOwner {
+    static let shared = BubbleAccessoryOwner()
+    var id: UUID?
+}
+
+/// A sent message's words, drawn rather than shown as text: they lay out and
+/// look like `Text`, but macOS doesn't treat them as text, so a right-click
+/// on them opens the message's own menu instead of the system's text menu
+/// (Pídele a Siri, Tipo de letra, Ortografía…), which says nothing about a
+/// message that was already sent.
+struct DrawnText: View {
+    let string: String
+
+    init(_ string: String) {
+        self.string = string
+    }
+
+    var body: some View {
+        // The hidden text gives the size; the canvas draws the same words in it.
+        Text(string)
+            .hidden()
+            .overlay {
+                Canvas { context, size in
+                    var text = context.resolve(Text(string))
+                    text.shading = .foreground
+                    context.draw(text, in: CGRect(origin: .zero, size: size))
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel(string)
+    }
+}

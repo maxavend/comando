@@ -326,10 +326,14 @@ final class TerminalController {
         let attachments = entry.attachmentPaths.map { URL(filePath: $0) }
         let path = shell.pathEntries
         let conversation = entry.session.map(assistantConversation(for:))
+        let saved = ((try? modelContext.fetch(FetchDescriptor<SavedRecipe>(sortBy: [SortDescriptor(\.order)]))) ?? [])
+            .map { $0.recipe(in: directory) }
         assistantRequestsInFlight += 1
         Task { [weak self] in
             defer { self?.assistantRequestsInFlight -= 1 }
-            let inventory = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
+            var gathered = await ToolInventory.gather(directory: directory, executables: executables, attachments: attachments, path: path)
+            gathered.savedRecipes = saved
+            let inventory = gathered
             // “Ahora en mp3” becomes the whole request, from what was said before.
             let standalone = await conversation?.standalone(request, inventory: inventory) ?? request
             // What to show, with every check; whatever happens, a reply arrives.
@@ -408,7 +412,19 @@ final class TerminalController {
     /// Runs what the assistant proposed, as one visible command.
     func runProposals(of entry: CommandEntry) {
         guard let session = entry.session, !entry.proposals.isEmpty, !(shells[session.id]?.isBusy ?? false) else { return }
-        submit(entry.proposals.map(\.command).joined(separator: " && "), in: session)
+        let command = entry.proposals.map(\.command).joined(separator: " && ")
+        // What Apple Intelligence wrote and changes things asks first, even
+        // when it's no risk the detector explains.
+        if AppSettings.confirmRiskyCommands, DangerDetector.risk(of: command) == nil,
+           entry.proposals.contains(where: { $0.isGenerated == true && AssistantEngine.changesThings($0.command) }) {
+            pendingCommand = PendingCommand(command: command, sessionID: session.id, risk: CommandRisk(
+                title: String(localized: "Este comando lo escribió Apple Intelligence y cambia cosas en tu Mac"),
+                explanation: String(localized: "Revisa qué hace antes de ejecutarlo.")
+            ))
+            pendingProposalEntryID = entry.id
+            return
+        }
+        submit(command, in: session)
         // A risky command waits for the confirmation: “Ejecutado” only once it runs.
         if pendingCommand == nil {
             entry.assistantRanAt = .now

@@ -29,7 +29,7 @@ final class SavedRecipe {
         self.directory = directory
     }
 
-    var command: String { words.joined(separator: " ") }
+    var command: String { SavedRecipeCommand.line(words) }
 
     /// The command with each asked-for word replaced by its value (quoted for
     /// zsh); an empty or unchanged value keeps the word as saved.
@@ -72,7 +72,10 @@ final class SavedRecipe {
     }
 
     /// Splits a command line at the spaces zsh would split it at, keeping each
-    /// word as written (quotes and escapes included).
+    /// word as written (quotes and escapes included). A line break between
+    /// commands is kept as a word of its own ("\n"), so a script of several
+    /// lines still runs line by line; a backslash at the end of a line only
+    /// continues it, and is dropped.
     static func rawWords(_ line: String) -> [String] {
         var words: [String] = []
         var current = ""
@@ -80,8 +83,8 @@ final class SavedRecipe {
         var escaping = false
         for character in line {
             if escaping {
-                current.append(character)
                 escaping = false
+                if character.isNewline { current.removeLast() } else { current.append(character) }
                 continue
             }
             if character == "\\" && quote != "'" {
@@ -96,11 +99,13 @@ final class SavedRecipe {
             } else if character.isWhitespace {
                 if !current.isEmpty { words.append(current) }
                 current = ""
+                if character.isNewline, let last = words.last, last != "\n" { words.append("\n") }
             } else {
                 current.append(character)
             }
         }
         if !current.isEmpty { words.append(current) }
+        if words.last == "\n" { words.removeLast() }
         return words
     }
 }
@@ -134,6 +139,17 @@ nonisolated struct SavedRecipeCommand: Sendable {
                 filled[parameter.wordIndex] = ShellEscape.quote(value)
             }
         }
-        return filled.joined(separator: " ")
+        return Self.line(filled)
+    }
+
+    /// The words back as a command line: spaces between them, and each
+    /// line break where it was.
+    static func line(_ words: [String]) -> String {
+        var line = ""
+        for word in words {
+            if !line.isEmpty, word != "\n", !line.hasSuffix("\n") { line += " " }
+            line += word
+        }
+        return line
     }
 }

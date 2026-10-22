@@ -9,6 +9,7 @@ struct AssistantExchangeView: View {
 
     @Environment(TerminalController.self) private var controller
     @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
+    @State private var isHoveringRequest = false
 
     var body: some View {
         VStack(spacing: Metrics.replySpacing) {
@@ -62,12 +63,22 @@ struct AssistantExchangeView: View {
                     .font(.system(size: fontSize * 0.82, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
                     .accessibilityHidden(true)
-                Text(entry.command)
-                    .textSelection(.enabled)
+                // As in the command bubble: a right-click on the words opens
+                // the message's own menu, not the system's text menu.
+                DrawnText(entry.command)
             }
             .font(.system(size: fontSize))
             .foregroundStyle(.white)
             .bubble(.request)
+            .contentShape(.rect)
+            .contextMenu {
+                Button("Copiar mensaje", systemImage: "doc.on.doc") { Pasteboard.copy(entry.command) }
+                Button("Editar y volver a enviar", systemImage: "pencil") { onEdit(entry.command) }
+            }
+            .bubbleAccessory(on: .leading, firstLineCenter: Metrics.singleLineBubbleHeight(fontSize: fontSize) / 2,
+                             isHovering: $isHoveringRequest) {
+                CopyButton(text: entry.command, label: "Copiar mensaje")
+            }
         }
         .bubbleWidth(Metrics.textBubbleFraction, alignment: .trailing)
     }

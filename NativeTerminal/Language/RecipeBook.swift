@@ -106,6 +106,10 @@ nonisolated enum RecipeBook {
                systemImage: "speedometer", category: .network, keywords: ["velocidad", "internet", "conexion", "lento", "speedtest", "wifi"]) { _ in
             "networkQuality"
         },
+        Recipe("dns", title: "Vaciar la caché de DNS", detail: "Ayuda cuando una página no carga tras cambiar de dirección. Pide tu contraseña.",
+               systemImage: "arrow.clockwise.icloud", category: .network, keywords: ["dns", "cache", "flush", "internet", "pagina"]) { _ in
+            "sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder"
+        },
         Recipe("ping", title: "Probar la conexión a internet", detail: "Envía 4 mensajes de prueba a apple.com.",
                systemImage: "antenna.radiowaves.left.and.right", category: .network, keywords: ["internet", "conexión", "ping"]) { _ in
             "ping -c 4 apple.com"

@@ -382,8 +382,15 @@ nonisolated enum AssistantEngine {
         guard keywords(in: words).contains(where: { $0.count >= 3 }) else {
             return build(steps: [], request: request, inventory: inventory)
         }
+        // “Levanta el clon de ChatGPT”: a recipe the person saved for it.
+        if let recipe = savedRecipe(for: request, inventory: inventory) {
+            return useSavedRecipe(recipe, request: request, inventory: inventory)
+        }
         if let trash = trashReply(for: request, inventory: inventory) {
             return trash
+        }
+        if let quit = quitReply(for: request, inventory: inventory) {
+            return quit
         }
         if let installed = installedReply(for: request, inventory: inventory) {
             return installed
@@ -586,6 +593,67 @@ nonisolated enum AssistantEngine {
                               proposals: [AssistantProposal(command: "open -a " + q(app.name), tool: "\(app.displayName) · app instalada")])
     }
 
+    // MARK: - Closing apps
+
+    /// Apps of macOS itself that relaunch on their own once closed.
+    private static let relaunchingApps: [(words: [String], name: String)] = [
+        (["dock"], "Dock"), (["finder"], "Finder"), (["barra de menu", "barra de menus"], "SystemUIServer"),
+    ]
+
+    /// “Cierra Safari”, “fuerza el cierre de Siri”, “reinicia el Dock” or
+    /// “kill la actividad”, answered without the model: closing like Salir
+    /// does, forcing it, or showing what's running to choose from.
+    static func quitReply(for request: String, inventory: ToolInventory) -> AssistantReply? {
+        let words = normalized(request)
+        let force = /(?:forz\w*|fuerza\w*)\s+(?:el\s+|la\s+)?(?:cierre|cerrar|salida)(?:\s+de)?|force ?quit|\bmat(?:a|ar|alo|ala)\b|\bkill(?:all)?\b|\bpkill\b/
+        let quit = /\b(?:cierra(?:me|lo|la)?|cerrar|cierre de|salir de|sal de|quit)\b/
+        let restart = /\b(?:reinicia(?:me|lo|la)?|reiniciar|restart)\b/
+        let forces = words.contains(force)
+        let restarts = !forces && words.contains(restart)
+        guard forces || restarts || words.contains(quit),
+              // “Cierra sesión”, “reinicia el Mac”: not an app.
+              !["sesion", "mac", "computador", "computadora", "equipo", "sistema", "pestana", "ventana", "puerto"].contains(where: { words.contains($0) })
+        else { return nil }
+        let target = words
+            .replacing(force, with: " ").replacing(quit, with: " ").replacing(restart, with: " ")
+            .replacing(/\b(?:quiero|puedes|podrias|por favor|porfa|hola|el|la|los|las|de|del|app|aplicacion|programa|comando|para|un|una|a la fuerza|ahora|actividad|proceso|procesos|tarea|tareas)\b/, with: " ")
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ¿?¡!.,"))
+
+        // The Dock, the Finder: macOS opens them again by itself.
+        if let system = relaunchingApps.first(where: { $0.words.contains(where: target.contains) }) {
+            return AssistantReply(
+                explanation: String(localized: "Voy a reiniciar \(system.name): se cierra y macOS lo vuelve a abrir solo."),
+                proposals: [AssistantProposal(command: "killall " + system.name, tool: "killall · incluida en macOS")]
+            )
+        }
+        guard !target.isEmpty, let app = InstalledApps.findApp(target, in: inventory.apps) else {
+            // “Kill la actividad”: which one? What's running helps choose.
+            guard forces, let cpu = RecipeBook.all.first(where: { $0.id == "cpu" }) else { return nil }
+            return AssistantReply(
+                explanation: String(localized: "¿Qué programa quieres cerrar? Dime su nombre, por ejemplo «fuerza el cierre de Safari». Esto muestra lo que más está usando el Mac ahora:"),
+                proposals: [AssistantProposal(command: cpu.command(with: [:]), tool: "ps · incluida en macOS")]
+            )
+        }
+        let process = Bundle(path: app.path)?.executableURL?.lastPathComponent ?? app.name
+        if forces {
+            return AssistantReply(
+                explanation: String(localized: "Voy a forzar el cierre de \(app.displayName). Si tiene algo sin guardar, se pierde."),
+                proposals: [AssistantProposal(command: "killall " + q(process), tool: "killall · incluida en macOS")]
+            )
+        }
+        let quitting = "osascript -e " + q("quit app \"\(app.name)\"")
+        if restarts {
+            return AssistantReply(
+                explanation: String(localized: "Voy a cerrar \(app.displayName) y abrirla de nuevo."),
+                proposals: [AssistantProposal(command: quitting + " && sleep 2 && open -a " + q(app.name), tool: "osascript · incluida en macOS")]
+            )
+        }
+        return AssistantReply(
+            explanation: String(localized: "Voy a cerrar \(app.displayName) como si eligieras Salir en su menú: si tiene algo sin guardar, te lo pregunta."),
+            proposals: [AssistantProposal(command: quitting, tool: "osascript · incluida en macOS")]
+        )
+    }
+
     // MARK: - Requests that can't be acted on
 
     /// Text in Spanish, English or a close language; “asdfghjkl qwerty” isn't.
@@ -708,12 +776,14 @@ nonisolated enum AssistantEngine {
 
     // MARK: - Recipes and tools
 
-    /// Recipes and tools whose words overlap the request, for the model to choose from.
-    static func candidates(for request: String) -> (recipes: [Recipe], tools: [CatalogTool]) {
+    /// Recipes and tools whose words overlap the request, for the model to
+    /// choose from; the person's own recipes come first.
+    static func candidates(for request: String, saved: [Recipe] = []) -> (recipes: [Recipe], tools: [CatalogTool]) {
         let words = normalized(request)
         // Two shared words, or every word of a short request.
         let needed = min(2, max(1, keywords(in: words).count))
-        let recipes = RecipeBook.all.map { ($0, overlap(words, $0)) }.filter { $0.1 >= needed }
+        let mine = saved.map { ($0, overlap(words, $0)) }.filter { $0.1 >= 1 }.sorted { $0.1 > $1.1 }.prefix(3).map(\.0)
+        let recipes = mine + RecipeBook.all.map { ($0, overlap(words, $0)) }.filter { $0.1 >= needed }
             .sorted { $0.1 > $1.1 }.prefix(5).map(\.0)
         let tools = ToolCatalog.all.map { ($0, ToolCatalog.score($0, for: words)) }.filter { $0.1 >= 2 }
             .sorted { $0.1 > $1.1 }.prefix(3).map(\.0)
@@ -728,13 +798,15 @@ nonisolated enum AssistantEngine {
     @concurrent
     static func pickOption(for request: String, inventory: ToolInventory) async -> AssistantReply? {
         // Only recipes: tools are found by discoverTool, with real examples.
-        let recipes = candidates(for: request).recipes
+        let recipes = candidates(for: request, saved: inventory.savedRecipes).recipes
         guard !recipes.isEmpty else { return nil }
         let options = recipes.map { "\($0.title): \($0.detail)" }
         let prompt = "PEDIDO: \(request)\n\nOPCIONES:\n" + options.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
         guard let choice = await ask(prompt, instructions: pickInstructions, generating: OptionChoice.self, maximumTokens: 10),
               choice.option >= 1, choice.option <= options.count else { return nil }
-        return useRecipe(recipes[choice.option - 1], request: request, inventory: inventory)
+        let recipe = recipes[choice.option - 1]
+        if recipe.category == .mine { return useSavedRecipe(recipe, request: request, inventory: inventory) }
+        return useRecipe(recipe, request: request, inventory: inventory)
     }
 
 
@@ -756,7 +828,8 @@ nonisolated enum AssistantEngine {
     Adapta uno de sus EJEMPLOS; usa ARCHIVOS o ADJUNTOS solo si aparecen. \
     Nunca copies valores de los ejemplos que el pedido no menciona (ciudades, números, nombres): quita esas opciones. \
     Si hay que inventar un archivo de salida, nómbralo a partir del de entrada. \
-    Nunca uses sudo ni borres archivos. Si ninguna herramienta sirve, deja el comando vacío.
+    Puedes cerrar programas o cambiar cosas si el pedido lo pide: Comando avisa antes de ejecutarlo. \
+    Evita sudo salvo que sea indispensable. Si ninguna herramienta sirve, deja el comando vacío.
     """
 
     /// Looks for a terminal tool that does the job (installed, in Homebrew or
@@ -864,6 +937,13 @@ nonisolated enum AssistantEngine {
             add(DiscoveredTool(package: tool.id, command: tool.command, summary: tool.detail, source: .homebrew,
                                isInstalled: isInstalled(tool, inventory: inventory)), score: score + 4)
         }
+        // Commands this Mac already has, found by what their tldr page says:
+        // standard tools like uptime, scutil or pkill, which no catalog lists.
+        for page in await ToolKnowledge.shared.searchPages([request] + keywords, among: inventory.executables)
+        where page.score >= 6 {
+            add(DiscoveredTool(package: page.command, command: page.command, summary: page.description, source: .installed, isInstalled: true),
+                score: Int(page.score / 2))
+        }
         for formula in await ToolKnowledge.shared.searchHomebrew(keywords, limit: 8) {
             let command = ToolCatalog.tool(named: formula.name)?.command ?? formula.name
             add(DiscoveredTool(package: formula.name, command: command, summary: formula.summary, source: .homebrew,
@@ -914,7 +994,8 @@ nonisolated enum AssistantEngine {
 
     private static let writeInstructions = """
     Escribes un solo comando de zsh para macOS que cumple el pedido de una persona. \
-    Usa programas que vienen con macOS cuando se pueda. Nunca uses sudo ni borres archivos. \
+    Usa programas que vienen con macOS cuando se pueda. Puedes cerrar programas o cambiar cosas si el pedido \
+    lo pide: Comando avisa antes de ejecutarlo. Evita sudo salvo que sea indispensable. \
     Usa solo nombres de archivos que aparecen en ARCHIVOS. Si no sabes un comando que lo haga, deja el comando vacío.
     Ejemplos:
     cuántas líneas tiene notas.md → wc -l notas.md
@@ -984,24 +1065,15 @@ nonisolated enum AssistantEngine {
     }
 
     /// Accepts a command the model wrote only if every program in it exists
-    /// (or can be installed), the syntax is valid, nothing in it is risky, and
-    /// it doesn't make up web addresses or write files nobody asked for.
+    /// (or can be installed), the syntax is valid, and it doesn't make up web
+    /// addresses or write files nobody asked for. Risky commands are fine:
+    /// they ask before running (see `changesThings`).
     static func checkCommand(_ command: String, request: String, inventory: ToolInventory, tools: [DiscoveredTool] = []) -> AssistantProposal? {
         var line = command.trimmingCharacters(in: .whitespacesAndNewlines)
         line = line.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
         if line.hasPrefix("$ ") { line.removeFirst(2) }
         let words = normalized(request)
-        let tokens = ShellEscape.words(line)
         guard !line.isEmpty, !line.contains("\n"), line.count <= 300,
-              DangerDetector.risk(of: line) == nil,
-              // Nothing that runs hidden code, changes or deletes files, or
-              // installs things: those have their own, reviewed flows.
-              !line.contains("$("), !line.contains("`"), !line.contains("<"),
-              !tokens.contains(where: { Self.forbiddenWords.contains($0) }),
-              !tokens.contains(where: { $0.hasPrefix("-delete") || $0 == "-exec" || $0 == "-execdir" }),
-              !zip(tokens, tokens.dropFirst()).contains(where: { Self.interpreters.contains($0) && ["-c", "-e"].contains($1) }),
-              !zip(tokens, tokens.dropFirst()).contains(where: { $0 == "sed" && $1.hasPrefix("-i") }),
-              !zip(tokens, tokens.dropFirst()).contains(where: { ["git", "brew", "npm", "pip", "pip3", "pipx", "uv", "gem"].contains($0) && Self.changingVerbs.contains($1) }),
               !line.contains("http") || request.contains("http"),
               writesOnlyNewFiles(line, request: words, inventory: inventory) else { return nil }
 
@@ -1033,7 +1105,20 @@ nonisolated enum AssistantEngine {
                                  missingPackage: missing, isGenerated: true, install: install)
     }
 
-    private static let forbiddenWords: Set<String> = [
+    /// A command the model wrote that deletes, moves, closes, installs or
+    /// runs hidden code: it asks before running, even when it isn't one of
+    /// the risks `DangerDetector` explains.
+    static func changesThings(_ line: String) -> Bool {
+        let tokens = ShellEscape.words(line)
+        return line.contains("$(") || line.contains("`")
+            || tokens.contains(where: { changingWords.contains($0) })
+            || tokens.contains(where: { $0.hasPrefix("-delete") || $0 == "-exec" || $0 == "-execdir" })
+            || zip(tokens, tokens.dropFirst()).contains(where: { interpreters.contains($0) && ["-c", "-e"].contains($1) })
+            || zip(tokens, tokens.dropFirst()).contains(where: { $0 == "sed" && $1.hasPrefix("-i") })
+            || zip(tokens, tokens.dropFirst()).contains(where: { ["git", "brew", "npm", "pip", "pip3", "pipx", "uv", "gem"].contains($0) && changingVerbs.contains($1) })
+    }
+
+    private static let changingWords: Set<String> = [
         "sudo", "su", "rm", "rmdir", "trash", "kill", "killall", "pkill", "shutdown", "reboot", "halt", "mv", "cp",
         "chmod", "chown", "dd", "tee", "xargs", "eval", "exec", "source", ".", "launchctl", "defaults", "osascript",
         "diskutil", "truncate", "shred", "ln",
@@ -1578,6 +1663,26 @@ nonisolated enum AssistantEngine {
             explanation: explanation,
             proposals: [AssistantProposal(command: command, tool: "\(tool) · \(inventory.source(of: tool))")]
         )
+    }
+
+    /// The person's own recipe whose name says what the request asks for
+    /// (“levantar el clon de ChatGPT” → “Levantar un clon de ChatGPT”).
+    static func savedRecipe(for request: String, inventory: ToolInventory) -> Recipe? {
+        let words = normalized(request)
+        // Two shared words, or every word of a short request.
+        let needed = min(2, max(1, keywords(in: words).count))
+        let scored = inventory.savedRecipes.map { ($0, overlap(words, $0)) }
+        return scored.filter { $0.1 >= needed }.max { $0.1 < $1.1 }?.0
+    }
+
+    /// One of “Mis recetas”, filled like any recipe and named as the person's own.
+    static func useSavedRecipe(_ recipe: Recipe, request: String, inventory: ToolInventory) -> AssistantReply {
+        var reply = useRecipe(recipe, request: request, inventory: inventory)
+        reply.explanation = String(localized: "Voy a usar tu receta «\(recipe.title)».")
+        for index in reply.proposals.indices {
+            reply.proposals[index].tool = String(localized: "Tu receta «\(recipe.title)»")
+        }
+        return reply
     }
 
     /// The name or text a request gives: “llamada Fotos 2026”, “la palabra

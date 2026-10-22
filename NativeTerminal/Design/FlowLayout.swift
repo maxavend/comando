@@ -37,6 +37,11 @@ struct FlowLayout: Layout {
         var rows: [Row] = []
         var current = Row()
         for index in subviews.indices {
+            if subviews[index][FlowLineBreak.self] {
+                rows.append(current)
+                current = Row()
+                continue
+            }
             let size = subviews[index].sizeThatFits(.unspecified)
             let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
             // A pixel of slack: a width rounded down by layout must not wrap a
@@ -53,4 +58,9 @@ struct FlowLayout: Layout {
         if !current.indices.isEmpty { rows.append(current) }
         return rows
     }
+}
+
+/// Ends the row in a `FlowLayout`; the view itself takes no space.
+nonisolated struct FlowLineBreak: LayoutValueKey {
+    static let defaultValue = false
 }

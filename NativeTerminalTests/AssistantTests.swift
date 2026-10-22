@@ -179,6 +179,38 @@ struct AssistantBuilderTests {
         #expect(AssistantEngine.bestRecipe(for: "¿cuál es mi ip?")?.id == "ip")
     }
 
+    @Test func closesAppsWithoutTheModel() {
+        var apps = inventory()
+        apps.apps = [
+            InstalledApp(name: "Siri", displayName: "Siri", path: "/System/Applications/Siri.app"),
+            InstalledApp(name: "Safari", displayName: "Safari", path: "/Applications/Safari.app"),
+            InstalledApp(name: "Activity Monitor", displayName: "Monitor de Actividad", path: "/System/Applications/Utilities/Activity Monitor.app"),
+        ]
+        #expect(AssistantEngine.quitReply(for: "Quiero forzar el cierre de Siri", inventory: apps)?.proposals.first?.command == "killall Siri")
+        #expect(AssistantEngine.quitReply(for: "mata Safari", inventory: apps)?.proposals.first?.command == "killall Safari")
+        #expect(AssistantEngine.quitReply(for: "cierra Safari", inventory: apps)?.proposals.first?.command == #"osascript -e 'quit app "Safari"'"#)
+        #expect(AssistantEngine.quitReply(for: "reinicia el Dock", inventory: apps)?.proposals.first?.command == "killall Dock")
+        // Which one? What's running, to choose from.
+        #expect(AssistantEngine.quitReply(for: "El comando para kill la actividad", inventory: apps)?.proposals.first?.command.hasPrefix("ps ") == true)
+        #expect(AssistantEngine.quitReply(for: "cierra el monitor de actividad", inventory: apps)?.proposals.first?.command == #"osascript -e 'quit app "Activity Monitor"'"#)
+        // Not apps.
+        #expect(AssistantEngine.quitReply(for: "cierra sesión", inventory: apps) == nil)
+        #expect(AssistantEngine.quitReply(for: "reinicia el Mac", inventory: apps) == nil)
+        #expect(AssistantEngine.quitReply(for: "cierra la conexión", inventory: apps) == nil)
+        // Closing by force always asks first.
+        #expect(DangerDetector.risk(of: "killall Siri") != nil)
+    }
+
+    @Test func modelCommandsThatChangeThingsAskFirst() {
+        #expect(AssistantEngine.changesThings("killall Dock"))
+        #expect(AssistantEngine.changesThings("mv a.txt b.txt"))
+        #expect(AssistantEngine.changesThings(#"osascript -e 'quit app "Notas"'"#))
+        #expect(!AssistantEngine.changesThings("uptime"))
+        #expect(!AssistantEngine.changesThings("wc -w notas.md"))
+        // Risky words no longer throw a command away: it's shown, and asks.
+        #expect(AssistantEngine.checkCommand("killall Dock", request: "reinicia el Dock", inventory: inventory(executables: ["killall"])) != nil)
+    }
+
     @Test func deletingMovesToTheTrash() {
         let src = ToolInventory.FileInfo(name: "src", path: "src", kind: .folder, size: 0)
         let reply = AssistantEngine.trashReply(for: "borra todo lo que hay en src", inventory: inventory(files: [src]))
@@ -201,14 +233,20 @@ struct AssistantBuilderTests {
         #expect(AssistantEngine.checkCommand("gs -o chico.pdf grande.pdf", request: "comprime el pdf", inventory: context)?.missingPackage == "ghostscript")
     }
 
-    @Test func hiddenOrDestructiveCommandsAreRejected() {
+    @Test func hiddenOrDestructiveCommandsAskFirst() {
         let context = inventory(executables: ["bash", "echo", "ls", "git", "find", "sed", "sort", "python3", "xargs", "wc"])
-        let accepted = [
-            "bash -c 'rm -rf ~/x'", "echo $(rm -rf src)", "echo `whoami`", "ls && git reset --hard",
+        let risky = [
+            "bash -c 'rm -rf ~/x'", "echo $(rm -rf src)", "echo $(whoami)", "ls && git reset --hard",
             "find . -name '*.log' -delete", "find . -exec rm {} +", "sed -i '' 's/a/b/' notas.md",
-            "python3 -c 'import os'", "ls | xargs wc -l", "git push", "sort notas.md > notas.md",
-        ].filter { AssistantEngine.checkCommand($0, request: "ordena y guarda el archivo notas.md", inventory: context) != nil }
-        #expect(accepted.isEmpty)
+            "python3 -c 'import os'", "ls | xargs wc -l", "git push",
+        ]
+        // Shown, and confirmed before running.
+        for command in risky {
+            #expect(AssistantEngine.checkCommand(command, request: "ordena y guarda el archivo notas.md", inventory: context) != nil, "\(command)")
+            #expect(DangerDetector.risk(of: command) != nil || AssistantEngine.changesThings(command), "\(command)")
+        }
+        // Emptying the file it reads is a mistake, not a risk to confirm.
+        #expect(AssistantEngine.checkCommand("sort notas.md > notas.md", request: "ordena y guarda el archivo notas.md", inventory: context) == nil)
         #expect(AssistantEngine.checkCommand("sort notas.md > ordenado-nuevo.md", request: "guarda las líneas ordenadas en un archivo", inventory: context) != nil)
     }
 

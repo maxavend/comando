@@ -11,6 +11,35 @@ struct SavedRecipeTests {
         #expect(SavedRecipe.rawWords(#"open My\ File.txt"#) == ["open", #"My\ File.txt"#])
     }
 
+    @Test func keepsTheLinesOfAScript() {
+        let script = """
+            PROFILE="$HOME/Library/Application Support/ChatGPT Personal"
+            mkdir -p "$PROFILE" "$HOME/.codex-personal"
+            CODEX_HOME="$HOME/.codex-personal" \\
+            "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT" \\
+            --user-data-dir="$PROFILE"
+
+            """
+        let words = SavedRecipe.rawWords(script)
+        #expect(words == [
+            #"PROFILE="$HOME/Library/Application Support/ChatGPT Personal""#, "\n",
+            "mkdir", "-p", #""$PROFILE""#, #""$HOME/.codex-personal""#, "\n",
+            #"CODEX_HOME="$HOME/.codex-personal""#, #""/Applications/ChatGPT.app/Contents/MacOS/ChatGPT""#,
+            #"--user-data-dir="$PROFILE""#,
+        ])
+        let saved = SavedRecipe(title: "", command: script, directory: "/tmp")
+        #expect(saved.command == """
+            PROFILE="$HOME/Library/Application Support/ChatGPT Personal"
+            mkdir -p "$PROFILE" "$HOME/.codex-personal"
+            CODEX_HOME="$HOME/.codex-personal" "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT" --user-data-dir="$PROFILE"
+            """)
+        saved.parameters = [SavedRecipeParameter(wordIndex: 4, label: "Carpeta")]
+        #expect(saved.recipe(in: "/tmp").command(with: ["w4": "/tmp/otra"]).hasPrefix("""
+            PROFILE="$HOME/Library/Application Support/ChatGPT Personal"
+            mkdir -p /tmp/otra
+            """))
+    }
+
     @Test func asksForAWordAndQuotesTheAnswer() {
         let saved = SavedRecipe(title: "Levantar la tienda", command: "npm run dev -- --port 4321", directory: "/tmp/tienda")
         saved.parameters = [SavedRecipeParameter(wordIndex: 5, label: "Puerto")]
@@ -38,6 +67,22 @@ struct SavedRecipeTests {
         saved.staysInFolder = true
         #expect(saved.recipe(in: "/tmp/otra").command(with: [:]) == "cd '/tmp/tienda web' && npm test")
         #expect(saved.recipe(in: "/tmp/tienda web").command(with: [:]) == "npm test")
+    }
+
+    @Test func theAssistantUsesTheRecipeAskedForInWords() async {
+        let clone = SavedRecipe(title: "Levantar un clon de ChatGPT", command: #"open -n -a ChatGPT --args --user-data-dir="$HOME/perfil""#, directory: "/tmp")
+        let other = SavedRecipe(title: "Levantar la tienda", command: "npm run dev", directory: "/tmp/tienda")
+        var inventory = ToolInventory(directory: "/tmp", executables: ["open", "npm"])
+        inventory.savedRecipes = [other, clone].map { $0.recipe(in: "/tmp") }
+
+        for request in ["Hola, quiero levantar el clon de chatgpt", "Hola, quiero abrir un clon de ChatGPT"] {
+            let reply = await AssistantEngine.plainReply(to: request, inventory: inventory, conversational: true)
+            #expect(reply.proposals.first?.command == clone.command)
+            #expect(reply.proposals.first?.tool == "Tu receta «Levantar un clon de ChatGPT»")
+            #expect(reply.explanation.contains("Levantar un clon de ChatGPT"))
+        }
+        #expect(AssistantEngine.savedRecipe(for: "levanta la tienda", inventory: inventory)?.title == "Levantar la tienda")
+        #expect(AssistantEngine.savedRecipe(for: "comprime un audio", inventory: inventory) == nil)
     }
 
     @Test func suggestsASymbolForTheProgram() {

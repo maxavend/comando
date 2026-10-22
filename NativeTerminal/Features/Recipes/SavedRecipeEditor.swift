@@ -59,8 +59,12 @@ struct SavedRecipeEditor: View {
                 Section {
                     FlowLayout(spacing: 4) {
                         ForEach(Array(words.enumerated()), id: \.offset) { index, word in
-                            WordToken(word: word, label: asked[index], isAsked: asked[index] != nil) {
-                                toggle(index)
+                            if word == "\n" {
+                                Color.clear.frame(width: 0, height: 0).layoutValue(key: FlowLineBreak.self, value: true)
+                            } else {
+                                WordToken(word: word, label: asked[index], isAsked: asked[index] != nil) {
+                                    toggle(index)
+                                }
                             }
                         }
                     }

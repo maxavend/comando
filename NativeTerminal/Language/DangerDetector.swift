@@ -118,13 +118,11 @@ nonisolated enum DangerDetector {
                     explanation: String(localized: "Cambia todo lo que hay dentro de la carpeta. Si te equivocas, algunas apps podrían dejar de funcionar.")
                 )
             }
-        case "kill", "killall":
-            if flags.contains("9") {
-                return CommandRisk(
-                    title: String(localized: "Este comando cierra un programa a la fuerza"),
-                    explanation: String(localized: "El programa no podrá guardar su trabajo antes de cerrarse.")
-                )
-            }
+        case "kill", "killall", "pkill":
+            return CommandRisk(
+                title: String(localized: "Este comando cierra un programa a la fuerza"),
+                explanation: String(localized: "El programa no podrá guardar su trabajo antes de cerrarse.")
+            )
         default:
             break
         }

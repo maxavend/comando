@@ -42,7 +42,6 @@ struct OutputBubble: View {
             openness: openness
         )
         let firstLineCenter = Metrics.singleLineBubbleHeight(fontSize: fontSize, monospaced: monospaced) / 2
-        let gap = Metrics.replySpacing
         TextWithFooter(spacing: Metrics.bubbleVerticalPadding) {
             LinkAwareText(content: output)
                 .font(.system(size: fontSize, design: monospaced ? .monospaced : .default))
@@ -67,14 +66,9 @@ struct OutputBubble: View {
             }
         }
         .bubble(.reply)
-        .overlay(alignment: .topTrailing) {
-            // Sits just outside the bubble, centered on its first line.
+        .bubbleAccessory(on: .trailing, firstLineCenter: firstLineCenter, isHovering: $isHovering) {
             CopyButton(text: plainText)
-                .alignmentGuide(.trailing) { $0[.leading] - gap }
-                .alignmentGuide(.top) { $0[VerticalAlignment.center] - firstLineCenter }
-                .opacity(isHovering ? 1 : 0)
         }
-        .onHover { isHovering = $0 }
         #if DEBUG
         .onDebugAction("#fold") { _ in toggle() }
         #endif

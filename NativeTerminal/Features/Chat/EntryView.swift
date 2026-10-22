@@ -9,6 +9,7 @@ struct EntryView: View {
     let onEdit: (String) -> Void
 
     @Environment(TerminalController.self) private var controller
+    @AppStorage(AppSettings.fontSizeKey) private var fontSize = AppSettings.defaultFontSize
     @State private var isExplaining = false
     @State private var isHovering = false
     @State private var isSavingRecipe = false
@@ -50,8 +51,10 @@ struct EntryView: View {
 
     @ViewBuilder
     private func commandExchange(live: LiveOutput?) -> some View {
-        // What the command does shows on hover, beside the bubble, instead of
-        // a line under every command.
+        // What the command does, and a copy button like the output's, show on
+        // hover beside the bubble's first line, instead of a line under every
+        // command.
+        let firstLineCenter = Metrics.singleLineBubbleHeight(fontSize: fontSize) / 2
         CommandBubble(command: entry.command)
             .contextMenu { commandMenu }
             .sheet(isPresented: $isSavingRecipe) {
@@ -60,13 +63,13 @@ struct EntryView: View {
             .popover(isPresented: $isExplaining, arrowEdge: .leading) {
                 CommandBreakdownView(command: entry.command)
             }
-            .overlay(alignment: .leading) {
+            .bubbleAccessory(on: .leading, firstLineCenter: firstLineCenter, isHovering: $isHovering) {
+                CopyButton(text: entry.command, label: "Copiar comando")
+            } beside: {
                 if let description = CommandGlossary.describe(entry.command) {
                     CommandDescription(text: description, command: entry.command, isVisible: isHovering)
-                        .alignmentGuide(.leading) { $0[.trailing] + Metrics.composerSpacing }
                 }
             }
-            .onHover { isHovering = $0 }
             .bubbleWidth(Metrics.textBubbleFraction, alignment: .trailing)
 
         if let shell, let live, live.entryID == entry.id {
