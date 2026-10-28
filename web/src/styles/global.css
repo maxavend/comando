@@ -1,0 +1,659 @@
+/* Hallmark · shape: Feature Stack · genre: modern-minimal · theme: Dose (deal 2/3, seed sitio-para-comando-una-3ac0·5f04cd07·2026-10-28·r0) · job: try · draw: bd6fe6
+ * hero: Counter · nav: floating pill (glass capsule) · footer: letter close · imagery: screenshots 9 (the user's own captures, light and dark) · signature: a request in plain words becoming a command you choose to run · dose: white, accent moved to the icon's blue
+ * axes: light/grotesk-sans/chromatic-blue · posture: committed · contrast: pass · fold: pass · v2.0.0
+ * rebuilt in Astro + React + shadcn/ui (base-nova): the tokens below feed the shadcn theme */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/schibsted-grotesk/700.css";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource/dm-mono/400.css";
+
+/* The page follows the Mac's appearance, like the app. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+:root {
+  color-scheme: light dark;
+  --paper: oklch(97.6% 0.011 88);
+  --paper-2: oklch(96% 0.016 250);
+  --paper-3: oklch(92.5% 0.03 252);
+  --ink: oklch(21% 0.028 258);
+  --ink-2: oklch(33% 0.024 258);
+  --ink-muted: oklch(49% 0.026 256);
+  --rule: oklch(87% 0.018 250);
+  --brand: oklch(49% 0.2 259);
+  --brand-deep: oklch(43% 0.18 261);
+  --brand-ink: oklch(99% 0.006 250);
+  --focus: oklch(50% 0.21 259);
+  --band: oklch(21% 0.028 258);
+  --band-ink: oklch(96% 0.01 250);
+  --band-muted: oklch(78% 0.03 252);
+  --band-rule: oklch(34% 0.03 258);
+  --tray: oklch(88% 0.012 260);
+  --light: oklch(99.4% 0.016 84);
+  --glint: oklch(100% 0 0);
+  --shade: oklch(12% 0.02 258);
+  --glass: color-mix(in oklab, var(--paper) 74%, transparent);
+  --glass-rule: oklch(21% 0.028 258 / 0.08);
+  --glass-glint: oklch(100% 0 0 / 0.6);
+  --glass-hover: oklch(21% 0.028 258 / 0.05);
+  --glass-press: oklch(21% 0.028 258 / 0.09);
+  --nav-shadow: 0 1px 2px oklch(30% 0.03 258 / 0.06), 0 12px 32px -12px oklch(30% 0.05 258 / 0.22);
+  --shadow-shot: drop-shadow(0 18px 28px oklch(30% 0.04 258 / 0.18)) drop-shadow(0 2px 4px oklch(30% 0.04 258 / 0.1));
+  --shadow-shot-band: drop-shadow(0 18px 28px oklch(3% 0.01 258 / 0.5));
+  --nav-height: 80px;
+
+  /* shadcn roles */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-ink);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--glass-press);
+  --accent-foreground: var(--ink);
+  --destructive: oklch(52% 0.19 27);
+  --border: var(--rule);
+  --input: var(--ink-muted);
+  --ring: var(--focus);
+  --radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: oklch(16% 0.012 258);
+    --paper-2: oklch(20% 0.016 258);
+    --paper-3: oklch(25% 0.022 258);
+    --ink: oklch(95% 0.01 250);
+    --ink-2: oklch(86% 0.014 250);
+    --ink-muted: oklch(72% 0.02 252);
+    --rule: oklch(31% 0.02 258);
+    --brand: oklch(52% 0.2 259);
+    --brand-deep: oklch(46% 0.18 261);
+    --focus: oklch(72% 0.16 255);
+    --band: oklch(23% 0.022 258);
+    --band-muted: oklch(80% 0.03 252);
+    --band-rule: oklch(34% 0.024 258);
+    --tray: oklch(30% 0.012 260);
+    --light: oklch(22% 0.016 258);
+    --glint: oklch(40% 0.02 258);
+    --glass: color-mix(in oklab, var(--paper-2) 70%, transparent);
+    --glass-rule: oklch(95% 0.01 250 / 0.1);
+    --glass-glint: oklch(100% 0 0 / 0.08);
+    --glass-hover: oklch(95% 0.01 250 / 0.07);
+    --glass-press: oklch(95% 0.01 250 / 0.12);
+    --nav-shadow: 0 1px 2px oklch(3% 0.01 258 / 0.4), 0 12px 32px -12px oklch(3% 0.01 258 / 0.7);
+    --shadow-shot: drop-shadow(0 18px 28px oklch(3% 0.01 258 / 0.55));
+    --popover: var(--paper-2);
+  }
+}
+
+@theme {
+  --breakpoint-lg: 60rem;
+}
+
+@theme inline {
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Schibsted Grotesk", ui-sans-serif, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+
+  --text-display: clamp(2.75rem, 3.6vw + 1rem, 4.25rem);
+  --text-display--line-height: 1;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
+  --text-display-s--line-height: 1.05;
+  --text-section: clamp(2rem, 2.5vw + 1rem, 3.5rem);
+  --text-section--line-height: 1.05;
+  --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem);
+  --text-title--line-height: 1.2;
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+  --text-lead--line-height: 1.45;
+
+  --color-ink-2: var(--ink-2);
+  --color-band: var(--band);
+  --color-band-foreground: var(--band-ink);
+  --color-band-muted: var(--band-muted);
+  --color-band-border: var(--band-rule);
+  --color-tray: var(--tray);
+  --color-glass: var(--glass);
+  --color-glass-hover: var(--glass-hover);
+  --color-glass-press: var(--glass-press);
+  --color-brand-deep: var(--brand-deep);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-nav: var(--nav-shadow);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* One centred container; at 1920 the gutters grow, the measure does not. */
+@utility page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 4rem;
+  @media (max-width: 60rem) { padding-inline: 1.5rem; }
+  @media (max-width: 40rem) { padding-inline: 1rem; }
+}
+
+/* Large heads: the display face, tight and balanced. */
+@utility display {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* Product captures keep their own rounded window and cast a soft shadow. */
+@utility shot-shadow {
+  filter: var(--shadow-shot);
+}
+
+/* Plastic tray: a pale tint lit along its top edge. */
+@utility tray {
+  background-color: color-mix(in oklab, var(--tray) 62%, transparent);
+  box-shadow: inset 0 1.5px 0 var(--glint), inset 0 -24px 36px -28px color-mix(in oklab, var(--tray) 45%, var(--ink));
+}
+
+/* The primary button: flat brand blue. Hover and press only deepen the
+   colour; nothing glows, lifts or moves. */
+@utility button-prominent {
+  background-color: var(--brand);
+  &:hover { background-color: var(--brand-deep); }
+  &:active { background-color: color-mix(in oklab, var(--brand-deep) 85%, var(--shade)); }
+}
+
+/* Floating glass capsule for the nav. */
+@utility glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  box-shadow: inset 0 0 0 1px var(--glass-rule), inset 0 1px 0 var(--glass-glint);
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { background: var(--paper); }
+  &[data-scrolled] { box-shadow: inset 0 0 0 1px var(--glass-rule), inset 0 1px 0 var(--glass-glint), var(--nav-shadow); }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body { overflow-x: clip; }
+  html {
+    @apply font-sans;
+    scroll-padding-top: 6rem;
+    scrollbar-color: var(--ink-muted) var(--paper);
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    caret-color: var(--brand);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+  ::selection { background: color-mix(in oklab, var(--brand) 22%, transparent); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  code, kbd { font-family: var(--font-mono); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+  img { max-width: 100%; height: auto; display: block; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+}
+
+/* Captures in the sticky diptych settle in as they enter. */
+@utility shot-in {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) and (min-width: 60rem) {
+      animation: shot-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+
+@keyframes shot-in {
+  from { opacity: 0.35; transform: translateY(var(--distance-medium)); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Running text on the inner pages. */
+@utility prose-doc {
+  max-width: 68ch;
+  line-height: 1.7;
+  & > * + * { margin-top: 1rem; }
+  & h2 { font-family: var(--font-heading); font-weight: 700; letter-spacing: -0.03em; font-size: 1.953rem; line-height: 1.1; margin-top: 4rem; }
+  & > h2:first-child { margin-top: 0; }
+  & ul { list-style: disc; padding-left: 1.2em; }
+  & li + li { margin-top: 0.5rem; }
+  & a { text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 0.2em; }
+  & a:hover { text-decoration-color: var(--brand); }
+}
+
+/* Code to copy, set in the mono face on a pale well. */
+@utility code-block {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 14px;
+  background: var(--paper-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font: 400 1rem/1.7 var(--font-mono);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── transitions-dev ───────────────────────────────────────────────
+   The shared motion scale, then the transitions this site uses:
+   texts reveal (hero), menu dropdown (phone menu), modal (capture
+   viewer), tabs sliding (nav pill across pages) and text morph
+   (copy buttons). Snippets kept as shipped; the dropdown and modal
+   states are driven by Base UI's data-starting-style and
+   data-ending-style instead of .is-open / .is-closing. */
+:root {
+  --duration-stagger: 40ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-slow: 400ms;
+  --duration-very-slow: 500ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --distance-medium: 12px;
+  --blur-small: 2px;
+  --blur-medium: 3px;
+  --scale-large: 0.96;
+  --scale-medium: 0.97;
+  --scale-tiny: 0.99;
+
+  --stagger-dur: 500ms;
+  --stagger-distance: 12px;
+  --stagger-stagger: 40ms;
+  --stagger-blur: 3px;
+  --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --dropdown-open-dur: 250ms;
+  --dropdown-close-dur: 150ms;
+  --dropdown-pre-scale: 0.97;
+  --dropdown-closing-scale: 0.99;
+  --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --text-morph-dur: 180ms;
+  --text-morph-resize-dur: 240ms;
+  --text-morph-blur: 2px;
+  --text-morph-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Texts reveal: the hero's headline, line and download. */
+.t-stagger-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(var(--stagger-distance));
+  filter: blur(var(--stagger-blur));
+  transition:
+    opacity   var(--stagger-dur) var(--stagger-ease),
+    transform var(--stagger-dur) var(--stagger-ease),
+    filter    var(--stagger-dur) var(--stagger-ease);
+  will-change: transform, opacity, filter;
+}
+.t-stagger-line--2 { transition-delay: var(--stagger-stagger); }
+.t-stagger-line--3 { transition-delay: calc(var(--stagger-stagger) * 2); }
+
+.t-stagger.is-shown .t-stagger-line {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-stagger-line { transition: none !important; }
+  /* Without motion the lines simply start where they rest. */
+  .t-stagger-line { opacity: 1; transform: none; filter: none; }
+}
+
+/* Menu dropdown: grows from its trigger (Base UI sets --transform-origin). */
+.t-dropdown {
+  transform-origin: var(--transform-origin, top right);
+  transition:
+    transform var(--dropdown-open-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-open-dur) var(--dropdown-ease);
+  will-change: transform, opacity;
+}
+.t-dropdown[data-starting-style] {
+  transform: scale(var(--dropdown-pre-scale));
+  opacity: 0;
+}
+.t-dropdown[data-ending-style] {
+  transform: scale(var(--dropdown-closing-scale));
+  opacity: 0;
+  transition:
+    transform var(--dropdown-close-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-close-dur) var(--dropdown-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-dropdown { transition: none !important; }
+}
+
+/* Modal open / close: the capture viewer and its backdrop. */
+.t-modal {
+  transform-origin: center;
+  transition:
+    transform var(--modal-open-dur) var(--modal-ease),
+    opacity   var(--modal-open-dur) var(--modal-ease);
+  will-change: transform, opacity;
+}
+.t-modal[data-starting-style] {
+  transform: scale(var(--modal-scale));
+  opacity: 0;
+}
+.t-modal[data-ending-style] {
+  transform: scale(var(--modal-scale-close));
+  opacity: 0;
+  transition:
+    transform var(--modal-close-dur) var(--modal-ease),
+    opacity   var(--modal-close-dur) var(--modal-ease);
+}
+.t-modal-backdrop {
+  transition: opacity var(--modal-open-dur) var(--modal-ease);
+}
+.t-modal-backdrop[data-starting-style] { opacity: 0; }
+.t-modal-backdrop[data-ending-style] {
+  opacity: 0;
+  transition: opacity var(--modal-close-dur) var(--modal-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-modal, .t-modal-backdrop { transition: none !important; }
+}
+
+/* Between pages: the capsule stays still and its current pill slides to
+   the next link (tabs sliding). The page itself never moves as a whole:
+   the old content fades out in place, and the new page's elements rise
+   in one after another, like the hero's texts reveal. */
+@view-transition { navigation: auto; }
+[data-bar] { view-transition-name: nav; }
+
+:root {
+  --enter-delay: 90ms;
+  --enter-step: 80ms;
+}
+
+/* The capsule is the new page's live capsule from the first frame, so the
+   pill inside it can slide with no copy of the old one ghosting behind. */
+::view-transition-old(nav) { display: none; }
+::view-transition-new(nav) { animation: none; }
+::view-transition-group(nav) { animation: none; }
+
+/* Tabs sliding: one pill behind the links. It spans the row and its
+   clip-path frames the current link, so moving it never animates width. */
+.t-tabs-pill {
+  transition:
+    clip-path var(--tabs-dur) var(--tabs-ease),
+    opacity   var(--tabs-dur) var(--tabs-ease);
+  will-change: clip-path;
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-tabs-pill { transition: none !important; }
+}
+/* The old page sits on top and fades away; the new one is underneath,
+   already in place, with its elements still to come. */
+::view-transition-old(root) {
+  z-index: 1;
+  animation: page-leave var(--duration-quick) var(--ease-smooth-out) both;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+
+@keyframes page-leave {
+  to { opacity: 0; filter: blur(var(--blur-small, 2px)); }
+}
+
+/* Set on <html> only when the page arrived through a view transition. */
+[data-arrived] [data-enter] {
+  animation: page-enter var(--stagger-dur) var(--stagger-ease) both;
+  animation-delay: calc(var(--enter-delay) + var(--i, 0) * var(--enter-step));
+}
+[data-arrived] .t-stagger-line {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition: none;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--stagger-distance));
+    filter: blur(var(--stagger-blur));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
+  [data-arrived] [data-enter] { animation: none; }
+}
+
+/* Text morph: "Copiar" becomes "Copiado"; only the changing letters move. */
+.t-morph {
+  white-space: nowrap;
+}
+.t-morph-swap {
+  display: inline-grid;
+  vertical-align: bottom;
+  justify-items: start;
+  transition: width var(--text-morph-resize-dur) var(--text-morph-ease);
+}
+.t-morph-swap > span {
+  grid-area: 1 / 1;
+  white-space: pre;
+  transition:
+    opacity var(--text-morph-dur) var(--text-morph-ease),
+    filter  var(--text-morph-dur) var(--text-morph-ease);
+}
+.t-morph-new {
+  opacity: 0;
+  filter: blur(var(--text-morph-blur));
+}
+.t-morph-swap.is-morphing .t-morph-old {
+  opacity: 0;
+  filter: blur(var(--text-morph-blur));
+}
+.t-morph-swap.is-morphing .t-morph-new {
+  opacity: 1;
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-morph-swap,
+  .t-morph-swap > span { transition: none !important; }
+}
+
+/* Dot grid behind the hero: faint ink dots, and a second layer of brand
+   dots revealed only inside a soft circle around the cursor. */
+@utility dot-field {
+  --dot-gap: 22px;
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--ink) 11%, transparent) 1px, transparent 1.6px);
+  background-size: var(--dot-gap) var(--dot-gap);
+  background-position: center;
+  mask-image: radial-gradient(110% 85% at 60% 45%, #000 40%, transparent 85%);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, var(--focus) 1.4px, transparent 2px);
+    background-size: var(--dot-gap) var(--dot-gap);
+    background-position: center;
+    mask-image: radial-gradient(240px circle at var(--x, 66%) var(--y, 50%), #000, transparent 70%);
+    opacity: 0;
+    transition: opacity var(--duration-slow) var(--ease-smooth-out);
+  }
+  &[data-lit]::after { opacity: 1; }
+  /* Without the cursor, a wide and faint glow of the same dots drifts
+     slowly across the hero; with it, the spotlight takes over. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, var(--focus) 1.3px, transparent 1.9px);
+    background-size: var(--dot-gap) var(--dot-gap);
+    background-position: center;
+    mask-image: radial-gradient(30% 40% at var(--ax) var(--ay), #000, transparent 72%);
+    opacity: 0.55;
+    animation: dot-drift 32s ease-in-out infinite alternate;
+    transition: opacity var(--duration-slow) var(--ease-smooth-out);
+  }
+  &[data-lit]::before { opacity: 0.16; }
+  &[data-paused]::before { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) {
+    &::after { transition: none; }
+    &::before { animation: none; }
+  }
+}
+
+@property --ax { syntax: "<percentage>"; inherits: false; initial-value: 16%; }
+@property --ay { syntax: "<percentage>"; inherits: false; initial-value: 78%; }
+
+@keyframes dot-drift {
+  0% { --ax: 16%; --ay: 78%; }
+  25% { --ax: 26%; --ay: 22%; }
+  50% { --ax: 58%; --ay: 6%; }
+  75% { --ax: 96%; --ay: 48%; }
+  100% { --ax: 56%; --ay: 96%; }
+}
+
+/* Scroll fade for a column that moves with the page: a mask whose stops
+   the script keeps pinned to the window (--fade-0 to --fade-3, in the
+   column's own coordinates). Without the script the declaration is invalid
+   and nothing is masked. */
+@media (min-width: 60rem) {
+  .window-fade {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent var(--fade-0),
+      #000 var(--fade-1),
+      #000 var(--fade-2),
+      transparent var(--fade-3)
+    );
+  }
+}
+
+
+/* Progress and label emphasis follow scroll without changing row geometry. */
+.moments-rail {
+  --row: 3.5rem;
+  --span: calc(var(--row) * var(--steps, 3));
+  --progress: 0;
+}
+.moments-rail__track,
+.moments-rail__fill {
+  position: absolute;
+  left: 5px;
+  top: calc(var(--row) / 2);
+  width: 2px;
+  height: var(--span);
+  border-radius: 1px;
+}
+.moments-rail__track { background: var(--border); }
+.moments-rail__fill {
+  background: var(--brand);
+  transform: scaleY(var(--progress));
+  transform-origin: top;
+}
+.moments-rail__knob {
+  position: absolute;
+  left: 0;
+  top: calc(var(--row) / 2 - 6px);
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--brand);
+  box-shadow: 0 0 0 4px var(--background);
+  transform: translateY(calc(var(--span) * var(--progress)));
+}
+.moments-rail__label {
+  display: inline-block;
+  transform-origin: left center;
+  transform: scale(var(--label-scale, 1));
+  color: var(--muted-foreground);
+  font-weight: 500;
+  transition: color var(--duration-fast) var(--ease-smooth-out);
+}
+.moments-rail__item[data-passed] .moments-rail__label { color: var(--ink-2); }
+.moments-rail__item:hover .moments-rail__label { color: var(--foreground); }
+.moments-rail__item[aria-current="step"] .moments-rail__label {
+  color: var(--foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .moments-rail__label { transform: none; transition: none; }
+}
+
+/* Small screens share one gutter and a steady reading rhythm. Keep the
+   desktop layouts intact; capture buttons remain available for inspection. */
+@media (max-width: 40rem) {
+  :root {
+    --text-display: clamp(2.5rem, 10.8vw, 3.5rem);
+    --text-section: clamp(1.875rem, 7.8vw, 2.5rem);
+    --text-display-s: clamp(2rem, 8.4vw, 2.75rem);
+  }
+
+  .page { padding-inline: max(1.25rem, env(safe-area-inset-left), env(safe-area-inset-right)); }
+  .page > *, .download-card > * { min-width: 0; }
+  .landing-hero { padding-top: 2.5rem; padding-bottom: 1rem; }
+  .landing-hero h1 { max-width: 12ch; }
+  .download-stack { width: 100%; margin-top: 1.75rem; }
+  .download-stack > a { width: 100%; min-height: 3.25rem; }
+  .download-stack > p { line-height: 1.5; }
+
+  .download-card {
+    padding: 2rem 1.5rem;
+    gap: 2rem;
+    text-align: center;
+  }
+  .download-card h2 { max-width: 18ch; margin-inline: auto; }
+  .download-card .download-stack { align-items: center; }
+  .download-card .download-stack > p { max-width: 28ch; }
+  footer p { overflow-wrap: anywhere; }
+}

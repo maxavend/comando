@@ -1,0 +1,38 @@
+---
+// Inner pages: a heading, then a sticky index beside the content.
+interface Props {
+  title: string
+  lead: string
+  toc: { href: string; label: string }[]
+}
+
+const { title, lead, toc } = Astro.props
+---
+
+<section class="pt-24 pb-16">
+  <div class="page">
+    <h1 class="display max-w-[24ch] text-display-s" data-enter style="--i: 0">{title}</h1>
+    <p class="mt-6 max-w-[52ch] text-lead text-ink-2" data-enter style="--i: 1">{lead}</p>
+  </div>
+</section>
+<section class="page grid items-start gap-8 pb-30 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+  <aside aria-label="En esta página" data-enter style="--i: 2" class="sticky top-[calc(var(--nav-height)+2.5rem)] text-sm max-lg:hidden">
+    <ul class="border-t">
+      {
+        toc.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              class="flex min-h-11 items-center border-b text-ink-2 transition-colors hover:text-foreground focus-visible:-outline-offset-2 active:text-primary"
+            >
+              {item.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </aside>
+  <div class="min-w-0" data-enter style="--i: 3">
+    <slot />
+  </div>
+</section>

@@ -1,0 +1,104 @@
+---
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+import Base from "@/layouts/base.astro"
+import DocPage from "@/components/doc-page.astro"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { repo, url } from "@/lib/site"
+
+// The license as the repo ships it.
+const license = readFileSync(resolve(process.cwd(), "../LICENSE"), "utf8").trim()
+
+const app = [{ name: "SwiftTerm", href: "https://github.com/migueldeicaza/SwiftTerm", use: "La terminal integrada dentro del chat", license: "MIT" }]
+const site = [
+  { name: "Astro", use: "Las páginas de este sitio", license: "MIT" },
+  { name: "React", use: "El menú, el visor de capturas y la sección de momentos", license: "MIT" },
+  { name: "shadcn/ui y Base UI", use: "Botones, menú, diálogo y tablas", license: "MIT" },
+  { name: "Tailwind CSS", use: "Los estilos", license: "MIT" },
+  { name: "transitions.dev", href: "https://transitions.dev", use: "Las transiciones y sus tiempos", license: "Uso libre en proyectos propios" },
+  { name: "Lucide", use: "Los íconos", license: "ISC" },
+  { name: "Schibsted Grotesk, Instrument Sans y DM Mono", use: "Las tipografías", license: "SIL Open Font License 1.1" },
+]
+const groups = [
+  { id: "en-la-app", title: "En la app", rows: app },
+  { id: "en-el-sitio", title: "En este sitio", rows: site },
+]
+---
+
+<Base title="Licencia y créditos de Comando" description="La licencia MIT de Comando, el software de terceros que usa, sus marcas y cómo contactar.">
+  <DocPage
+    title="Legal"
+    lead="La licencia de Comando, lo que usa de otros y a quién pertenece cada nombre."
+    toc={[
+      { href: "#licencia", label: "Licencia" },
+      { href: "#garantia", label: "Sin garantía" },
+      { href: "#terceros", label: "Software de terceros" },
+      { href: "#marcas", label: "Marcas" },
+      { href: "#contacto", label: "Contacto" },
+    ]}
+  >
+    <div class="prose-doc max-w-none">
+      <h2 id="licencia">Licencia</h2>
+      <p class="max-w-[68ch]">
+        Comando es software libre con licencia MIT. Puedes usarlo, copiarlo, modificarlo y distribuirlo, también con fines
+        comerciales, siempre que conserves el aviso de copyright y esta licencia. El texto original, en inglés:
+      </p>
+      <pre class="code-block whitespace-pre-wrap" tabindex="0">{license}</pre>
+
+      <h2 id="garantia">Sin garantía</h2>
+      <p class="max-w-[68ch]">
+        Como dice la licencia, Comando se entrega tal cual, sin garantías de ningún tipo. El asistente propone comandos y
+        pide confirmación antes de los riesgosos, pero cada comando se ejecuta solo con tu clic: revísalo antes.
+      </p>
+      <p class="max-w-[68ch]">
+        La app no está notarizada por Apple. <a href={url("instalar/")}>Cómo abrirla la primera vez</a>.
+      </p>
+
+      <h2 id="terceros">Software de terceros</h2>
+      {
+        groups.map((g) => (
+          <>
+            <h3 id={g.id} class="mt-10 font-heading text-title font-bold tracking-tight">{g.title}</h3>
+            <Table className="table-fixed text-base">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[34%]">Proyecto</TableHead>
+                  <TableHead className="w-[38%]">Para qué</TableHead>
+                  <TableHead className="w-[28%]">Licencia</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {g.rows.map((row) => (
+                  <TableRow>
+                    <TableCell className="py-4 font-medium whitespace-normal">
+                      {"href" in row && row.href ? <a href={row.href}>{row.name}</a> : row.name}
+                    </TableCell>
+                    <TableCell className="py-4 whitespace-normal text-ink-2">{row.use}</TableCell>
+                    <TableCell className="py-4 whitespace-normal text-ink-2">{row.license}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        ))
+      }
+      <p class="mt-6 max-w-[68ch] text-sm text-muted-foreground">
+        SwiftTerm se incluye en <code>Vendor/SwiftTerm</code> con su licencia y sus avisos de copyright.
+      </p>
+
+      <h2 id="marcas">Marcas</h2>
+      <p class="max-w-[68ch]">
+        Apple, Mac, macOS y Apple Intelligence son marcas de Apple Inc. Los nombres de otros productos que aparecen en este
+        sitio, como Claude, Codex o Qwen, pertenecen a sus dueños. Comando es un proyecto independiente y no está afiliado
+        a ninguno de ellos.
+      </p>
+
+      <h2 id="contacto">Contacto</h2>
+      <p class="max-w-[68ch]">
+        Para una duda sobre la licencia o cualquier asunto legal, <a href={`${repo}/issues/new/choose`}>abre un issue en GitHub</a>.
+        Lo que pasa con tus datos está en <a href={url("privacidad/")}>Privacidad</a>.
+      </p>
+      <p class="text-sm text-muted-foreground">Actualizado el 28 de octubre de 2026.</p>
+    </div>
+  </DocPage>
+</Base>

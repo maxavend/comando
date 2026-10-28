@@ -93,6 +93,16 @@ xcodebuild -scheme NativeTerminalUI test
 | ⇧⌘K | Limpiar historial |
 | Tab | Completar |
 
+## Sitio web
+
+El sitio vive en [`web/`](web): Astro, con React y [shadcn/ui](https://ui.shadcn.com) en las partes interactivas (el menú del teléfono, el visor de capturas y la lista de momentos). Novedades sale de este CHANGELOG y el botón de descarga apunta al último `.dmg`, los dos al construir. Al subir cambios a `main` o publicar una versión, la acción **Sitio** lo publica en GitHub Pages.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
 ## Contribuir
 
 ¿Encontraste un error o tienes una idea? [Abre un issue](https://github.com/maxavend/comando/issues/new/choose). Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).

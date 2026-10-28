@@ -1,0 +1,188 @@
+---
+import Base from "@/layouts/base.astro"
+import DotField from "@/components/dot-field.astro"
+import { LinkButton } from "@/components/link-button"
+import { FeatureStage } from "@/components/feature-stage"
+import { Shot } from "@/components/shot"
+import { latestRelease } from "@/lib/release"
+import { repo, url } from "@/lib/site"
+
+const release = await latestRelease()
+const img = (name: string) => url(`img/${name}.webp`)
+
+const moments = [
+  {
+    id: "palabras",
+    label: "Con tus palabras",
+    title: "Pídelo con tus palabras",
+    body: "El asistente propone el comando, te explica qué hace y espera tu clic.",
+    shot: "renombrar",
+    alt: "El pedido «Renombra todas las fotos como chiloe» y el comando que propone el asistente para renombrarlas sin reemplazar ninguna.",
+  },
+  {
+    id: "agentes",
+    label: "Agentes de IA",
+    title: "Tus agentes, en burbujas",
+    body: "Escribe <code>claude</code>, <code>codex</code>, <code>agy</code> o <code>qwen</code>. Sus permisos llegan como botones.",
+    shot: "agente",
+    alt: "Una conversación con Claude Code dentro de Comando: sus respuestas en burbujas y su pedido de permiso como un botón.",
+  },
+  {
+    id: "recetas",
+    label: "Recetas",
+    title: "Recetas a un ⌘K",
+    body: "Tareas comunes en lenguaje simple, y las tuyas, guardadas desde el chat.",
+    shot: "recetas",
+    alt: "El buscador de recetas sobre la ventana, con «espacio» escrito y dos resultados: ver qué ocupa más espacio aquí y ver el espacio en disco.",
+  },
+  {
+    id: "programas",
+    label: "Programas interactivos",
+    title: "<code>vim</code>, <code>ssh</code> y Python, ahí mismo",
+    body: "Los programas interactivos se abren en una terminal dentro del chat.",
+    shot: "integrada",
+    alt: "Python abierto en una terminal integrada dentro del chat, con un print y una suma.",
+  },
+]
+
+const needs = [
+  { title: "macOS 27", body: "O posterior. Comando usa tu zsh y tu <code>~/.zshrc</code>." },
+  { title: "Apple Intelligence", body: "Opcional, para el asistente. La guía responde aunque no esté activado." },
+  {
+    title: "Un clic de confianza",
+    body: `La app no está notarizada: la primera vez, ábrela desde Privacidad y seguridad. <a class="underline decoration-border underline-offset-4 hover:decoration-primary" href="${url("instalar/")}">Ver los pasos</a>`,
+  },
+  {
+    title: "Nada que pagar",
+    body: `Código abierto con licencia MIT, en <a class="underline decoration-border underline-offset-4 hover:decoration-primary" href="${repo}">GitHub</a>.`,
+  },
+]
+---
+
+<Base
+  title="Comando, la terminal para Mac que funciona como un chat"
+  description="Una terminal para macOS donde cada comando es un mensaje y, si no sabes el comando, lo pides con tus palabras."
+>
+  <section class="landing-hero relative isolate grid min-h-[calc(100dvh-var(--nav-height))] items-center py-10 max-lg:min-h-0 max-lg:pt-16">
+    <DotField />
+    <div class="page grid items-center gap-10 lg:grid-cols-[minmax(0,9fr)_minmax(0,16fr)] lg:max-xl:grid-cols-2">
+      <div class="t-stagger" data-hero-reveal>
+        <h1 class="display max-w-[11ch] text-display t-stagger-line" data-enter style="--i: 0">Tu terminal, como un chat.</h1>
+        <p class="mt-6 max-w-[30ch] text-lead text-ink-2 t-stagger-line t-stagger-line--2" data-enter style="--i: 1">Escribe un comando o pide algo con tus palabras.</p>
+        <div class="t-stagger-line t-stagger-line--3" data-enter style="--i: 2">
+        <div class="download-stack mt-10 flex flex-col items-start gap-3">
+          <LinkButton href={release.href} size="xl" download>
+                        Descargar para Mac
+          </LinkButton>
+          <p class="text-sm text-muted-foreground">Gratis y de código abierto. Para macOS 27.</p>
+        </div>
+        </div>
+      </div>
+      <div data-enter style="--i: 3">
+      <Shot
+        client:visible
+        light={img("asistente-claro")}
+        dark={img("asistente-oscuro")}
+        srcSet={{
+          light: `${img("asistente-claro")} 1600w, ${img("asistente-claro-2x")} 2200w`,
+          dark: `${img("asistente-oscuro")} 1600w, ${img("asistente-oscuro-2x")} 2200w`,
+        }}
+        sizes="(min-width: 60rem) 58vw, 100vw"
+        priority
+        alt="Comando: el pedido «Comprime el audio de la entrevista» y la respuesta del asistente, que propone un comando afconvert con los botones Ejecutar y Editar."
+      />
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="antes" class="pt-36 max-lg:pt-24 max-sm:pt-18">
+    <div class="page">
+      <h2 id="antes" class="display mb-16 max-w-[30ch] text-section max-sm:mb-8">Antes de borrar, te pregunta.</h2>
+      <div class="grid items-start gap-8 lg:grid-cols-2 max-sm:gap-10">
+        <div>
+          <h3 class="display mb-4 text-title">En la Terminal</h3>
+          <div class="tray grid aspect-[1600/1048] content-start rounded-[14px] p-10 max-sm:aspect-auto max-sm:p-6">
+            <pre class="font-mono text-[clamp(1rem,0.6vw+0.8rem,1.25rem)] leading-[1.7] whitespace-pre-wrap"><span class="text-muted-foreground">%</span> ls Respaldos
+2023    2024
+<span class="text-muted-foreground">%</span> rm -rf Respaldos/2023
+<span class="text-muted-foreground">%</span> ls Respaldos
+2024
+<span class="text-muted-foreground">%</span></pre>
+          </div>
+          <p class="mt-4 max-w-[46ch] text-ink-2">La carpeta desaparece. Sin aviso y sin pasar por la Papelera.</p>
+        </div>
+        <div>
+          <h3 class="display mb-4 text-title">En Comando</h3>
+          <Shot
+            client:visible
+            light={img("borrar-claro")}
+            dark={img("borrar-oscuro")}
+            alt="Aviso de Comando: «Este comando borra archivos de forma permanente», con los botones Mover a la Papelera, Eliminar para siempre y Cancelar."
+          />
+          <p class="mt-4 max-w-[46ch] text-ink-2">Te explica qué va a pasar y te ofrece la Papelera.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <FeatureStage
+    client:idle
+    heading="Escribe, pide o delega."
+    lead="Con tu zsh y tu configuración de siempre."
+    items={moments.map((m) => ({ ...m, light: img(`${m.shot}-claro`), dark: img(`${m.shot}-oscuro`) }))}
+  />
+
+  <section aria-label="Privacidad" class="bg-band py-30 text-band-foreground max-lg:py-20 max-sm:py-14">
+    <div class="page">
+      <p class="display max-w-[22ch] text-display-s">Lo que le pides se queda en tu Mac.</p>
+      <p class="mt-6 max-w-[48ch] text-lead text-band-muted">
+        Apple Intelligence responde en tu equipo y nada se ejecuta sin tu clic.{" "}
+        <a class="text-band-foreground underline decoration-band-border underline-offset-4 hover:decoration-band-foreground" href={url("privacidad/")}>Cómo funciona</a>
+      </p>
+    </div>
+  </section>
+
+  <section aria-labelledby="requisitos" class="pt-36 max-lg:pt-24 max-sm:pt-18">
+    <div class="page grid items-start gap-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+      <h2 id="requisitos" class="display max-w-[30ch] text-section">Solo necesitas tu Mac</h2>
+      <dl class="border-t">
+        {
+          needs.map((n) => (
+            <div class="grid items-baseline gap-8 border-b py-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] max-lg:gap-2">
+              <dt class="display text-title">{n.title}</dt>
+              <dd class="max-w-[48ch] text-ink-2" set:html={n.body} />
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  <section aria-labelledby="cierre" class="pt-36 pb-16 max-lg:pt-24 max-sm:pt-18">
+    <div class="page">
+      <div class="download-card grid items-center gap-16 rounded-[20px] bg-band p-16 text-band-foreground lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] max-lg:gap-10 max-lg:px-6 max-lg:py-10">
+        <div>
+          <h2 id="cierre" class="display text-section">Empieza con un <code>ls</code>.</h2>
+          <p class="mt-4 text-lead text-band-muted">O pregúntale «¿para qué sirve?».</p>
+          <div class="download-stack mt-10 flex flex-col items-start gap-3">
+            <LinkButton href={release.href} size="xl" download className="focus-visible:outline-band-foreground">
+                            Descargar para Mac
+            </LinkButton>
+            <p class="text-sm text-band-muted">{release.note}</p>
+          </div>
+        </div>
+        <Shot
+          client:visible
+          onBand
+          light={img("chat-oscuro")}
+          alt="Comando en modo oscuro con git status y git log en burbujas, y la barra lateral con varias sesiones."
+        />
+      </div>
+    </div>
+  </section>
+  <noscript><style>.t-stagger-line { opacity: 1; transform: none; filter: none; }</style></noscript>
+  <script is:inline>
+    // Texts reveal: show the hero's lines once the first frame has painted.
+    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector("[data-hero-reveal]")?.classList.add("is-shown")))
+  </script>
+</Base>

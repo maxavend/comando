@@ -1,0 +1,28 @@
+[
+ {
+  "shape": "Feature Stack",
+  "theme": "dose",
+  "axes": "light/grotesk-sans/chromatic-blue",
+  "hero": "Counter",
+  "nav": "slab",
+  "footer": "letter close",
+  "imagery": "screenshots 9 (user captures, light and dark)",
+  "photos": [],
+  "entry": "before and after",
+  "fingerprint": "feature-stack/counter/slab/letter/screens/blue",
+  "sections": [
+   "hero",
+   "before-after",
+   "sticky-diptych",
+   "statement-band",
+   "rows",
+   "close-band",
+   "footer"
+  ],
+  "signature": "a plain-words request becoming a command you choose to run",
+  "waived": [],
+  "prompt": "Landing y sitio para Comando, terminal macOS en forma de chat",
+  "date": "2026-10-28",
+  "mode": "build"
+ }
+]

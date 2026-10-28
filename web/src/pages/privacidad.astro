@@ -1,0 +1,43 @@
+---
+import Base from "@/layouts/base.astro"
+import DocPage from "@/components/doc-page.astro"
+---
+
+<Base title="Privacidad en Comando" description="Qué se queda en tu Mac cuando usas Comando y su asistente con Apple Intelligence, y qué consulta en internet.">
+  <DocPage
+    title="Privacidad"
+    lead="Lo que pides se queda en tu Mac. Esto es lo que sale."
+    toc={[
+      { href: "#asistente", label: "El asistente" },
+      { href: "#internet", label: "Lo que consulta" },
+      { href: "#control", label: "Lo que no hace solo" },
+      { href: "#sitio", label: "Este sitio" },
+    ]}
+  >
+    <div class="prose-doc">
+      <h2 id="asistente">El asistente</h2>
+      <p>
+        Lo que le pides se procesa en tu Mac con Apple Intelligence. Tus pedidos, tus archivos y la salida de tus comandos
+        no se envían a ningún servidor de Comando: no existe ninguno.
+      </p>
+
+      <h2 id="internet">Lo que consulta</h2>
+      <p>Para sugerirte una herramienta, Comando busca en Homebrew, npm y tldr usando solo palabras clave. Tus archivos y tus comandos no salen del Mac.</p>
+      <p>
+        Los agentes de IA que abras dentro del chat, como <code>claude</code> o <code>codex</code>, son programas tuyos y
+        funcionan con sus propias reglas de privacidad.
+      </p>
+
+      <h2 id="control">Lo que no hace solo</h2>
+      <ul>
+        <li>Nunca ejecuta un comando sin tu clic.</li>
+        <li>No propone <code>sudo</code>.</li>
+        <li>Para borrar, te ofrece la Papelera antes que <code>rm</code>.</li>
+        <li>Antes de cambiar muchos archivos de una vez, te muestra qué cambia.</li>
+      </ul>
+
+      <h2 id="sitio">Este sitio</h2>
+      <p>No usa cookies ni analítica, y las tipografías se sirven desde el propio sitio.</p>
+    </div>
+  </DocPage>
+</Base>

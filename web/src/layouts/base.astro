@@ -1,0 +1,48 @@
+---
+import "@/styles/global.css"
+import Header from "@/components/header.astro"
+import Footer from "@/components/footer.astro"
+import { url } from "@/lib/site"
+import displayFont from "@fontsource/schibsted-grotesk/files/schibsted-grotesk-latin-700-normal.woff2?url"
+import bodyFont from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?url"
+
+interface Props {
+  title: string
+  description: string
+}
+
+const { title, description } = Astro.props
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={url("img/chat-claro.webp")} />
+    <link rel="icon" href={url("favicon.png")} />
+    <link rel="preload" href={displayFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={bodyFont} as="font" type="font/woff2" crossorigin />
+    <script is:inline>
+      // A page reached through a view transition brings its elements in one by one.
+      addEventListener("pagereveal", (e) => {
+        if (e.viewTransition) document.documentElement.dataset.arrived = ""
+      })
+    </script>
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="fixed top-[-6rem] left-4 z-50 rounded-lg bg-foreground px-4 py-2 text-background focus-visible:top-4"
+      >Saltar al contenido</a
+    >
+    <Header />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

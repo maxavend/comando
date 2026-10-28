@@ -1,0 +1,97 @@
+---
+import Base from "@/layouts/base.astro"
+import DocPage from "@/components/doc-page.astro"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { Shot } from "@/components/shot"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { url } from "@/lib/site"
+
+const groups = [
+  {
+    id: "sesiones",
+    title: "Sesiones",
+    rows: [
+      [["⌘T"], "Nueva sesión"],
+      [["⌥⌘T"], "Nueva sesión en la misma carpeta"],
+      [["⇧⌘]", "⇧⌘["], "Sesión siguiente o anterior"],
+      [["⌘F"], "Buscar en sesiones, comandos, salidas y recetas"],
+      [["⌃⌘A"], "Archivar las sesiones elegidas"],
+      [["⇧⌘K"], "Limpiar el historial"],
+    ],
+  },
+  {
+    id: "carpetas",
+    title: "Carpetas",
+    rows: [
+      [["⌘↑"], "Subir un nivel"],
+      [["⇧⌘G"], "Ir a una carpeta"],
+      [["⇧⌘H"], "Inicio"],
+      [["⇧⌘D"], "Escritorio"],
+      [["⇧⌘O"], "Documentos"],
+      [["⌥⌘L"], "Descargas"],
+    ],
+  },
+  {
+    id: "comandos",
+    title: "Comandos",
+    rows: [
+      [["⌘K"], "Recetas: tareas comunes y las tuyas"],
+      [["⇧⌘I"], "Herramientas instaladas con Homebrew, npm, pipx y uv"],
+      [["⌘."], "Detener el comando"],
+      [["Tab"], "Completar"],
+    ],
+  },
+] as const
+---
+
+<Base title="Atajos de teclado de Comando" description="Los atajos de Comando para sesiones, carpetas, recetas y herramientas, y cómo preguntarle a la guía.">
+  <DocPage
+    title="Atajos y guía"
+    lead="El teclado para lo frecuente, la guía para lo demás."
+    toc={[...groups.map((g) => ({ href: `#${g.id}`, label: g.title })), { href: "#guia", label: "Pregúntale qué hace" }]}
+  >
+    <div class="prose-doc max-w-none">
+      {
+        groups.map((g) => (
+          <>
+            <h2 id={g.id}>{g.title}</h2>
+            <Table className="text-base">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[30%]">Atajo</TableHead>
+                  <TableHead>Qué hace</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {g.rows.map(([keys, what]) => (
+                  <TableRow>
+                    <TableCell className="py-4">
+                      <KbdGroup>
+                        {keys.map((k) => (
+                          <Kbd className="h-6 min-w-6 px-1.5 text-sm">{k}</Kbd>
+                        ))}
+                      </KbdGroup>
+                    </TableCell>
+                    <TableCell className="py-4 whitespace-normal">{what}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        ))
+      }
+
+      <h2 id="guia">Pregúntale qué hace</h2>
+      <p>
+        El asistente también es la guía: escribe «¿para qué sirve?», «¿cómo cambio de carpeta?», «¿qué atajos hay?» o «¿es
+        privado?». Responde al instante, aunque Apple Intelligence no esté activado.
+      </p>
+      <Shot
+        client:visible
+        light={url("img/guia-claro.webp")}
+        height={1120}
+        alt="La guía de Comando respondiendo «¿Para qué sirve?» con cinco cosas que puedes hacer y preguntas sugeridas debajo."
+      />
+    </div>
+  </DocPage>
+</Base>

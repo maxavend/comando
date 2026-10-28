@@ -1,0 +1,39 @@
+---
+import Base from "@/layouts/base.astro"
+import { changelog } from "@/lib/changelog"
+
+const entries = changelog()
+---
+
+<Base title="Novedades de Comando" description="Los cambios de cada versión de Comando, la terminal para Mac que funciona como un chat.">
+  <section class="pt-24 pb-16">
+    <div class="page">
+      <h1 class="display max-w-[24ch] text-display-s" data-enter style="--i: 0">Novedades</h1>
+      <p class="mt-6 max-w-[52ch] text-lead text-ink-2" data-enter style="--i: 1">Cada versión, de la más nueva a la primera.</p>
+    </div>
+  </section>
+  <section class="page pb-30" data-enter style="--i: 2">
+    {
+      entries.map((e, i) => (
+        <article id={`v${e.version}`} class="grid gap-8 border-t py-10 last:border-b lg:grid-cols-[minmax(0,3fr)_minmax(0,9fr)] max-lg:gap-4">
+          <div class="self-start lg:sticky lg:top-[calc(var(--nav-height)+1.5rem)]">
+            <h2 class:list={["display text-[1.953rem] leading-tight", i === 0 && "text-primary"]}>{e.version}</h2>
+            <time datetime={e.iso} class="mt-2 block text-sm text-muted-foreground">{e.date}</time>
+          </div>
+          <ul class="max-w-[72ch] list-disc pl-[1.2em] leading-[1.65] [&>li+li]:mt-3">
+            {e.items.map((item) => (
+              <li>
+                <Fragment set:html={item.html} />
+                {item.children.length > 0 && (
+                  <ul class="mt-2 list-[circle] pl-[1.2em] [&>li+li]:mt-2">
+                    {item.children.map((c) => <li set:html={c} />)}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </article>
+      ))
+    }
+  </section>
+</Base>

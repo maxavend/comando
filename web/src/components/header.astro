@@ -1,0 +1,109 @@
+---
+import { LinkButton } from "@/components/link-button"
+import { MobileMenu } from "@/components/mobile-menu"
+import { latestRelease } from "@/lib/release"
+import { pages, url } from "@/lib/site"
+
+const path = Astro.url.pathname
+const links = pages.map((p) => ({ href: url(p.href), label: p.label, current: path.startsWith(url(p.href)) }))
+const release = await latestRelease()
+---
+
+<header class="pointer-events-none sticky top-0 z-40 py-3" data-nav>
+  <div class="page">
+    <nav
+      aria-label="Principal"
+      data-bar
+      class="glass pointer-events-auto relative grid min-h-14 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 rounded-full py-1 pr-1 pl-4 [transition:box-shadow_var(--duration-slow)_var(--ease-smooth-out)] max-lg:grid-cols-[minmax(0,1fr)_auto]"
+    >
+      <a
+        href={url()}
+        aria-label="Comando, inicio"
+        class="inline-flex min-h-11 items-center gap-2 justify-self-start rounded-full font-heading text-lg leading-none font-bold tracking-tight"
+      >
+        <img src={url("img/logo.svg")} width="27" height="28" alt="" />
+        Comando
+      </a>
+      <ul class="relative isolate flex gap-0.5 max-lg:hidden" data-nav-links>
+        <li aria-hidden="true" class="t-tabs-pill pointer-events-none absolute inset-0 -z-10 bg-glass-press opacity-0"></li>
+        {
+          links.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                aria-current={link.current ? "page" : undefined}
+                class="inline-flex min-h-11 items-center rounded-full px-4 whitespace-nowrap text-ink-2 transition-colors duration-200 hover:bg-glass-hover hover:text-foreground focus-visible:-outline-offset-2 active:bg-glass-press aria-[current=page]:text-foreground aria-[current=page]:hover:bg-transparent"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <script is:inline>
+        // Tabs sliding across pages: the pill starts on the link of the page
+        // you came from and slides to this page's link.
+        ;(() => {
+          const list = document.querySelector("[data-nav-links]")
+          const pill = list?.querySelector(".t-tabs-pill")
+          if (!list || !pill) return
+          const links = [...list.querySelectorAll("a")]
+          const current = links.find((a) => a.getAttribute("aria-current") === "page")
+          let from = null
+          try {
+            const last = sessionStorage.getItem("nav-pill")
+            from = links.find((a) => a.getAttribute("href") === last) ?? null
+            sessionStorage.setItem("nav-pill", current?.getAttribute("href") ?? "")
+          } catch {}
+          // The pill spans the row and is clipped to the link, so its round
+          // ends never stretch and nothing but clip-path moves.
+          const place = (a) => {
+            const right = list.offsetWidth - a.offsetLeft - a.offsetWidth
+            pill.style.clipPath = "inset(0 " + right + "px 0 " + a.offsetLeft + "px round 999px)"
+          }
+          const jump = (fn) => {
+            pill.style.transition = "none"
+            fn()
+            void pill.offsetWidth
+            pill.style.transition = ""
+          }
+          const settle = () => {
+            if (current) place(current)
+            pill.style.opacity = current ? "1" : "0"
+          }
+          const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches
+          const run = () => {
+            jump(() => {
+              const start = !reduced && from && from !== current ? from : current
+              if (start) place(start)
+              pill.style.opacity = start ? "1" : "0"
+            })
+            requestAnimationFrame(settle)
+          }
+          run()
+          // If the fonts land later, the pill retargets to the final widths.
+          document.fonts.ready.then(settle)
+          addEventListener("resize", () => jump(settle))
+        })()
+      </script>
+      <div class="flex items-center gap-1 justify-self-end">
+        <div class="lg:hidden">
+          <MobileMenu client:media="(max-width: 60rem)" links={[...links, { href: release.href, label: "Descargar para Mac", current: false }]} />
+        </div>
+        <LinkButton href={release.href} size="pill" className="max-[26rem]:hidden">
+          Descargar
+        </LinkButton>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<script>
+  // The capsule casts a shadow once the page scrolls under it.
+  const nav = document.querySelector<HTMLElement>("[data-bar]")
+  const mark = document.createElement("div")
+  mark.setAttribute("aria-hidden", "true")
+  mark.className = "absolute top-0 size-px"
+  document.body.prepend(mark)
+  new IntersectionObserver(([e]) => nav?.toggleAttribute("data-scrolled", !e.isIntersecting)).observe(mark)
+</script>

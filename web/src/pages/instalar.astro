@@ -1,0 +1,71 @@
+---
+import Base from "@/layouts/base.astro"
+import DocPage from "@/components/doc-page.astro"
+import { CopyCode } from "@/components/copy-code"
+import { LinkButton } from "@/components/link-button"
+import { latestRelease } from "@/lib/release"
+
+const release = await latestRelease()
+const verify = "shasum -a 256 ~/Downloads/Comando-*.dmg"
+const build = `git clone https://github.com/maxavend/comando.git
+cd comando
+xcodegen generate
+xcodebuild -scheme NativeTerminal -configuration Release build`
+const steps = [
+  { title: "Arrástrala a Aplicaciones", body: "Abre el .dmg y arrastra Comando a la carpeta Aplicaciones que aparece a su lado." },
+  {
+    title: "Ábrela una vez y apruébala",
+    body: "Comando no está notarizado por Apple, así que la primera vez macOS lo bloquea. Ve a <strong>Ajustes del Sistema › Privacidad y seguridad</strong> y presiona <strong>Abrir de todos modos</strong>. Después abre como cualquier app.",
+  },
+  { title: "Activa Apple Intelligence, si quieres", body: "El asistente la usa para entender lo que pides. Sin ella, los comandos, la guía y las recetas funcionan igual." },
+]
+const step = "grid grid-cols-[3.5rem_minmax(0,1fr)] gap-6 border-b py-10 max-sm:grid-cols-1 max-sm:gap-3"
+const num = "font-heading text-[2.441rem] leading-none font-bold text-primary tabular-nums"
+---
+
+<Base title="Instalar Comando en tu Mac" description="Cómo descargar Comando, abrirlo la primera vez aunque no esté notarizado y compilarlo desde el código.">
+  <DocPage
+    title="Instalar Comando"
+    lead="Tres pasos, y uno más si quieres el asistente."
+    toc={[
+      { href: "#pasos", label: "Pasos" },
+      { href: "#verificar", label: "Verificar la descarga" },
+      { href: "#compilar", label: "Compilar desde el código" },
+    ]}
+  >
+    <ol id="pasos" class="border-t">
+      <li class={step}>
+        <span class={num} aria-hidden="true">1</span>
+        <div>
+          <h2 class="display text-title">Descarga el .dmg</h2>
+          <p class="mt-2 text-ink-2">Está en GitHub, junto a un .zip con la misma app.</p>
+          <div class="mt-4 flex flex-col items-start gap-3">
+            <LinkButton href={release.href} size="xl" download>Descargar para Mac</LinkButton>
+            <p class="text-sm text-muted-foreground">{release.note}</p>
+          </div>
+        </div>
+      </li>
+      {
+        steps.map((s, i) => (
+          <li class={step}>
+            <span class={num} aria-hidden="true">{i + 2}</span>
+            <div>
+              <h2 class="display text-title">{s.title}</h2>
+              <p class="mt-2 text-ink-2" set:html={s.body} />
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+
+    <div class="prose-doc mt-16">
+      <h2 id="verificar">Verificar la descarga</h2>
+      <p>Cada versión publica un <code>SHA256SUMS.txt</code>. Compara su línea con la que da tu Mac:</p>
+      <div class="relative [&>pre]:mt-0"><pre class="code-block pr-28" tabindex="0"><code>{verify}</code></pre><CopyCode client:idle code={verify} /></div>
+
+      <h2 id="compilar">Compilar desde el código</h2>
+      <p>Necesitas Xcode 27 y <a href="https://github.com/yonaskolb/XcodeGen">XcodeGen</a>.</p>
+      <div class="relative [&>pre]:mt-0"><pre class="code-block pr-28" tabindex="0"><code>{build}</code></pre><CopyCode client:idle code={build} /></div>
+    </div>
+  </DocPage>
+</Base>
