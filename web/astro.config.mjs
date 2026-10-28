@@ -6,8 +6,8 @@ import react from "@astrojs/react"
 
 // https://astro.build/config
 export default defineConfig({
-  // Published on GitHub Pages at the product subdomain.
-  site: "https://comando.maxav.com",
+  // Published on Cloudflare Pages at the product subdomain.
+  site: "https://comando.maxavend.com",
   base: "/",
   server: { port: 4390, host: "127.0.0.1" },
   vite: {

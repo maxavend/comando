@@ -1,5 +1,5 @@
 // Paths and links shared by every page. The site lives under a base path on
-// GitHub Pages, so internal links go through `url()`.
+// Cloudflare Pages, so internal links go through `url()`.
 export const repo = "https://github.com/maxavend/comando"
 export const releasesUrl = `${repo}/releases/latest`
 
