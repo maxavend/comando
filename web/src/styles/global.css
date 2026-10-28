@@ -344,10 +344,72 @@
   filter: blur(0);
 }
 
+/* The landing headline plays as a tiny terminal-to-message exchange. */
+.hero-conversation {
+  min-height: 3.3em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: .34rem;
+  font-family: var(--font-mono);
+  font-size: clamp(2.25rem, 4.2vw, 4rem);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -.055em;
+}
+.hero-terminal { display: inline-flex; align-items: baseline; min-height: 1.08em; }
+.hero-caret {
+  width: .08em;
+  height: .86em;
+  margin-left: .1em;
+  background: currentColor;
+  animation: hero-caret-blink 850ms steps(2, start) infinite;
+}
+.hero-typing {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding-left: .12em;
+  font-family: var(--font-sans);
+  font-size: .34em;
+  font-weight: 500;
+  letter-spacing: -.01em;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transform: translateY(.35em);
+  transition: opacity 240ms ease, transform 300ms cubic-bezier(.2,.8,.2,1);
+}
+.hero-dots { display: inline-flex; gap: .18em; }
+.hero-dots i { width: .42em; aspect-ratio: 1; border-radius: 50%; background: currentColor; animation: hero-dot 900ms ease-in-out infinite; }
+.hero-dots i:nth-child(2) { animation-delay: 120ms; }
+.hero-dots i:nth-child(3) { animation-delay: 240ms; }
+.hero-bubble {
+  padding: .46em .78em .5em;
+  border-radius: 1.05em 1.05em .3em 1.05em;
+  background: #087eff;
+  color: white;
+  font-family: var(--font-sans);
+  font-size: .42em;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  opacity: 0;
+  transform: translateY(.4em) scale(.96);
+  transform-origin: bottom left;
+  transition: opacity 300ms ease, transform 420ms cubic-bezier(.2,.8,.2,1);
+}
+.hero-is-typing .hero-caret { display: none; }
+.hero-is-typing .hero-typing, .hero-replied .hero-typing { opacity: 1; transform: translateY(0); }
+.hero-replied .hero-bubble { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes hero-caret-blink { to { visibility: hidden; } }
+@keyframes hero-dot { 50% { opacity: .38; transform: translateY(-.22em); } }
+
 @media (prefers-reduced-motion: reduce) {
   .t-stagger-line { transition: none !important; }
   /* Without motion the lines simply start where they rest. */
   .t-stagger-line { opacity: 1; transform: none; filter: none; }
+  .hero-caret, .hero-dots i { animation: none; }
+  .hero-typing, .hero-bubble { opacity: 1; transform: none; transition: none; }
 }
 
 /* Menu dropdown: grows from its trigger (Base UI sets --transform-origin). */

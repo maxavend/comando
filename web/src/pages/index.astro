@@ -67,7 +67,12 @@ const needs = [
     <DotField />
     <div class="page grid items-center gap-10 lg:grid-cols-[minmax(0,9fr)_minmax(0,16fr)] lg:max-xl:grid-cols-2">
       <div class="t-stagger" data-hero-reveal>
-        <h1 class="display max-w-[11ch] text-display t-stagger-line" data-enter style="--i: 0">Tu terminal, como un chat.</h1>
+        <h1 class="hero-conversation max-w-[16ch] t-stagger-line" data-enter style="--i: 0">
+          <span class="sr-only">Tu terminal, como un chat. Más fácil de usar.</span>
+          <span class="hero-terminal" aria-hidden="true"><span data-hero-typed></span><span class="hero-caret"></span></span>
+          <span class="hero-typing" aria-hidden="true"><span class="hero-dots"><i></i><i></i><i></i></span><span>Escribiendo</span></span>
+          <span class="hero-bubble" aria-hidden="true">Más fácil de usar.</span>
+        </h1>
         <p class="mt-6 max-w-[30ch] text-lead text-ink-2 t-stagger-line t-stagger-line--2" data-enter style="--i: 1">Escribe un comando o pide algo con tus palabras.</p>
         <div class="t-stagger-line t-stagger-line--3" data-enter style="--i: 2">
         <div class="download-stack mt-10 flex flex-col items-start gap-3">
@@ -184,5 +189,21 @@ const needs = [
   <script is:inline>
     // Texts reveal: show the hero's lines once the first frame has painted.
     requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector("[data-hero-reveal]")?.classList.add("is-shown")))
+    const typed = document.querySelector("[data-hero-typed]")
+    const hero = document.querySelector(".hero-conversation")
+    const phrase = "Tu terminal, como un chat."
+    if (typed && hero && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      let i = 0
+      const typeNext = () => {
+        typed.textContent = phrase.slice(0, ++i)
+        if (i < phrase.length) setTimeout(typeNext, 58)
+        else setTimeout(() => hero.classList.add("hero-is-typing"), 430)
+      }
+      setTimeout(() => { hero.classList.add("hero-is-typing-started"); typeNext() }, 280)
+      setTimeout(() => hero.classList.add("hero-replied"), 2500)
+    } else if (typed) {
+      typed.textContent = phrase
+      hero?.classList.add("hero-is-typing-started", "hero-is-typing", "hero-replied")
+    }
   </script>
 </Base>
