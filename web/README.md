@@ -8,7 +8,7 @@ Astro + React + shadcn/ui (estilo base-nova, Base UI) + Tailwind 4.
 - `src/lib/`: la última versión desde GitHub y el CHANGELOG, leídos al construir.
 
 ```bash
-npm run dev        # http://127.0.0.1:4390/ (publicado bajo /comando/)
+npm run dev        # http://127.0.0.1:4390/ (publicado en comando.maxav.com)
 npm run build      # genera dist/
 npm run typecheck
 ```

@@ -6,9 +6,9 @@ import react from "@astrojs/react"
 
 // https://astro.build/config
 export default defineConfig({
-  // Published on GitHub Pages as a project site.
-  site: "https://maxavend.github.io",
-  base: "/comando",
+  // Published on GitHub Pages at the product subdomain.
+  site: "https://comando.maxav.com",
+  base: "/",
   server: { port: 4390, host: "127.0.0.1" },
   vite: {
     plugins: [tailwindcss()],
