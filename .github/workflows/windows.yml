@@ -200,4 +200,10 @@ jobs:
           path: |
             out/Comando-Windows-${{ matrix.platform }}-portable.zip
             out/Comando-Windows-${{ matrix.platform }}-msix.zip
-            out/captura-*.png
+
+      # The screenshots on their own: a few hundred KB instead of the packages.
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'x64'
+        with:
+          name: Capturas
+          path: out/captura-*.png
