@@ -899,17 +899,21 @@
   :root { --status-fade: #080a0e; }
 }
 
-/* Safari 26+ chooses a fixed/sticky edge element's background-color for
-   browser chrome. Leave the footer unmasked: sample its real page color
-   from a 6px edge strip, almost entirely under the bottom toolbar. */
+/* iOS Safari 26+: a transparent sticky edge sentinel prevents the floating
+   address bar from getting stuck opaque. Unlike a fixed solid strip it does
+   not cover, crop, or tint the underlying page content. */
 @media (max-width: 60rem) {
-  .site-bottom-tint {
-    position: fixed;
-    inset-inline: 0;
-    bottom: -6px;
-    height: 14px;
-    z-index: 2;
+  .site-safari-toolbar-transparent {
+    display: none;
+    position: sticky;
+    bottom: -2px;
+    width: 100%;
+    height: 6px;
+    z-index: 38;
     pointer-events: none;
-    background-color: var(--background);
+    background-color: transparent;
+  }
+  @supports (-webkit-touch-callout: none) {
+    .site-safari-toolbar-transparent { display: block; }
   }
 }
