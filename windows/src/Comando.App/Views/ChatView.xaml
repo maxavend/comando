@@ -65,8 +65,12 @@
             Padding="20,0,20,8"
             SelectionMode="None"
             IsItemClickEnabled="False"
-            ItemsUpdatingScrollMode="KeepLastItemInView"
             AutomationProperties.Name="Mensajes">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
