@@ -50,7 +50,7 @@
   --nav-shadow: 0 1px 2px oklch(30% 0.03 258 / 0.06), 0 12px 32px -12px oklch(30% 0.05 258 / 0.22);
   --shadow-shot: drop-shadow(0 18px 28px oklch(30% 0.04 258 / 0.18)) drop-shadow(0 2px 4px oklch(30% 0.04 258 / 0.1));
   --shadow-shot-band: drop-shadow(0 18px 28px oklch(3% 0.01 258 / 0.5));
-  --nav-height: 80px;
+  --nav-height: calc(80px + env(safe-area-inset-top, 0px));
 
   /* shadcn roles */
   --background: var(--paper);
@@ -170,9 +170,9 @@
   width: 100%;
   max-width: 1440px;
   margin-inline: auto;
-  padding-inline: 4rem;
-  @media (max-width: 60rem) { padding-inline: 1.5rem; }
-  @media (max-width: 40rem) { padding-inline: 1rem; }
+  padding-inline: max(4rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  @media (max-width: 60rem) { padding-inline: max(1.5rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)); }
+  @media (max-width: 40rem) { padding-inline: max(1.25rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)); }
 }
 
 /* Large heads: the display face, tight and balanced. */
@@ -221,7 +221,8 @@
   html, body { overflow-x: clip; }
   html {
     @apply font-sans;
-    scroll-padding-top: 6rem;
+    scroll-padding-top: calc(var(--nav-height) + 1rem);
+    background-color: #080a0e;
     scrollbar-color: var(--ink-muted) var(--paper);
   }
   body {
@@ -649,6 +650,12 @@
   .t-morph-swap > span { transition: none !important; }
 }
 
+/* Paint behind the transparent header too, including Safari's top safe area.
+   Only the background extends; the hero content keeps its current position. */
+.landing-hero > [data-dot-field] {
+  top: calc(-1 * var(--nav-height));
+}
+
 /* Dot grid behind the hero: faint ink dots, and a second layer of brand
    dots revealed only inside a soft circle around the cursor. */
 @utility dot-field {
@@ -794,4 +801,51 @@
   .download-card .download-stack { align-items: center; }
   .download-card .download-stack > p { max-width: 28ch; }
   footer p { overflow-wrap: anywhere; }
+}
+
+/* One bounded backdrop layer: hold the glass behind the controls, then ease
+   its opacity to zero below them. Extend its top into Safari's safe area. */
+.site-header {
+  --nav-glass-opacity: 1;
+  isolation: isolate;
+  background: transparent;
+  padding-top: calc(.75rem + env(safe-area-inset-top, 0px));
+}
+.site-header [data-bar] {
+  color-scheme: dark;
+  --foreground: #f5f5f7;
+  --ink-2: rgb(245 245 247 / .82);
+  --glass-hover: rgb(255 255 255 / .08);
+  --glass-press: rgb(255 255 255 / .13);
+  --focus: #9ccfff;
+  --ring: #9ccfff;
+  color: var(--foreground);
+}
+.site-header::before {
+  opacity: var(--nav-glass-opacity);
+  content: "";
+  position: absolute;
+  inset: calc(-1 * env(safe-area-inset-top, 0px)) 0 -3rem;
+  z-index: -1;
+  pointer-events: none;
+  background: rgb(8 10 14 / .88);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  --nav-fade: linear-gradient(to bottom,
+    #000 0%, #000 48%, rgb(0 0 0 / .98) 54%,
+    rgb(0 0 0 / .92) 60%, rgb(0 0 0 / .79) 66%,
+    rgb(0 0 0 / .61) 72%, rgb(0 0 0 / .39) 78%,
+    rgb(0 0 0 / .2) 84%, rgb(0 0 0 / .07) 91%, transparent 100%);
+  -webkit-mask-image: var(--nav-fade);
+  mask-image: var(--nav-fade);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header::before { background: #080a0e; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .site-header::before {
+    background: #080a0e;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
