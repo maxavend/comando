@@ -33,7 +33,8 @@ public sealed partial class TerminalController
             Submit(text, session);
             return;
         }
-        if (Settings.AssistantEnabled && (attachments.Count > 0 || IntentDetector.IsPlainLanguage(text, ExecutableIndex.Names(shell.PathEntries))))
+        if (Settings.AssistantEnabled && (attachments.Count > 0
+            || IntentDetector.IsPlainLanguage(text, ExecutableIndex.Names(shell.PathEntries)) && !TypoDetector.IsMistypedCommand(text)))
         {
             Ask(text, attachments, session);
             return;

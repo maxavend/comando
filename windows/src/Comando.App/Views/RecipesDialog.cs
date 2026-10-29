@@ -25,6 +25,16 @@ internal sealed class RecipesDialog
     {
         _session = session;
         _search.TextChanged += (_, _) => Fill();
+        // The search box keeps Esc for its own list; here Esc closes the recipes.
+        _search.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                e.Handled = true;
+                _selected = null;
+                _dialog?.Hide();
+            }
+        };
         _list.SelectionChanged += (_, _) => Select(_list.SelectedItem is ListViewItem { Tag: Recipe recipe } ? recipe : null);
         _list.IsItemClickEnabled = false;
 

@@ -145,3 +145,20 @@ public class AssistantControllerTests
         Assert.Single(terminal.Written);
     }
 }
+
+public class TypoDetectorTests
+{
+    [Theory]
+    [InlineData("gti status")]
+    [InlineData("gut push")]
+    [InlineData("npn install")]
+    [InlineData("wignet upgrade --all")]
+    public void MistypedCommandsAreRecognized(string text) => Assert.True(Comando.Core.Language.TypoDetector.IsMistypedCommand(text));
+
+    [Theory]
+    [InlineData("sube esto a github")]
+    [InlineData("comprime este video")]
+    [InlineData("git status")]
+    [InlineData("gti")]
+    public void OtherTextIsNot(string text) => Assert.False(Comando.Core.Language.TypoDetector.IsMistypedCommand(text));
+}
