@@ -18,6 +18,11 @@
             <GradientStop Color="#FF5CA8" Offset="0.65" />
             <GradientStop Color="#FFB547" Offset="1" />
         </LinearGradientBrush>
+        <Storyboard x:Key="AssistantPulse" RepeatBehavior="Forever" AutoReverse="True">
+            <DoubleAnimation Storyboard.TargetName="AssistantBar" Storyboard.TargetProperty="Opacity" From="1" To="0.45" Duration="0:0:0.9">
+                <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut" /></DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
         <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -190,6 +195,17 @@
                     AutomationProperties.Name="Detener">
                     <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                 </Button>
+
+                <!-- While the assistant thinks, the field's underline takes its colors. -->
+                <Border
+                    x:Name="AssistantBar"
+                    Height="2"
+                    Margin="1,0,1,0"
+                    VerticalAlignment="Bottom"
+                    CornerRadius="0,0,8,8"
+                    Background="{StaticResource AssistantProgressBrush}"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False" />
 
                 <!-- Fluent's indeterminate progress, on the field's bottom edge. -->
                 <ProgressBar

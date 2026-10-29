@@ -150,10 +150,16 @@ public sealed partial class ChatView : UserControl
         var running = busy || agentWorking;
         StopButton.Visibility = Formatting.VisibleIf(running);
         SendButton.Visibility = Formatting.VisibleIf(!running);
-        ActivityBar.Visibility = Formatting.VisibleIf(running || _thinking);
-        // Accent for a running command; the assistant's colors while it thinks.
-        if (_thinking && !running) ActivityBar.Foreground = (Microsoft.UI.Xaml.Media.Brush)Resources["AssistantProgressBrush"];
-        else ActivityBar.ClearValue(ProgressBar.ForegroundProperty);
+        // Accent progress for a running command; the assistant's colors, pulsing, while it thinks.
+        ActivityBar.Visibility = Formatting.VisibleIf(running);
+        var assistant = _thinking && !running;
+        if (assistant != (AssistantBar.Visibility == Visibility.Visible))
+        {
+            AssistantBar.Visibility = Formatting.VisibleIf(assistant);
+            var pulse = (Microsoft.UI.Xaml.Media.Animation.Storyboard)Resources["AssistantPulse"];
+            if (assistant) pulse.Begin();
+            else pulse.Stop();
+        }
         Composer.PlaceholderText = busy ? "Escribe para responderle al programa"
             : _thinking ? "El asistente está pensando…"
             : chat is not null ? $"Escribe a {Comando.Core.Agents.AgentKinds.DisplayName(chat.Kind)}"
