@@ -896,3 +896,37 @@
 @media (max-width: 60rem) and (prefers-color-scheme: dark) {
   :root { --status-fade: #080a0e; }
 }
+
+/* At the physical end of the page, blend the footer into Safari's bottom
+   browser chrome. Unlike the fixed top fade, this stays attached to the
+   footer so it never obscures buttons while scrolling other sections. */
+@media (max-width: 60rem) {
+  footer::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 9rem;
+    z-index: 1;
+    pointer-events: none;
+    background-color: var(--status-fade);
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgb(0 0 0 / .08) 18%,
+      rgb(0 0 0 / .32) 43%,
+      rgb(0 0 0 / .72) 68%,
+      rgb(0 0 0 / .96) 87%,
+      #000 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgb(0 0 0 / .08) 18%,
+      rgb(0 0 0 / .32) 43%,
+      rgb(0 0 0 / .72) 68%,
+      rgb(0 0 0 / .96) 87%,
+      #000 100%
+    );
+  }
+}
