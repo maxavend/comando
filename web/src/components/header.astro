@@ -9,7 +9,7 @@ const links = pages.map((p) => ({ href: url(p.href), label: p.label, current: pa
 const release = await latestRelease()
 ---
 
-<header class="site-header pointer-events-none sticky top-0 z-40 py-3" data-nav style={path === url() ? "--nav-glass-opacity: 0" : undefined}>
+<header class="site-header pointer-events-none sticky top-0 z-40 py-3" data-nav data-home={path === url() ? "" : undefined} style={path === url() ? "--nav-glass-opacity: 0" : undefined}>
   <div class="page">
     <nav
       aria-label="Principal"
@@ -107,6 +107,7 @@ const release = await latestRelease()
     const update = () => {
       queued = false
       const progress = Math.min(1, Math.max(0, window.scrollY / distance))
+      header.toggleAttribute("data-nav-scrolled", progress > 0)
       const eased = progress * progress * (3 - 2 * progress)
       header.style.setProperty("--nav-glass-opacity", String(eased))
     }
