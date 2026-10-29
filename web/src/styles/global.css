@@ -918,10 +918,18 @@
   }
 }
 
-/* Match the lower Safari chrome without obscuring the closing Comando wordmark.
-   The divider and everything below it share the exact same solid color. */
+/* Blend the footer into Safari's bottom chrome without masking content.
+   The gradient begins at the previous background and gradually reaches
+   the same solid #0a0d12 used at the bottom edge. */
 @media (max-width: 60rem) and (prefers-color-scheme: dark) {
   html { background-color: #0a0d12; }
-  .footer-end { background-color: #0a0d12; }
+  .footer-end {
+    background: linear-gradient(
+      to bottom,
+      var(--background) 0,
+      #0a0d12 160px,
+      #0a0d12 100%
+    );
+  }
   .footer-end > p { color: rgb(245 245 247 / .13); }
 }
