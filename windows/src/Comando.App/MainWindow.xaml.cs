@@ -2,12 +2,14 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Comando.Core.Models;
 using Comando.Core.Services;
+using Microsoft.UI.Xaml.Media;
 using Comando.Views;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.Graphics;
+using Windows.System;
 
 namespace Comando;
 
@@ -30,7 +32,109 @@ public sealed partial class MainWindow : Window
         AppWindow.Closing += OnClosing;
 
         Controller.PropertyChanged += OnControllerChanged;
+        Controller.CommandFinished += OnCommandFinished;
+        App.Notifications.SessionRequested += id =>
+        {
+            if (Controller.Sessions.FirstOrDefault(s => s.Id == id) is { } session) Controller.SelectedSession = session;
+            ShowChat();
+            Activate();
+        };
+        App.Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppSettings.Theme)) ApplyTheme();
+        };
+        Activated += (_, e) => _isActive = e.WindowActivationState != WindowActivationState.Deactivated;
+
+        // Ctrl+, has no name in VirtualKey.
+        var settingsShortcut = new KeyboardAccelerator { Key = (VirtualKey)188, Modifiers = VirtualKeyModifiers.Control };
+        settingsShortcut.Invoked += OnSettingsAccelerator;
+        Root.KeyboardAccelerators.Add(settingsShortcut);
+
+        Tools.BackRequested += ShowChat;
+        SettingsPage.BackRequested += ShowChat;
+        SettingsPage.WelcomeRequested += () => _ = WelcomeDialog.ShowAsync(Content.XamlRoot);
+        Root.Loaded += OnRootLoaded;
+
+        ApplyTheme();
         ShowSelection();
+    }
+
+    private bool _isActive = true;
+
+    private async void OnRootLoaded(object sender, RoutedEventArgs e)
+    {
+        if (!App.Settings.HasSeenWelcome) await WelcomeDialog.ShowAsync(Content.XamlRoot);
+        Chat.FocusComposer();
+    }
+
+    private void ApplyTheme()
+    {
+        Root.RequestedTheme = App.Settings.Theme switch
+        {
+            AppTheme.Light => ElementTheme.Light,
+            AppTheme.Dark => ElementTheme.Dark,
+            _ => ElementTheme.Default,
+        };
+    }
+
+    private void OnCommandFinished(TerminalSession session, CommandEntry entry) =>
+        App.Notifications.CommandFinished(session, entry, _isActive, Controller.SelectedSession == session && Chat.Visibility == Visibility.Visible);
+
+    // Panes
+
+    private void ShowChat()
+    {
+        Chat.Visibility = Visibility.Visible;
+        Tools.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Collapsed;
+        Chat.FocusComposer();
+    }
+
+    private void ShowTools()
+    {
+        Chat.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Collapsed;
+        Tools.Visibility = Visibility.Visible;
+        Tools.Show();
+    }
+
+    private void ShowSettings()
+    {
+        Chat.Visibility = Visibility.Collapsed;
+        Tools.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Visible;
+        SettingsPage.Show();
+    }
+
+    private async void ShowRecipes()
+    {
+        if (Controller.SelectedSession is not { } session) return;
+        ShowChat();
+        await new RecipesDialog(Content.XamlRoot, session).ShowAsync();
+    }
+
+    private void OnShowTools(object sender, RoutedEventArgs e) => ShowTools();
+
+    private void OnShowSettings(object sender, RoutedEventArgs e) => ShowSettings();
+
+    private void OnShowRecipes(object sender, RoutedEventArgs e) => ShowRecipes();
+
+    private void OnRecipesAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        ShowRecipes();
+    }
+
+    private void OnToolsAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        ShowTools();
+    }
+
+    private void OnSettingsAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        ShowSettings();
     }
 
     public TerminalController Controller => App.Controller;
@@ -65,6 +169,7 @@ public sealed partial class MainWindow : Window
         {
             Controller.SelectedSession = session;
         }
+        if (SessionList.SelectedItem is not null && Chat.Visibility != Visibility.Visible) ShowChat();
     }
 
     private void OnNewSession(object sender, RoutedEventArgs e) => NewSession();
@@ -72,7 +177,7 @@ public sealed partial class MainWindow : Window
     private void NewSession()
     {
         Controller.CreateSession();
-        Chat.FocusComposer();
+        ShowChat();
     }
 
     private void OnPaneToggleRequested(TitleBar sender, object args)
@@ -100,6 +205,47 @@ public sealed partial class MainWindow : Window
         {
             Controller.Rename(session, field.Text);
         }
+    }
+
+    private void OnToggleArchive(object sender, RoutedEventArgs e)
+    {
+        if (Session(sender) is { } session) Controller.SetArchived(session, !session.IsArchived);
+    }
+
+    private async void OnEditAppearance(object sender, RoutedEventArgs e)
+    {
+        if (Session(sender) is not { } session) return;
+        var emoji = new TextBox { Header = "Emoji (opcional)", Text = session.Emoji ?? "", MaxLength = 8, PlaceholderText = "🚀" };
+        var colors = new GridView { SelectionMode = ListViewSelectionMode.Single, Header = "Color" };
+        foreach (var (name, _) in Formatting.SessionColors)
+        {
+            var index = colors.Items.Count;
+            colors.Items.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
+            {
+                Width = 28,
+                Height = 28,
+                Fill = Formatting.SessionBrush(index),
+                Tag = index,
+            });
+            ToolTipService.SetToolTip((DependencyObject)colors.Items[index], name);
+        }
+        colors.SelectedIndex = session.ColorIndex;
+        var panel = new StackPanel { Spacing = 16 };
+        panel.Children.Add(emoji);
+        panel.Children.Add(colors);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = Content.XamlRoot,
+            Title = "Ícono y color",
+            Content = panel,
+            PrimaryButtonText = "Guardar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        session.Emoji = string.IsNullOrWhiteSpace(emoji.Text) ? null : emoji.Text.Trim();
+        if (colors.SelectedIndex >= 0) session.ColorIndex = colors.SelectedIndex;
+        Controller.SaveSoon();
     }
 
     private void OnTogglePin(object sender, RoutedEventArgs e)
@@ -165,6 +311,7 @@ public sealed partial class MainWindow : Window
     private void Open(SearchResult result)
     {
         Controller.SelectedSession = result.Session;
+        ShowChat();
         SearchBox.Text = "";
         SearchBox.ItemsSource = null;
         if (result.Entry is { } entry) Chat.ScrollTo(entry);

@@ -21,10 +21,29 @@ public sealed partial class ChatView : UserControl
 
     private TerminalSession? _session;
     private ShellSession? _shell;
+    private Comando.Core.Agents.AgentChat? _chat;
+    private readonly List<string> _attachments = [];
 
     public ChatView()
     {
         InitializeComponent();
+        App.Controller.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Comando.Core.Services.TerminalController.AgentChatsVersion)) UpdateShellState();
+        };
+        App.Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Comando.Core.Services.AppSettings.FontSize)) Composer.FontSize = App.Settings.FontSize;
+        };
+        Composer.FontSize = App.Settings.FontSize;
+    }
+
+    /// <summary>Places a command in the composer to edit before sending.</summary>
+    public void Draft(string text)
+    {
+        Composer.Text = text;
+        Composer.SelectionStart = text.Length;
+        FocusComposer();
     }
 
     public TerminalSession? Session
@@ -42,6 +61,8 @@ public sealed partial class ChatView : UserControl
 
             _session = value;
             _shell = value is null ? null : App.Controller.Shell(value);
+            _attachments.Clear();
+            UpdateAttachments();
             EntryList.ItemsSource = value?.Entries;
 
             if (_session is not null)
@@ -92,12 +113,26 @@ public sealed partial class ChatView : UserControl
         EmptyState.Visibility = Formatting.VisibleIf(_session is { Entries.Count: 0 });
     }
 
+    private void OnChatChanged(object? sender, PropertyChangedEventArgs e) => UpdateShellState();
+
     private void UpdateShellState()
     {
+        var chat = _session is null ? null : App.Controller.AgentChat(_session);
+        if (!ReferenceEquals(chat, _chat))
+        {
+            if (_chat is not null) _chat.PropertyChanged -= OnChatChanged;
+            _chat = chat;
+            if (_chat is not null) _chat.PropertyChanged += OnChatChanged;
+        }
         var busy = _shell?.IsBusy ?? false;
-        SendButton.Visibility = Formatting.VisibleIf(!busy);
-        StopButton.Visibility = Formatting.VisibleIf(busy);
-        Composer.PlaceholderText = busy ? "Escribe para responderle al programa" : "Escribe un comando";
+        var agentWorking = !busy && chat is { IsResponding: true };
+        SendButton.Visibility = Formatting.VisibleIf(!busy && !agentWorking);
+        StopButton.Visibility = Formatting.VisibleIf(busy || agentWorking);
+        Composer.PlaceholderText = busy ? "Escribe para responderle al programa"
+            : chat is not null ? $"Escribe a {Comando.Core.Agents.AgentKinds.DisplayName(chat.Kind)}"
+            : _attachments.Count > 0 ? "Dile al asistente qué hacer con estos archivos"
+            : App.Settings.AssistantEnabled ? "Escribe un comando o pídelo con tus palabras"
+            : "Escribe un comando";
 
         switch (_shell?.Phase)
         {
@@ -165,12 +200,71 @@ public sealed partial class ChatView : UserControl
         // A program waiting for input may want an empty line (“Press Enter”).
         if (text.Trim().Length == 0 && !(_shell?.IsBusy ?? false)) return;
         Composer.Text = "";
-        App.Controller.Submit(text, _session);
+        var attachments = _attachments.ToList();
+        _attachments.Clear();
+        UpdateAttachments();
+        App.Controller.Send(text, _session, attachments);
     }
 
     private void OnStop(object sender, RoutedEventArgs e)
     {
-        if (_session is not null) App.Controller.Stop(_session);
+        if (_session is null) return;
+        if (_shell?.IsBusy == true) App.Controller.Stop(_session);
+        else App.Controller.StopAgent(_session);
+    }
+
+    // Files and folders
+
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) return;
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Link;
+        e.DragUIOverride.Caption = "Soltar para adjuntar, o una carpeta para ir a ella";
+    }
+
+    /// <summary>A folder on its own moves the session there; files are attached for the assistant.</summary>
+    private async void OnDrop(object sender, DragEventArgs e)
+    {
+        if (_session is null || !e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) return;
+        var items = await e.DataView.GetStorageItemsAsync();
+        if (items.Count == 1 && items[0] is Windows.Storage.StorageFolder folder)
+        {
+            App.Controller.GoTo(folder.Path, _session);
+            return;
+        }
+        foreach (var item in items)
+        {
+            if (!_attachments.Contains(item.Path)) _attachments.Add(item.Path);
+        }
+        UpdateAttachments();
+        FocusComposer();
+    }
+
+    private void UpdateAttachments()
+    {
+        AttachmentBar.Children.Clear();
+        foreach (var path in _attachments)
+        {
+            var chip = new Button { Content = $"{Path.GetFileName(path)}  ✕", CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 3, 10, 3) };
+            ToolTipService.SetToolTip(chip, $"Quitar {path}");
+            chip.Click += (_, _) =>
+            {
+                _attachments.Remove(path);
+                UpdateAttachments();
+            };
+            AttachmentBar.Children.Add(chip);
+        }
+        AttachmentBar.Visibility = Formatting.VisibleIf(_attachments.Count > 0);
+        UpdateShellState();
+    }
+
+    private async void OnChangeFolder(object sender, RoutedEventArgs e)
+    {
+        if (_session is null || App.Window is null) return;
+        var picker = new Windows.Storage.Pickers.FolderPicker();
+        picker.FileTypeFilter.Add("*");
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.Window));
+        if (await picker.PickSingleFolderAsync() is { } folder) App.Controller.GoTo(folder.Path, _session);
     }
 
     private void OnExample(object sender, RoutedEventArgs e)

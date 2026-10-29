@@ -5,7 +5,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:Comando.Views"
     xmlns:models="using:Comando.Core.Models"
-    SizeChanged="OnSizeChanged">
+    SizeChanged="OnSizeChanged"
+    AllowDrop="True"
+    DragOver="OnDragOver"
+    Drop="OnDrop">
 
     <UserControl.Resources>
         <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
@@ -44,6 +47,9 @@
                     IsTextSelectionEnabled="True" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                <Button Style="{StaticResource ToolbarButtonStyle}" Click="OnChangeFolder" ToolTipService.ToolTip="Ir a otra carpeta" AutomationProperties.Name="Ir a otra carpeta">
+                    <FontIcon Glyph="&#xE8DA;" FontSize="16" />
+                </Button>
                 <Button Style="{StaticResource ToolbarButtonStyle}" Click="OnReveal" ToolTipService.ToolTip="Abrir en el Explorador de archivos" AutomationProperties.Name="Abrir en el Explorador de archivos">
                     <FontIcon Glyph="&#xE838;" FontSize="16" />
                 </Button>
@@ -113,13 +119,19 @@
         </StackPanel>
 
         <!-- Composer -->
-        <Grid Grid.Row="3" Padding="20,8,20,16" ColumnSpacing="8">
+        <Grid Grid.Row="3" Padding="20,8,20,16" ColumnSpacing="8" RowSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <StackPanel x:Name="AttachmentBar" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Visibility="Collapsed" />
             <TextBox
                 x:Name="Composer"
+                Grid.Row="1"
                 PlaceholderText="Escribe un comando"
                 AcceptsReturn="True"
                 TextWrapping="Wrap"
@@ -135,6 +147,7 @@
                 AutomationProperties.Name="Comando" />
             <Button
                 x:Name="SendButton"
+                Grid.Row="1"
                 Grid.Column="1"
                 Width="36"
                 Height="36"
@@ -149,6 +162,7 @@
             </Button>
             <Button
                 x:Name="StopButton"
+                Grid.Row="1"
                 Grid.Column="1"
                 Width="36"
                 Height="36"

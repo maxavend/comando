@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Comando.Core.Agents;
+using Comando.Core.Assistant;
 using Comando.Core.Language;
 
 namespace Comando.Core.Models;
@@ -68,6 +70,38 @@ public sealed partial class CommandEntry : ObservableObject
     [NotifyPropertyChangedFor(nameof(MovedTo))]
     public partial string? EndDirectory { get; set; }
 
+    /// <summary>The agent CLI this entry talks to (Kind is AgentStart or Agent).</summary>
+    public string? AgentName { get; set; }
+
+    /// <summary>On a start entry: the conversation, to resume it after it ended.</summary>
+    [ObservableProperty]
+    public partial string? AgentConversationId { get; set; }
+
+    /// <summary>The agent's answer; replaced with a new copy on every update.</summary>
+    [ObservableProperty]
+    public partial AgentReply? AgentReply { get; set; }
+
+    /// <summary>The assistant's answer to a request in plain words (Kind is Assistant).</summary>
+    [ObservableProperty]
+    public partial AssistantReply? AssistantReply { get; set; }
+
+    /// <summary>Files attached to an assistant request.</summary>
+    public List<string> AttachmentPaths { get; set; } = [];
+
+    /// <summary>When the assistant's proposal was run, so its button reads “Ejecutado”.</summary>
+    [ObservableProperty]
+    public partial DateTimeOffset? AssistantRanAt { get; set; }
+
+    /// <summary>A plain-language explanation of a failure, and a command to try instead.</summary>
+    [ObservableProperty]
+    public partial string? HintMessage { get; set; }
+
+    [ObservableProperty]
+    public partial string? HintSuggestion { get; set; }
+
+    [JsonIgnore]
+    public AgentKind? AgentKind => AgentKinds.FromName(AgentName);
+
     [JsonIgnore]
     public bool IsFinished => FinishedAt is not null;
 
@@ -132,10 +166,27 @@ public sealed partial class TerminalSession : ObservableObject
     [ObservableProperty]
     public partial int ColorIndex { get; set; }
 
+    /// <summary>Archived sessions keep their history, without a shell, at the bottom of the sidebar.</summary>
+    [ObservableProperty]
+    public partial bool IsArchived { get; set; }
+
+    /// <summary>A short title from the conversation, when the person hasn't named it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    public partial string? AutoName { get; set; }
+
+    /// <summary>The AI agent this session is talking to, and its conversation, to resume after relaunch.</summary>
+    public string? AgentName { get; set; }
+    public string? AgentConversationId { get; set; }
+    public AgentPermission AgentPermission { get; set; }
+
     public ObservableCollection<CommandEntry> Entries { get; set; } = [];
 
     [JsonIgnore]
-    public string DisplayName => string.IsNullOrWhiteSpace(CustomName) ? FolderName.Display(Directory) : CustomName;
+    public string DisplayName =>
+        !string.IsNullOrWhiteSpace(CustomName) ? CustomName
+        : !string.IsNullOrWhiteSpace(AutoName) ? AutoName
+        : FolderName.Display(Directory);
 
     public void Remember(string folder)
     {

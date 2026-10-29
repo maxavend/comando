@@ -23,6 +23,8 @@
             <KeyboardAccelerator Modifiers="Control" Key="L" Invoked="OnClearAccelerator" />
             <KeyboardAccelerator Modifiers="Control" Key="Tab" Invoked="OnNextSessionAccelerator" />
             <KeyboardAccelerator Modifiers="Control,Shift" Key="Tab" Invoked="OnPreviousSessionAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="K" Invoked="OnRecipesAccelerator" />
+            <KeyboardAccelerator Modifiers="Control,Shift" Key="I" Invoked="OnToolsAccelerator" />
         </Grid.KeyboardAccelerators>
 
         <!-- Search lives in the title bar, as the Windows guidelines suggest. -->
@@ -68,6 +70,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Button
@@ -102,6 +105,9 @@
                                         <MenuFlyoutItem Text="Cambiar nombre…" Tag="{x:Bind}" Click="OnRenameSession">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8AC;" /></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
+                                        <MenuFlyoutItem Text="Cambiar ícono y color…" Tag="{x:Bind}" Click="OnEditAppearance">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE790;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
                                         <MenuFlyoutItem Text="Fijar o quitar de arriba" Tag="{x:Bind}" Click="OnTogglePin">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE718;" /></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
@@ -110,6 +116,9 @@
                                         </MenuFlyoutItem>
                                         <MenuFlyoutItem Text="Borrar historial" Tag="{x:Bind}" Click="OnClearSession">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE894;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutItem Text="Archivar o desarchivar" Tag="{x:Bind}" Click="OnToggleArchive">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7B8;" /></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                         <MenuFlyoutSeparator />
                                         <MenuFlyoutItem Text="Eliminar sesión" Tag="{x:Bind}" Click="OnDeleteSession">
@@ -132,7 +141,7 @@
                                         VerticalAlignment="Center" />
                                 </Grid>
 
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Opacity="{x:Bind views:Formatting.ArchivedOpacity(IsArchived), Mode=OneWay}">
                                     <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock
                                         Text="{x:Bind views:Formatting.LastCommand(LastCommand), Mode=OneWay}"
@@ -156,6 +165,27 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+
+                <StackPanel Grid.Row="2" Spacing="2">
+                    <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Click="OnShowTools" ToolTipService.ToolTip="Herramientas (Ctrl+Mayús+I)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon Glyph="&#xE90F;" FontSize="16" />
+                            <TextBlock Text="Herramientas" />
+                        </StackPanel>
+                    </Button>
+                    <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Click="OnShowRecipes" ToolTipService.ToolTip="Recetas (Ctrl+K)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon Glyph="&#xE82D;" FontSize="16" />
+                            <TextBlock Text="Recetas" />
+                        </StackPanel>
+                    </Button>
+                    <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0" Click="OnShowSettings" ToolTipService.ToolTip="Ajustes (Ctrl+,)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon Glyph="&#xE713;" FontSize="16" />
+                            <TextBlock Text="Ajustes" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
 
             <Border
@@ -164,7 +194,11 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1,1,0,0"
                 CornerRadius="8,0,0,0">
-                <views:ChatView x:Name="Chat" />
+                <Grid>
+                    <views:ChatView x:Name="Chat" x:FieldModifier="public" />
+                    <views:ToolsView x:Name="Tools" Visibility="Collapsed" />
+                    <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed" />
+                </Grid>
             </Border>
         </Grid>
     </Grid>

@@ -1,3 +1,4 @@
+using Comando.Core.Assistant;
 using Comando.Core.Pty;
 using Comando.Core.Services;
 using Comando.Core.Shell;
@@ -10,8 +11,6 @@ namespace Comando;
 
 public partial class App : Application
 {
-    private MainWindow? _window;
-
     public App()
     {
         InitializeComponent();
@@ -19,6 +18,17 @@ public partial class App : Application
 
     /// <summary>The app-wide owner of sessions and shells.</summary>
     public static TerminalController Controller { get; private set; } = null!;
+
+    public static AppSettings Settings { get; private set; } = null!;
+
+    /// <summary>Phi Silica when this PC has it.</summary>
+    public static ILanguageModel Model { get; private set; } = NoLanguageModel.Instance;
+
+    public static IDispatcher Dispatcher { get; private set; } = InlineDispatcher.Instance;
+
+    public static NotificationService Notifications { get; } = new();
+
+    public static MainWindow? Window { get; private set; }
 
     public static string Version
     {
@@ -31,7 +41,7 @@ public partial class App : Application
             }
             catch (InvalidOperationException)
             {
-                // Running unpackaged (from the debugger without deploying).
+                // Portable (unpackaged) build.
                 return typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0";
             }
         }
@@ -43,15 +53,22 @@ public partial class App : Application
         {
             ShellIntegration.Install();
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Without the script commands still run; they just don't come back as messages.
         }
 
-        var dispatcher = new DispatcherQueueDispatcher(DispatcherQueue.GetForCurrentThread());
-        Controller = new TerminalController(() => new ConPtyTerminal(), dispatcher, new SessionStore(), Version);
+        Settings = AppSettings.Load();
+        Dispatcher = new DispatcherQueueDispatcher(DispatcherQueue.GetForCurrentThread());
+        Model = new PhiSilicaModel();
+        Controller = new TerminalController(() => new ConPtyTerminal(), Dispatcher, new SessionStore(), Version)
+        {
+            Settings = Settings,
+            Assistant = new AssistantEngine(Model),
+        };
+        Notifications.Register();
 
-        _window = new MainWindow();
-        _window.Activate();
+        Window = new MainWindow();
+        Window.Activate();
     }
 }

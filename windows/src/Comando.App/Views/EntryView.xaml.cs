@@ -27,6 +27,7 @@ public sealed partial class EntryView : UserControl
     private ShellSession? _shell;
     private LiveOutput? _live;
     private RenderedOutput _rendered = RenderedOutput.Empty;
+    private Comando.Core.Agents.AgentChat? _chat;
 
     public EntryView()
     {
@@ -73,6 +74,8 @@ public sealed partial class EntryView : UserControl
 
     private void DetachLive()
     {
+        if (_chat is not null) _chat.PropertyChanged -= OnChatChanged;
+        _chat = null;
         if (_shell is not null) _shell.PropertyChanged -= OnShellChanged;
         if (_live is not null) _live.PropertyChanged -= OnLiveChanged;
         _shell = null;
@@ -81,12 +84,20 @@ public sealed partial class EntryView : UserControl
 
     private void OnEntryChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(CommandEntry.FinishedAt))
+        switch (e.PropertyName)
         {
-            DetachLive();
-            Refresh();
+            case nameof(CommandEntry.FinishedAt):
+                DetachLive();
+                Refresh();
+                break;
+            case nameof(CommandEntry.AgentReply) or nameof(CommandEntry.AssistantReply) or nameof(CommandEntry.AssistantRanAt)
+                or nameof(CommandEntry.HintMessage) or nameof(CommandEntry.AgentConversationId):
+                Refresh();
+                break;
         }
     }
+
+    private void OnChatChanged(object? sender, PropertyChangedEventArgs e) => Refresh();
 
     private void OnShellChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -116,6 +127,27 @@ public sealed partial class EntryView : UserControl
     private void Refresh()
     {
         if (Entry is not { } entry) return;
+        CommandText.FontSize = App.Settings.FontSize;
+        OutputText.FontSize = App.Settings.FontSize;
+        ExplainItem.Visibility = Formatting.VisibleIf(entry.Kind is EntryKind.Command or EntryKind.Interactive);
+
+        if (entry.Kind is EntryKind.Assistant or EntryKind.Agent or EntryKind.AgentStart)
+        {
+            ShowReply(entry);
+            return;
+        }
+        ReplyHost.Visibility = Visibility.Collapsed;
+        StatusPanel.Visibility = Visibility.Visible;
+        if (entry.HintMessage is not null && App.Controller.SelectedSession is { } hinted)
+        {
+            HintHost.Child = ReplyViews.Hint(entry, hinted);
+            HintHost.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            HintHost.Child = null;
+            HintHost.Visibility = Visibility.Collapsed;
+        }
 
         if (entry.IsFinished)
         {
@@ -140,6 +172,29 @@ public sealed partial class EntryView : UserControl
         }
         Render();
         UpdateStatus(entry);
+    }
+
+    /// <summary>The assistant's or an agent's answer instead of terminal output.</summary>
+    private void ShowReply(CommandEntry entry)
+    {
+        OutputBubble.Visibility = Visibility.Collapsed;
+        StatusPanel.Visibility = Visibility.Collapsed;
+        HintHost.Visibility = Visibility.Collapsed;
+        CloseTerminal();
+        if (App.Controller.SelectedSession is not { } session) return;
+        if (entry.Kind == EntryKind.AgentStart && !entry.IsFinished && _chat is null && App.Controller.AgentChat(session) is { } chat)
+        {
+            // Its card says when the agent is ready or why it couldn't start.
+            _chat = chat;
+            _chat.PropertyChanged += OnChatChanged;
+        }
+        ReplyHost.Child = entry.Kind switch
+        {
+            EntryKind.Assistant => ReplyViews.Assistant(entry, session),
+            EntryKind.AgentStart => ReplyViews.AgentStart(entry, session),
+            _ => ReplyViews.AgentTurn(entry, session),
+        };
+        ReplyHost.Visibility = Visibility.Visible;
     }
 
     private void Render()
@@ -289,6 +344,39 @@ public sealed partial class EntryView : UserControl
     // Actions
 
     private void OnCopyCommand(object sender, RoutedEventArgs e) => Copy(Entry?.Command);
+
+    /// <summary>Keeps the command in “Mis recetas”, with a title in the person's words.</summary>
+    private async void OnSaveRecipe(object sender, RoutedEventArgs e)
+    {
+        if (Entry is not { } entry) return;
+        var title = new TextBox { Header = "Nombre", PlaceholderText = "Por ejemplo: Comprimir las fotos del viaje" };
+        var detail = new TextBox { Header = "Qué hace (opcional)" };
+        var panel = new StackPanel { Spacing = 12 };
+        panel.Children.Add(title);
+        panel.Children.Add(detail);
+        panel.Children.Add(new TextBlock { Text = entry.Command, FontFamily = (FontFamily)Application.Current.Resources["TerminalFontFamily"], TextWrapping = TextWrapping.Wrap });
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Guardar como receta",
+            Content = panel,
+            PrimaryButtonText = "Guardar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        App.Settings.AddRecipe(new Comando.Core.Services.SavedRecipe
+        {
+            Title = title.Text.Trim().Length > 0 ? title.Text.Trim() : entry.Command,
+            Detail = detail.Text.Trim(),
+            Command = entry.Command,
+        });
+    }
+
+    private void OnExplain(object sender, RoutedEventArgs e)
+    {
+        if (Entry is { } entry) ReplyViews.ExplainFlyout(entry.Command).ShowAt(CommandBubble);
+    }
 
     private void OnCopyOutput(object sender, RoutedEventArgs e) => Copy(_rendered.PlainText);
 

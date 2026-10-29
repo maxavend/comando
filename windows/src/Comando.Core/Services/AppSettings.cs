@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Comando.Core.Language;
 
 namespace Comando.Core.Services;
 
@@ -69,6 +70,21 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     public partial AppTheme Theme { get; set; }
 
+    /// <summary>Commands the person saved from the chat (“Mis recetas”).</summary>
+    public List<SavedRecipe> SavedRecipes { get; set; } = [];
+
+    public void AddRecipe(SavedRecipe recipe)
+    {
+        SavedRecipes.Add(recipe);
+        Save();
+    }
+
+    public void RemoveRecipe(string id)
+    {
+        SavedRecipes.RemoveAll(r => r.Id == id);
+        Save();
+    }
+
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlySet<string> InteractiveCommands => new HashSet<string>(
         InteractiveCommandsText.Split([' ', ',', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries),
@@ -113,5 +129,20 @@ public sealed partial class AppSettings : ObservableObject
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
         }
+    }
+}
+
+/// <summary>A command saved from the chat, with a title in the person's words.</summary>
+public sealed class SavedRecipe
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Title { get; set; } = "";
+    public string Detail { get; set; } = "";
+    public string Command { get; set; } = "";
+
+    public Recipe ToRecipe()
+    {
+        var command = Command;
+        return new Recipe("saved-" + Id, Title, Detail.Length > 0 ? Detail : command, "\uE734", RecipeCategory.Mine, _ => command);
     }
 }

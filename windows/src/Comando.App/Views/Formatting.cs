@@ -21,6 +21,9 @@ public static class Formatting
 
     public static string LastCommand(string? command) => command ?? "Sin comandos todavía";
 
+    /// <summary>Archived sessions read quieter in the sidebar.</summary>
+    public static double ArchivedOpacity(bool archived) => archived ? 0.55 : 1;
+
     // Avatars
 
     /// <summary>Avatar colors people can give a session, as in the macOS app.</summary>
