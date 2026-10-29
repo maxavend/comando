@@ -9,7 +9,9 @@ namespace Comando.Views;
 /// <summary>Preferences, each saved as soon as it changes.</summary>
 public sealed partial class SettingsView : UserControl
 {
-    private bool _loading;
+    // True until Show fills the controls: building them fires their change
+    // events (the slider snaps to its minimum), which mustn't save anything.
+    private bool _loading = true;
 
     public SettingsView()
     {
@@ -72,6 +74,7 @@ public sealed partial class SettingsView : UserControl
 
     private void OnFontSizeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
+        if (FontPreview is null) return;
         FontPreview.FontSize = e.NewValue;
         if (!_loading) Settings.FontSize = e.NewValue;
     }

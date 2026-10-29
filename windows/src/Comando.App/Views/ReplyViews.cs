@@ -341,12 +341,14 @@ internal static class ReplyViews
             buttons.Children.Add(edit);
             stack.Children.Add(buttons);
         }
-        return new InfoBar
+        return new Border
         {
-            IsOpen = true,
-            IsClosable = false,
-            Severity = InfoBarSeverity.Informational,
-            Content = stack,
+            Background = Resource("CardBackgroundFillColorDefaultBrush"),
+            BorderBrush = Resource("CardStrokeColorDefaultBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10, 14, 10),
+            Child = stack,
             MaxWidth = 760,
             HorizontalAlignment = HorizontalAlignment.Left,
         };
