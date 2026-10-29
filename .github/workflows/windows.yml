@@ -87,6 +87,34 @@ jobs:
           Start-Sleep -Seconds 10
           Save-Screen 'out/captura-comando.png'
           if ($app.HasExited) { Write-Error "Comando se cerró al ejecutar un comando"; exit 1 }
+
+          # The assistant's guide answers without a model.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('para que sirve Comando{ENTER}')
+          Start-Sleep -Seconds 4
+          Save-Screen 'out/captura-asistente.png'
+
+          # A nested PowerShell opens the embedded terminal (WebView2 + xterm.js).
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('pwsh -NoLogo{ENTER}')
+          Start-Sleep -Seconds 12
+          Save-Screen 'out/captura-terminal.png'
+          [System.Windows.Forms.SendKeys]::SendWait('Write-Output desde-la-terminal{ENTER}')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-terminal-2.png'
+          [System.Windows.Forms.SendKeys]::SendWait('exit{ENTER}')
+          Start-Sleep -Seconds 4
+          if ($app.HasExited) { Write-Error "Comando se cerró con la terminal integrada"; exit 1 }
+
+          # Recipes.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('^k')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-recetas.png'
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+          Start-Sleep -Seconds 1
+          Save-Screen 'out/captura-final.png'
+          if ($app.HasExited) { Write-Error "Comando se cerró"; exit 1 }
           Stop-Process -Id $app.Id
 
       # Installable: MSIX signed with a test certificate (Phi Silica needs a package).
