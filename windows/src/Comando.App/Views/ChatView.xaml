@@ -154,7 +154,7 @@
                     MaxHeight="180"
                     MinHeight="40"
                     Padding="12,10,52,10"
-                    CornerRadius="8"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
                     IsSpellCheckEnabled="False"
                     IsTextPredictionEnabled="False"
                     PreviewKeyDown="OnComposerKeyDown"
@@ -196,23 +196,23 @@
                     <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                 </Button>
 
-                <!-- While the assistant thinks, the field's underline takes its colors. -->
+                <!-- While the assistant thinks, the field's underline takes its colors:
+                     a bottom-only stroke on the field's own shape, so it curves into
+                     the corners exactly like the native focus underline. -->
                 <Border
                     x:Name="AssistantBar"
-                    Height="2"
-                    Margin="1,0,1,0"
-                    VerticalAlignment="Bottom"
-                    CornerRadius="0,0,8,8"
-                    Background="{StaticResource AssistantProgressBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
+                    BorderThickness="0,0,0,2"
+                    BorderBrush="{StaticResource AssistantProgressBrush}"
                     Visibility="Collapsed"
                     IsHitTestVisible="False" />
 
-                <!-- Fluent's indeterminate progress, on the field's bottom edge. -->
+                <!-- Fluent's indeterminate progress while a command runs, inside the corners. -->
                 <ProgressBar
                     x:Name="ActivityBar"
                     IsIndeterminate="True"
                     VerticalAlignment="Bottom"
-                    Margin="8,0,8,0"
+                    Margin="4,0,4,0"
                     Visibility="Collapsed"
                     IsHitTestVisible="False"
                     AutomationProperties.Name="En curso" />
