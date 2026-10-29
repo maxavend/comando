@@ -21,6 +21,17 @@ public static class Formatting
 
     public static string LastCommand(string? command) => command ?? "Sin comandos todavía";
 
+    /// <summary>When a session was last active, the way a messages list says it: 10:42, ayer, lun., 3/10.</summary>
+    public static string ListTime(DateTimeOffset when)
+    {
+        var local = when.ToLocalTime();
+        var today = DateTime.Today;
+        if (local.Date == today) return local.ToString("HH:mm");
+        if (local.Date == today.AddDays(-1)) return "ayer";
+        if (local.Date > today.AddDays(-7)) return local.ToString("ddd", new System.Globalization.CultureInfo("es-CL"));
+        return local.ToString(local.Year == today.Year ? "d/M" : "d/M/yy");
+    }
+
     /// <summary>Archived sessions read quieter in the sidebar.</summary>
     public static double ArchivedOpacity(bool archived) => archived ? 0.55 : 1;
 

@@ -91,7 +91,8 @@ public sealed partial class ChatView : UserControl
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(TerminalSession.DisplayName) or nameof(TerminalSession.Directory)) UpdateHeader();
+        if (e.PropertyName is nameof(TerminalSession.DisplayName) or nameof(TerminalSession.Directory)
+            or nameof(TerminalSession.Emoji) or nameof(TerminalSession.ColorIndex)) UpdateHeader();
     }
 
     private void OnEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateEmptyState();
@@ -105,6 +106,13 @@ public sealed partial class ChatView : UserControl
     private void UpdateHeader()
     {
         TitleText.Text = _session?.DisplayName ?? "";
+        if (_session is not null)
+        {
+            AvatarFill.Fill = Formatting.SessionBrush(_session.ColorIndex);
+            AvatarEmoji.Text = _session.Emoji ?? "";
+            AvatarGlyph.Glyph = Formatting.SessionGlyph(_shell?.Directory ?? _session.Directory);
+            AvatarGlyph.Visibility = Formatting.GlyphVisibility(_session.Emoji);
+        }
         FolderText.Text = _shell?.Directory ?? _session?.Directory ?? "";
     }
 
@@ -204,6 +212,10 @@ public sealed partial class ChatView : UserControl
     }
 
     private void OnSend(object sender, RoutedEventArgs e) => Send();
+
+    /// <summary>The send button lights up once there's something to send.</summary>
+    private void OnComposerTextChanged(object sender, TextChangedEventArgs e) =>
+        SendButton.IsEnabled = Composer.Text.Trim().Length > 0 || _attachments.Count > 0;
 
     /// <summary>
     /// Tab completes the word before the cursor: a program for the first
@@ -346,6 +358,7 @@ public sealed partial class ChatView : UserControl
             AttachmentBar.Children.Add(chip);
         }
         AttachmentBar.Visibility = Formatting.VisibleIf(_attachments.Count > 0);
+        SendButton.IsEnabled = Composer.Text.Trim().Length > 0 || _attachments.Count > 0;
         UpdateShellState();
     }
 

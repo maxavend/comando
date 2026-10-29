@@ -9,26 +9,44 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
+            <ResourceDictionary.ThemeDictionaries>
+                <!-- Like Windows' Mensajes (Vínculo móvil): replies are soft gray, no outline. -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="IncomingBubbleBrush" Color="#EBEBEB" />
+                    <SolidColorBrush x:Key="ChatBackgroundBrush" Color="#FBFBFB" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="IncomingBubbleBrush" Color="#2F2F2F" />
+                    <SolidColorBrush x:Key="ChatBackgroundBrush" Color="#202020" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="IncomingBubbleBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ChatBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
             <FontFamily x:Key="TerminalFontFamily">Cascadia Mono, Cascadia Code, Consolas</FontFamily>
             <x:Double x:Key="TerminalFontSize">13</x:Double>
-            <CornerRadius x:Key="BubbleCornerRadius">18</CornerRadius>
+            <CornerRadius x:Key="BubbleCornerRadius">8</CornerRadius>
             <x:Double x:Key="BubbleMaxWidth">640</x:Double>
 
             <Style x:Key="CommandBubbleStyle" TargetType="Border">
                 <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}" />
                 <Setter Property="CornerRadius" Value="{StaticResource BubbleCornerRadius}" />
-                <Setter Property="Padding" Value="14,8" />
+                <Setter Property="Padding" Value="12,8" />
                 <Setter Property="HorizontalAlignment" Value="Right" />
                 <Setter Property="MaxWidth" Value="{StaticResource BubbleMaxWidth}" />
             </Style>
 
             <Style x:Key="OutputBubbleStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Background" Value="{ThemeResource IncomingBubbleBrush}" />
                 <Setter Property="CornerRadius" Value="{StaticResource BubbleCornerRadius}" />
-                <Setter Property="Padding" Value="14,10" />
+                <Setter Property="Padding" Value="12,8" />
                 <Setter Property="HorizontalAlignment" Value="Left" />
+            </Style>
+
+            <Style x:Key="MessageTimeStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

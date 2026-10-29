@@ -337,7 +337,8 @@ public sealed partial class EntryView : UserControl
         {
             text += $" · Ahora estás en {FolderName.Phrase(folder)}";
         }
-        StatusText.Text = text;
+        // The time the message was sent leads, as in a messages app.
+        StatusText.Text = entry.StartedAt.ToLocalTime().ToString("HH:mm") + " · " + text;
         VisualStateManager.GoToState(this, failed ? "Failed" : "Normal", false);
     }
 

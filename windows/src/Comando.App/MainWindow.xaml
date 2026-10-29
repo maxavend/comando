@@ -73,17 +73,24 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Button
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Margin="4,0"
-                    Click="OnNewSession"
-                    ToolTipService.ToolTip="Nueva sesión (Ctrl+N)">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <FontIcon Glyph="&#xE710;" FontSize="14" />
-                        <TextBlock Text="Nueva sesión" />
-                    </StackPanel>
-                </Button>
+                <!-- Like Mensajes: the list's title with a compose button beside it. -->
+                <Grid Padding="12,4,4,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Sesiones" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
+                    <Button
+                        Grid.Column="1"
+                        Click="OnNewSession"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="10,8"
+                        ToolTipService.ToolTip="Nueva sesión (Ctrl+N)"
+                        AutomationProperties.Name="Nueva sesión">
+                        <FontIcon Glyph="&#xE70F;" FontSize="16" />
+                    </Button>
+                </Grid>
 
                 <ListView
                     x:Name="SessionList"
@@ -94,7 +101,7 @@
                     AutomationProperties.Name="Sesiones">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:TerminalSession">
-                            <Grid Padding="0,8" ColumnSpacing="12" Background="Transparent">
+                            <Grid Padding="4,10" ColumnSpacing="12" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
@@ -127,12 +134,12 @@
                                     </MenuFlyout>
                                 </Grid.ContextFlyout>
 
-                                <Grid Width="36" Height="36">
+                                <Grid Width="40" Height="40">
                                     <Ellipse Fill="{x:Bind views:Formatting.SessionBrush(ColorIndex), Mode=OneWay}" />
                                     <FontIcon
                                         Glyph="{x:Bind views:Formatting.SessionGlyph(Directory), Mode=OneWay}"
                                         Visibility="{x:Bind views:Formatting.GlyphVisibility(Emoji), Mode=OneWay}"
-                                        FontSize="16"
+                                        FontSize="17"
                                         Foreground="White" />
                                     <TextBlock
                                         Text="{x:Bind Emoji, Mode=OneWay}"
@@ -151,15 +158,22 @@
                                         MaxLines="1" />
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Orientation="Horizontal" Spacing="6">
-                                    <FontIcon
-                                        Glyph="&#xE840;"
-                                        FontSize="12"
-                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                        Visibility="{x:Bind views:Formatting.VisibleIf(IsPinned), Mode=OneWay}" />
-                                    <InfoBadge
-                                        Value="{x:Bind UnreadCount, Mode=OneWay}"
-                                        Visibility="{x:Bind views:Formatting.VisibleIfPositive(UnreadCount), Mode=OneWay}" />
+                                <!-- Time on top, unread and pinned below, as in a messages list. -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
+                                    <TextBlock
+                                        Text="{x:Bind views:Formatting.ListTime(LastActivity), Mode=OneWay}"
+                                        Style="{StaticResource MessageTimeStyle}"
+                                        HorizontalAlignment="Right" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                                        <FontIcon
+                                            Glyph="&#xE840;"
+                                            FontSize="12"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                            Visibility="{x:Bind views:Formatting.VisibleIf(IsPinned), Mode=OneWay}" />
+                                        <InfoBadge
+                                            Value="{x:Bind UnreadCount, Mode=OneWay}"
+                                            Visibility="{x:Bind views:Formatting.VisibleIfPositive(UnreadCount), Mode=OneWay}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -190,7 +204,7 @@
 
             <Border
                 Grid.Column="1"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                Background="{ThemeResource ChatBackgroundBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1,1,0,0"
                 CornerRadius="8,0,0,0">
