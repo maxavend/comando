@@ -9,12 +9,12 @@ const links = pages.map((p) => ({ href: url(p.href), label: p.label, current: pa
 const release = await latestRelease()
 ---
 
-<header class="site-header pointer-events-none sticky top-0 z-40 py-3" data-nav data-home={path === url() ? "" : undefined} style={path === url() ? "--nav-glass-opacity: 0" : undefined}>
+<header class="pointer-events-none sticky top-0 z-40 py-3" data-nav>
   <div class="page">
     <nav
       aria-label="Principal"
       data-bar
-      class="pointer-events-auto relative grid min-h-14 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 py-1 max-lg:grid-cols-[minmax(0,1fr)_auto]"
+      class="glass pointer-events-auto relative grid min-h-14 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 rounded-full py-1 pr-1 pl-4 [transition:box-shadow_var(--duration-slow)_var(--ease-smooth-out)] max-lg:grid-cols-[minmax(0,1fr)_auto]"
     >
       <a
         href={url()}
@@ -99,30 +99,11 @@ const release = await latestRelease()
 </header>
 
 <script>
-  const header = document.querySelector<HTMLElement>("[data-nav]")
-  const content = document.querySelector<HTMLElement>(".landing-hero > .page")
-  if (header && content) {
-    let distance = 1
-    let queued = false
-    const update = () => {
-      queued = false
-      const progress = Math.min(1, Math.max(0, window.scrollY / distance))
-      header.toggleAttribute("data-nav-scrolled", progress > 0)
-      const eased = progress * progress * (3 - 2 * progress)
-      header.style.setProperty("--nav-glass-opacity", String(eased))
-    }
-    const measure = () => {
-      distance = Math.max(1, content.getBoundingClientRect().top + window.scrollY - header.offsetHeight)
-      update()
-    }
-    const onScroll = () => {
-      if (!queued) { queued = true; requestAnimationFrame(update) }
-    }
-    measure()
-    document.fonts.ready.then(measure)
-    addEventListener("scroll", onScroll, { passive: true })
-    addEventListener("pageshow", measure)
-    new ResizeObserver(measure).observe(content)
-    addEventListener("resize", measure, { passive: true })
-  }
+  // The capsule casts a shadow once the page scrolls under it.
+  const nav = document.querySelector<HTMLElement>("[data-bar]")
+  const mark = document.createElement("div")
+  mark.setAttribute("aria-hidden", "true")
+  mark.className = "absolute top-0 size-px"
+  document.body.prepend(mark)
+  new IntersectionObserver(([e]) => nav?.toggleAttribute("data-scrolled", !e.isIntersecting)).observe(mark)
 </script>
