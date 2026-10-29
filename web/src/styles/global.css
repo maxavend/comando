@@ -857,28 +857,38 @@
   footer p { overflow-wrap: anywhere; }
 }
 
-/* Mobile Safari blends its status-bar color into the scrolling page.
-   The pill stays independent, above this soft veil. Never blur the veil:
-   it must not turn into an opaque Safari chrome sampling surface. */
+/* The fade must live ABOVE scrolling content, but BELOW the glass pill.
+   A pseudo-element behind .site-header cannot hide content that scrolls past
+   the pill; this fixed sibling is the actual top-edge scrim. */
 @media (max-width: 60rem) {
   :root { --status-fade: var(--paper); }
   html { background-color: var(--status-fade); }
 
-  .site-header { isolation: isolate; }
-  .site-header::before {
-    content: "";
-    position: absolute;
+  .site-top-fade {
+    position: fixed;
     inset: 0 0 auto;
-    height: 11rem;
-    z-index: -1;
+    height: 9rem;
+    z-index: 39; /* The original sticky navbar stays at z-40. */
     pointer-events: none;
-    background: linear-gradient(
+    background-color: var(--status-fade);
+    /* Fade the SOLID color with a mask; avoid color-mix with transparent
+       and avoid backdrop blur that can create iOS status-bar seams. */
+    -webkit-mask-image: linear-gradient(
       to bottom,
-      var(--status-fade) 0%,
-      var(--status-fade) 7%,
-      color-mix(in oklab, var(--status-fade) 92%, transparent) 24%,
-      color-mix(in oklab, var(--status-fade) 60%, transparent) 53%,
-      color-mix(in oklab, var(--status-fade) 24%, transparent) 77%,
+      #000 0%,
+      #000 18%,
+      rgb(0 0 0 / .96) 31%,
+      rgb(0 0 0 / .72) 53%,
+      rgb(0 0 0 / .32) 76%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 18%,
+      rgb(0 0 0 / .96) 31%,
+      rgb(0 0 0 / .72) 53%,
+      rgb(0 0 0 / .32) 76%,
       transparent 100%
     );
   }
