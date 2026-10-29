@@ -56,9 +56,9 @@ El script `comando.ps1` se escribe en `%LocalAppData%\Comando\shell` cada vez qu
 | Secuencia | Cuándo | Cómo |
 | --- | --- | --- |
 | `OSC 133;C` | empieza la salida del comando | al final de `PSConsoleHostReadLine`, justo antes de devolver la línea |
-| `OSC 133;D;<código>` | terminó el comando | al principio de `prompt`, con `$?` y `$LASTEXITCODE` |
-| `OSC 6973;cwd;<ruta>` | carpeta actual | en `prompt`; ruta de Windows tal cual, sin `file://` |
+| `OSC 6973;cwd;<ruta>` | carpeta actual | al principio de `prompt`; ruta de Windows tal cual, sin `file://` |
 | `OSC 6973;path;<PATH>` | `$env:PATH` cambió | en `prompt` |
+| `OSC 133;D;<código>` | terminó el comando | en `prompt`, después de la carpeta, con `$?` y `$LASTEXITCODE` |
 | `OSC 133;A` | lista para el siguiente comando | al final de `prompt` |
 
 PSReadLine no entiende el pegado entre corchetes (bracketed paste) que usa zsh para comandos de varias líneas. Por eso la app envía `#comando:<base64>`: `PSConsoleHostReadLine` lo decodifica y devuelve el comando original, que PowerShell ejecuta como si se hubiera escrito. Para PSReadLine es un comentario, así que no queda en el historial con esa forma.

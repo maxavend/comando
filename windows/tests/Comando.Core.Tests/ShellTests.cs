@@ -42,7 +42,7 @@ internal sealed class FakeTerminal : IPseudoTerminal
 
     /// <summary>What the integration prints when a prompt is ready.</summary>
     public void Prompt(int code, string directory) =>
-        Print(Osc($"133;D;{code}") + Osc($"6973;cwd;{directory}") + Osc("133;A") + "\u001B[0m");
+        Print(Osc($"6973;cwd;{directory}") + Osc($"133;D;{code}") + Osc("133;A") + "\u001B[0m");
 }
 
 public class ShellSessionTests

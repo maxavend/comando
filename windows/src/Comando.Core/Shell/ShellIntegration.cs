@@ -11,9 +11,9 @@ namespace Comando.Core.Shell;
 /// private OSCs for the current folder and <c>$env:PATH</c>:
 /// <code>
 ///     OSC 133;C            command output starts   (PSConsoleHostReadLine)
-///     OSC 133;D;&lt;code&gt;     command finished        (prompt)
 ///     OSC 6973;cwd;&lt;path&gt;  current folder          (prompt)
 ///     OSC 6973;path;&lt;PATH&gt; $env:PATH, when changed (prompt)
+///     OSC 133;D;&lt;code&gt;     command finished        (prompt)
 ///     OSC 133;A            ready for input         (prompt)
 /// </code>
 /// PSReadLine has no bracketed paste, so commands arrive as
@@ -138,7 +138,7 @@ public static class ShellIntegration
           function global:prompt {
             $ok = $global:?
             $code = if ($ok) { 0 } elseif ($global:LASTEXITCODE) { $global:LASTEXITCODE } else { 1 }
-            __ComandoOsc "133;D;$code"
+            # Folder and PATH first, so the finished command knows where it left the shell.
             $location = $executionContext.SessionState.Path.CurrentLocation
             if ($location.Provider.Name -eq 'FileSystem') {
               __ComandoOsc "6973;cwd;$($location.ProviderPath)"
@@ -147,6 +147,7 @@ public static class ShellIntegration
               $global:__ComandoLastPath = $env:PATH
               __ComandoOsc "6973;path;$($env:PATH)"
             }
+            __ComandoOsc "133;D;$code"
             __ComandoOsc '133;A'
             # The app draws its own interface, so the prompt stays empty.
             "$($global:__ComandoEsc)[0m"
