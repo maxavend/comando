@@ -73,6 +73,8 @@ jobs:
           }
           # Sharper captures for the website, when the runner allows it.
           try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { Write-Host "Resolución sin cambiar: $_" }
+          # A stand-in for Phi Silica, which the runner doesn't have.
+          $env:COMANDO_DEMO_MODEL = '1'
           $app = Start-Process -FilePath out/Comando/Comando.exe -PassThru
           Start-Sleep -Seconds 20
           if ($app.HasExited) { Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"; exit 1 }
@@ -92,6 +94,23 @@ jobs:
           Start-Sleep -Seconds 10
           Save-Screen 'out/captura-comando.png'
           if ($app.HasExited) { Write-Error "Comando se cerró al ejecutar un comando"; exit 1 }
+
+          # A command that takes a while: Stop waits beside the field.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('Start-Sleep -Seconds 8; Write-Output listo{ENTER}')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-corriendo.png'
+          Start-Sleep -Seconds 8
+
+          # The assistant thinking, writing, and done.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('convierte entrevista.mov a mp4{ENTER}')
+          Start-Sleep -Seconds 2
+          Save-Screen 'out/captura-pensando.png'
+          Start-Sleep -Seconds 4
+          Save-Screen 'out/captura-escribiendo.png'
+          Start-Sleep -Seconds 6
+          Save-Screen 'out/captura-propuesta.png'
 
           # The assistant's guide answers without a model.
           $composer.SetFocus()
@@ -196,13 +215,6 @@ jobs:
           $bitmap.Save('out/captura-instalada.png')
           Stop-Process -Id $app.Id
 
-      # The captures alone, small enough to fetch quickly for the website.
-      - uses: actions/upload-artifact@v4
-        if: matrix.platform == 'x64'
-        with:
-          name: Capturas-Windows
-          path: out/captura-*.png
-
       - uses: actions/upload-artifact@v4
         with:
           name: Comando-Windows-${{ matrix.platform }}
@@ -210,6 +222,13 @@ jobs:
             out/Comando-Windows-${{ matrix.platform }}-portable.zip
             out/Comando-Windows-${{ matrix.platform }}-msix.zip
             out/captura-*.png
+
+      # The screenshots on their own: a few hundred KB instead of the packages.
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'x64'
+        with:
+          name: Capturas
+          path: out/captura-*.png
 
   # Publishes the tagged version as a GitHub prerelease, so `releases/latest`
   # (read by the website) keeps pointing at the macOS version.

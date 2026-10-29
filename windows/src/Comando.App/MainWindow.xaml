@@ -218,7 +218,7 @@
 
             <Border
                 Grid.Column="1"
-                Background="{ThemeResource ChatBackgroundBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1,1,0,0"
                 CornerRadius="8,0,0,0">

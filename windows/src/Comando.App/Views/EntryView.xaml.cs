@@ -127,7 +127,7 @@ public sealed partial class EntryView : UserControl
     private void Refresh()
     {
         if (Entry is not { } entry) return;
-        CommandText.FontSize = App.Settings.FontSize;
+        CommandText.FontSize = Formatting.MessageFontSize;
         OutputText.FontSize = App.Settings.FontSize;
         ExplainItem.Visibility = Formatting.VisibleIf(entry.Kind is EntryKind.Command or EntryKind.Interactive);
 

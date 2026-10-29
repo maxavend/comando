@@ -25,7 +25,7 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="models:TerminalSession">
                     <Grid Width="56" Height="56" Margin="-7,0">
-                        <Ellipse Fill="{x:Bind views:Formatting.SessionBrush(ColorIndex)}" Stroke="{ThemeResource ChatBackgroundBrush}" StrokeThickness="3" />
+                        <Ellipse Fill="{x:Bind views:Formatting.SessionBrush(ColorIndex)}" Stroke="{ThemeResource SolidBackgroundFillColorBaseBrush}" StrokeThickness="3" />
                         <FontIcon
                             Glyph="{x:Bind views:Formatting.SessionGlyph(Directory)}"
                             Visibility="{x:Bind views:Formatting.GlyphVisibility(Emoji)}"

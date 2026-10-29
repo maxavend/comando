@@ -32,6 +32,12 @@ public static class Formatting
         return local.ToString(local.Year == today.Year ? "d/M" : "d/M/yy");
     }
 
+    /// <summary>
+    /// What the person writes is set in the system font, a point above the
+    /// terminal size so both read alike (13 → 14, as in Mensajes).
+    /// </summary>
+    public static double MessageFontSize => App.Settings.FontSize + 1;
+
     /// <summary>Archived sessions read quieter in the sidebar.</summary>
     public static double ArchivedOpacity(bool archived) => archived ? 0.55 : 1;
 

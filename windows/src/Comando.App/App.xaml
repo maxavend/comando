@@ -9,22 +9,6 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-            <ResourceDictionary.ThemeDictionaries>
-                <!-- Like Windows' Mensajes (Vínculo móvil): replies are soft gray, no outline. -->
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="IncomingBubbleBrush" Color="#EBEBEB" />
-                    <SolidColorBrush x:Key="ChatBackgroundBrush" Color="#FBFBFB" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="IncomingBubbleBrush" Color="#2F2F2F" />
-                    <SolidColorBrush x:Key="ChatBackgroundBrush" Color="#202020" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="HighContrast">
-                    <SolidColorBrush x:Key="IncomingBubbleBrush" Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush x:Key="ChatBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
-
             <FontFamily x:Key="TerminalFontFamily">Cascadia Mono, Cascadia Code, Consolas</FontFamily>
             <x:Double x:Key="TerminalFontSize">13</x:Double>
             <CornerRadius x:Key="BubbleCornerRadius">8</CornerRadius>
@@ -38,8 +22,11 @@
                 <Setter Property="MaxWidth" Value="{StaticResource BubbleMaxWidth}" />
             </Style>
 
+            <!-- Replies are Fluent cards: the system's card fill and stroke. -->
             <Style x:Key="OutputBubbleStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource IncomingBubbleBrush}" />
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="{StaticResource BubbleCornerRadius}" />
                 <Setter Property="Padding" Value="12,8" />
                 <Setter Property="HorizontalAlignment" Value="Left" />

@@ -30,12 +30,24 @@ public sealed partial class ChatView : UserControl
         App.Controller.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Comando.Core.Services.TerminalController.AgentChatsVersion)) UpdateShellState();
+            if (e.PropertyName == nameof(Comando.Core.Services.TerminalController.AssistantRequestsInFlight)) UpdateThinking();
         };
         App.Settings.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(Comando.Core.Services.AppSettings.FontSize)) Composer.FontSize = App.Settings.FontSize;
+            if (e.PropertyName == nameof(Comando.Core.Services.AppSettings.FontSize)) Composer.FontSize = Formatting.MessageFontSize;
         };
-        Composer.FontSize = App.Settings.FontSize;
+        Composer.FontSize = Formatting.MessageFontSize;
+    }
+
+    private bool _thinking;
+
+    /// <summary>While the assistant thinks, the field shows Fluent's progress bar.</summary>
+    private void UpdateThinking()
+    {
+        var thinking = App.Controller.AssistantRequestsInFlight > 0;
+        if (thinking == _thinking) return;
+        _thinking = thinking;
+        UpdateShellState();
     }
 
     /// <summary>Places a command in the composer to edit before sending.</summary>
@@ -134,9 +146,22 @@ public sealed partial class ChatView : UserControl
         }
         var busy = _shell?.IsBusy ?? false;
         var agentWorking = !busy && chat is { IsResponding: true };
-        SendButton.Visibility = Formatting.VisibleIf(!busy && !agentWorking);
-        StopButton.Visibility = Formatting.VisibleIf(busy || agentWorking);
+        // Stop takes Send's place inside the field while something runs.
+        var running = busy || agentWorking;
+        StopButton.Visibility = Formatting.VisibleIf(running);
+        SendButton.Visibility = Formatting.VisibleIf(!running);
+        // Accent progress for a running command; the assistant's colors, pulsing, while it thinks.
+        ActivityBar.Visibility = Formatting.VisibleIf(running);
+        var assistant = _thinking && !running;
+        if (assistant != (AssistantBar.Visibility == Visibility.Visible))
+        {
+            AssistantBar.Visibility = Formatting.VisibleIf(assistant);
+            var pulse = (Microsoft.UI.Xaml.Media.Animation.Storyboard)Resources["AssistantPulse"];
+            if (assistant) pulse.Begin();
+            else pulse.Stop();
+        }
         Composer.PlaceholderText = busy ? "Escribe para responderle al programa"
+            : _thinking ? "El asistente está pensando…"
             : chat is not null ? $"Escribe a {Comando.Core.Agents.AgentKinds.DisplayName(chat.Kind)}"
             : _attachments.Count > 0 ? "Dile al asistente qué hacer con estos archivos"
             : App.Settings.AssistantEnabled ? "Escribe un comando o pídelo con tus palabras"

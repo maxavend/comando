@@ -52,7 +52,7 @@ internal static class ReplyViews
         {
             var thinking = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             thinking.Children.Add(new ProgressRing { IsActive = true, Width = 14, Height = 14 });
-            thinking.Children.Add(Paragraph("Pensando…", secondary: true));
+            thinking.Children.Add(Paragraph("Pensando en tu PC…", secondary: true));
             stack.Children.Add(thinking);
             return Bubble(stack);
         }
@@ -122,10 +122,6 @@ internal static class ReplyViews
             }
         }
 
-        if (reply.IsWriting)
-        {
-            stack.Children.Add(new ProgressBar { IsIndeterminate = true, MaxWidth = 120, HorizontalAlignment = HorizontalAlignment.Left });
-        }
         return Bubble(stack);
     }
 
