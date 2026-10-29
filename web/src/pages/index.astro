@@ -234,7 +234,7 @@ const needs = [
         if (hero.dataset.cursor !== cursor) hero.dataset.cursor = cursor
         hero.toggleAttribute("data-holding", elapsed >= typedAt)
         if (elapsed >= completeAt) return finish()
-        const phase = elapsed >= sentAt ? "sending" : elapsed >= thinkingAt ? "thinking" : "typing"
+        const phase = elapsed >= sentAt ? "sent" : elapsed >= thinkingAt ? "thinking" : "typing"
         if (hero.dataset.phase !== phase) hero.dataset.phase = phase
         frame = requestAnimationFrame(tick)
       }
