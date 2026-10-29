@@ -113,7 +113,19 @@ jobs:
           Save-Screen 'out/captura-recetas.png'
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
           Start-Sleep -Seconds 1
-          Save-Screen 'out/captura-final.png'
+          # A typo gets a hint.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('gti status{ENTER}')
+          Start-Sleep -Seconds 5
+          Save-Screen 'out/captura-pista.png'
+
+          # Tools and settings.
+          [System.Windows.Forms.SendKeys]::SendWait('^+i')
+          Start-Sleep -Seconds 15
+          Save-Screen 'out/captura-herramientas.png'
+          [System.Windows.Forms.SendKeys]::SendWait('^,')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-ajustes.png'
           if ($app.HasExited) { Write-Error "Comando se cerró"; exit 1 }
           Stop-Process -Id $app.Id
 

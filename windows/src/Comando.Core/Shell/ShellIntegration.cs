@@ -131,6 +131,9 @@ public static class ShellIntegration
               $line = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line.Substring(9)))
               try { [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory($line) } catch { }
             }
+            # A clean console for each command: a program that opens the
+            # embedded terminal would otherwise repaint earlier lines.
+            try { [Console]::Clear() } catch { }
             __ComandoOsc '133;C'
             $line
           }

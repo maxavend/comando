@@ -94,7 +94,8 @@ public sealed partial class TerminalController
                 reply.IsWriting = false;
                 entry.AssistantReply = reply;
                 entry.FinishedAt = DateTimeOffset.Now;
-                NameSessionIfNeeded(session, entry.Command);
+                // Questions about the app aren't what the session is about.
+                if (reply.Points.Count == 0 && reply.Proposals.Count > 0) NameSessionIfNeeded(session, entry.Command);
                 if (SelectedSession != session) session.UnreadCount++;
                 CommandFinished?.Invoke(session, entry);
                 Save();

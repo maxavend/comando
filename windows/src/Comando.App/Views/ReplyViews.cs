@@ -31,13 +31,13 @@ internal static class ReplyViews
         MaxWidth = 760,
     };
 
-    private static TextBlock Paragraph(string text, bool secondary = false) => new()
+    private static TextBlock Paragraph(string text, bool secondary = false)
     {
-        Text = text,
-        TextWrapping = TextWrapping.Wrap,
-        IsTextSelectionEnabled = true,
-        Foreground = secondary ? Resource("TextFillColorSecondaryBrush") : null,
-    };
+        var block = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+        // Only set when it differs: a null brush would make the text invisible.
+        if (secondary) block.Foreground = Resource("TextFillColorSecondaryBrush");
+        return block;
+    }
 
     private static FontIcon Icon(string glyph, double size = 14) => new() { Glyph = glyph, FontSize = size };
 
@@ -274,12 +274,9 @@ internal static class ReplyViews
         }
         else
         {
-            header.Children.Add(new FontIcon
-            {
-                Glyph = step.State == AgentStepState.Failed ? "" : step.Glyph ?? "",
-                FontSize = 14,
-                Foreground = step.State == AgentStepState.Failed ? Resource("SystemFillColorCriticalBrush") : null,
-            });
+            var icon = new FontIcon { Glyph = step.State == AgentStepState.Failed ? "\uE783" : step.Glyph ?? "\uE90F", FontSize = 14 };
+            if (step.State == AgentStepState.Failed) icon.Foreground = Resource("SystemFillColorCriticalBrush");
+            header.Children.Add(icon);
         }
         header.Children.Add(new TextBlock
         {
