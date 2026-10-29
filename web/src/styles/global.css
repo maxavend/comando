@@ -720,8 +720,15 @@
   top: calc(-1 * var(--nav-height));
 }
 @media (max-width: 60rem) {
+  /* Take the home header out of document flow. The actual scrolling hero
+     starts at viewport y=0, rather than merely painting a positioned child
+     outside a section that begins below the status bar. */
+  .site-header[data-home] {
+    position: fixed;
+    inset-inline: 0;
+  }
   .landing-hero {
-    margin-top: calc(-1 * var(--nav-height));
+    margin-top: 0;
     padding-top: calc(4rem + var(--nav-height));
   }
   .landing-hero > [data-dot-field] { top: 0; }
