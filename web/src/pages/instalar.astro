@@ -22,12 +22,12 @@ const steps = [
 ]
 const windowsSteps = [
   {
-    title: "Descomprime y abre Comando.exe",
-    body: "Clic derecho en el .zip › <strong>Extraer todo</strong>, y abre <strong>Comando.exe</strong> en la carpeta. No instala nada: para quitarla, borra la carpeta.",
+    title: "Ábrelo y apruébalo una vez",
+    body: "El instalador no está firmado, así que la primera vez Windows dice «Windows protegió tu PC». Presiona <strong>Más información</strong> y <strong>Ejecutar de todos modos</strong>. Se instala solo para tu usuario, sin pedir permisos de administrador.",
   },
   {
-    title: "Ábrela una vez de todos modos",
-    body: "La app no está firmada, así que Windows puede decir «Windows protegió tu PC». Presiona <strong>Más información</strong> y <strong>Ejecutar de todos modos</strong>. Usa PowerShell 7 si lo tienes; si no, te ofrece instalarlo.",
+    title: "Ábrela desde el menú Inicio",
+    body: "Busca Comando en Inicio, o ánclala a la barra de tareas. Usa PowerShell 7 si lo tienes; si no, te ofrece instalarlo. Para quitarla, <strong>Configuración › Aplicaciones › Aplicaciones instaladas</strong>.",
   },
 ]
 const step = "grid grid-cols-[3.5rem_minmax(0,1fr)] gap-6 border-b py-10 max-sm:grid-cols-1 max-sm:gap-3"
@@ -80,7 +80,7 @@ const num = "font-heading text-[2.441rem] leading-none font-bold text-primary ta
         <li class={step}>
           <span class={num} aria-hidden="true">1</span>
           <div>
-            <h3 class="display text-title">Descarga el .zip</h3>
+            <h3 class="display text-title">Descarga el instalador</h3>
             <div class="mt-4 flex flex-wrap items-center gap-3">
               <LinkButton href={windows.x64} size="xl" download>Windows x64</LinkButton>
               <LinkButton href={windows.arm64} size="xl" variant="outline" download>Windows ARM64</LinkButton>
@@ -100,9 +100,10 @@ const num = "font-heading text-[2.441rem] leading-none font-bold text-primary ta
         }
       </ol>
       <p class="mt-6 max-w-[60ch] text-sm text-muted-foreground">
-        Para tenerla en el menú Inicio y usar el asistente con Phi Silica, descarga el <code>…-msix.zip</code> de la
+        En la
         <a class="underline decoration-border underline-offset-4 hover:decoration-primary" href="https://github.com/maxavend/comando/releases">misma versión en GitHub</a>
-        y ejecuta <code>Instalar.ps1</code> con PowerShell.
+        hay dos más: el <code>…-portable.zip</code>, que se abre sin instalar nada, y el <code>…-msix.zip</code>, que con
+        <code>Instalar.ps1</code> deja usar el asistente con Phi Silica en los PC Copilot+.
       </p>
     </section>
 

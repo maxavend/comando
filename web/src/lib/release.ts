@@ -36,7 +36,8 @@ let cachedWindows: Promise<WindowsRelease> | undefined
 
 // The Windows version ships as its own prerelease (tag `windows-vX.Y.Z`), so
 // `releases/latest` never returns it: look through the recent releases for
-// the newest one and its portable .zip for each processor.
+// the newest one and its installer for each processor (the portable .zip in
+// versions before the installer).
 export function windowsRelease(): Promise<WindowsRelease> {
   cachedWindows ??= (async () => {
     const fallback = { x64: `${repo}/releases`, arm64: `${repo}/releases`, version: null }
@@ -47,9 +48,11 @@ export function windowsRelease(): Promise<WindowsRelease> {
       if (!res.ok) return fallback
       const releases: { tag_name: string; draft: boolean; assets?: { name: string; size: number; browser_download_url: string }[] }[] = await res.json()
       const release = releases.find((r) => !r.draft && r.tag_name.startsWith("windows-v"))
-      const zip = (arch: string) => release?.assets?.find((a) => a.name.endsWith(`-${arch}-portable.zip`))
-      const x64 = zip("x64")
-      const arm64 = zip("ARM64")
+      const download = (arch: string) =>
+        release?.assets?.find((a) => a.name.endsWith(`-${arch}-setup.exe`)) ??
+        release?.assets?.find((a) => a.name.endsWith(`-${arch}-portable.zip`))
+      const x64 = download("x64")
+      const arm64 = download("ARM64")
       if (!release || !x64 || !arm64) return fallback
       return {
         x64: x64.browser_download_url,

@@ -79,7 +79,7 @@ Todo lo de la versión de macOS está portado; lo distinto se explica abajo.
 | Agentes de IA como chat: `agy`, `claude`, `codex`, `qwen` | Hecho |
 | Ajustes, bienvenida, notificaciones, Tab para completar | Hecho |
 | Aspecto de Mensajes de Windows (Vínculo móvil) y logo sin placa | Hecho |
-| Empaquetado: zip portátil y MSIX para x64 y ARM64 en la CI | Hecho |
+| Empaquetado: instalador (Inno Setup, por usuario), zip portátil y MSIX para x64 y ARM64 en la CI; una etiqueta `windows-vX.Y.Z` los publica | Hecho |
 
 ## Pendiente o distinto de macOS
 

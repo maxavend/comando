@@ -34,8 +34,9 @@ La CI (`.github/workflows/windows.yml`) corre esas pruebas y compila la app en `
 
 ## Instalar sin compilar
 
-Cada push a esta rama genera dos descargas en GitHub Actions (pestaña **Actions** → la última ejecución de **Windows** → **Artifacts**), para x64 y ARM64:
+Las versiones publicadas están en [GitHub Releases](https://github.com/maxavend/comando/releases) (etiquetas `windows-vX.Y.Z`), y cada push genera las mismas descargas en GitHub Actions (pestaña **Actions** → la última ejecución de **Windows** → **Artifacts**), para x64 y ARM64:
 
+- **Instalador** (`Comando-Windows-x64-setup.exe`): ábrelo; como no está firmado, la primera vez Windows dice «Windows protegió tu PC» → **Más información** → **Ejecutar de todos modos**. Se instala para tu usuario en `%LOCALAPPDATA%\Programs\Comando`, sin permisos de administrador, aparece en el menú Inicio y se desinstala desde **Configuración › Aplicaciones**. Como el portátil, sin Phi Silica.
 - **Portátil** (`Comando-Windows-x64-portable.zip`): descomprime y abre `Comando.exe`. No instala nada. El asistente responde con la guía y las recetas, pero sin Phi Silica, porque el modelo necesita la app instalada como paquete.
 - **MSIX** (`Comando-Windows-x64-msix.zip`): descomprime, clic derecho en `Instalar.ps1` → **Ejecutar con PowerShell**. Windows pide permiso de administrador una vez para confiar en el certificado de prueba. Esta es la versión con Phi Silica, en PCs Copilot+.
 
