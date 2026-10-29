@@ -9,6 +9,15 @@
 @import "@fontsource-variable/instrument-sans";
 @import "@fontsource/dm-mono/400.css";
 
+/* Only the Latin font file is needed for the Spanish hero. */
+@font-face {
+  font-family: "Google Sans Code Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 800;
+  src: url("@fontsource-variable/google-sans-code/files/google-sans-code-latin-wght-normal.woff2") format("woff2");
+}
+
 /* The page follows the Mac's appearance, like the app. */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
@@ -344,72 +353,139 @@
   filter: blur(0);
 }
 
-/* The landing headline plays as a tiny terminal-to-message exchange. */
+/* A single, finite exchange: type → hold → send → settle.
+   Full-size invisible lines reserve the layout throughout the sequence. */
+.hero-eyebrow {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted-foreground);
+}
 .hero-conversation {
-  min-height: 3.3em;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: .34rem;
-  font-family: var(--font-mono);
-  font-size: clamp(2.25rem, 4.2vw, 4rem);
-  font-weight: 650;
-  line-height: 1.08;
-  letter-spacing: -.055em;
+  --hero-send-duration: 500ms;
+  --hero-status-duration: 180ms;
+  --hero-message-bg: #e9e9eb;
+  --hero-message-ink: #1c1c1e;
+  --hero-dot-ink: #8e8e93;
+  --hero-ease: cubic-bezier(.22, 1, .36, 1);
+  font-family: "Google Sans Code Variable", var(--font-mono);
+  font-size: clamp(2rem, 3.7vw, 3.65rem);
+  font-weight: 400;
+  line-height: 1.16;
+  letter-spacing: -.045em;
 }
-.hero-terminal { display: inline-flex; align-items: baseline; min-height: 1.08em; }
+.hero-conversation.t-stagger-line { filter: none; will-change: auto; }
+.t-stagger.is-shown .hero-conversation { filter: none; }
+.hero-terminal { display: block; }
+.hero-type-line { position: relative; display: block; white-space: nowrap; }
+.hero-type-space { visibility: hidden; }
+.hero-type-ink { position: absolute; inset: 0; }
 .hero-caret {
-  width: .08em;
-  height: .86em;
-  margin-left: .1em;
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: .08em;
+  vertical-align: -.1em;
   background: currentColor;
-  animation: hero-caret-blink 850ms steps(2, start) infinite;
+  opacity: 0;
 }
+[data-cursor="0"] .hero-type-line:first-child .hero-caret,
+[data-cursor="1"] .hero-type-line:last-child .hero-caret {
+  opacity: 1;
+}
+.hero-conversation[data-cursor="1"][data-holding] .hero-type-line:last-child .hero-caret {
+  animation: hero-caret-blink 1400ms step-end infinite;
+}
+.hero-reply {
+  display: grid;
+  justify-items: start;
+  align-items: center;
+  margin-top: 1.1rem;
+  padding-left: .4rem;
+  font-family: var(--font-sans);
+  font-size: clamp(1.125rem, 1.7vw, 1.65rem);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -.035em;
+}
+.hero-typing, .hero-bubble { grid-area: 1 / 1; }
 .hero-typing {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: .55rem;
-  padding-left: .12em;
-  font-family: var(--font-sans);
-  font-size: .34em;
-  font-weight: 500;
-  letter-spacing: -.01em;
-  color: var(--muted-foreground);
+  justify-content: center;
+  width: 3.25em;
+  height: 1.95em;
+  border-radius: 999px;
+  background: var(--hero-message-bg);
+  color: var(--hero-dot-ink);
+  visibility: hidden;
   opacity: 0;
-  transform: translateY(.35em);
-  transition: opacity 240ms ease, transform 300ms cubic-bezier(.2,.8,.2,1);
-}
-.hero-dots { display: inline-flex; gap: .18em; }
-.hero-dots i { width: .42em; aspect-ratio: 1; border-radius: 50%; background: currentColor; animation: hero-dot 900ms ease-in-out infinite; }
-.hero-dots i:nth-child(2) { animation-delay: 120ms; }
-.hero-dots i:nth-child(3) { animation-delay: 240ms; }
-.hero-bubble {
-  padding: .46em .78em .5em;
-  border-radius: 1.05em 1.05em .3em 1.05em;
-  background: #087eff;
-  color: white;
-  font-family: var(--font-sans);
-  font-size: .42em;
-  font-weight: 600;
-  letter-spacing: -.025em;
-  opacity: 0;
-  transform: translateY(.4em) scale(.96);
+  transform: translateY(5px) scale(.85);
   transform-origin: bottom left;
-  transition: opacity 300ms ease, transform 420ms cubic-bezier(.2,.8,.2,1);
+  transition: opacity var(--hero-status-duration) ease, transform 320ms var(--hero-ease), visibility 0s var(--hero-status-duration);
 }
-.hero-is-typing .hero-caret { display: none; }
-.hero-is-typing .hero-typing, .hero-replied .hero-typing { opacity: 1; transform: translateY(0); }
-.hero-replied .hero-bubble { opacity: 1; transform: translateY(0) scale(1); }
-@keyframes hero-caret-blink { to { visibility: hidden; } }
-@keyframes hero-dot { 50% { opacity: .38; transform: translateY(-.22em); } }
+.hero-typing::before, .hero-typing::after {
+  content: "";
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.hero-typing::before { width: .65em; height: .65em; bottom: -.1em; left: .1em; }
+.hero-typing::after { width: .3em; height: .3em; bottom: -.38em; left: -.18em; }
+.hero-dots { display: inline-flex; align-items: center; gap: .22em; }
+.hero-dots i { width: .38em; aspect-ratio: 1; border-radius: 50%; background: currentColor; }
+.hero-bubble {
+  position: relative;
+  padding: .65em .9em .7em;
+  border-radius: .9em .9em .9em .18em;
+  background: var(--hero-message-bg);
+  color: var(--hero-message-ink);
+  transform-origin: bottom left;
+  transition: opacity var(--hero-send-duration) ease, transform var(--hero-send-duration) var(--hero-ease);
+}
+.hero-bubble::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: -.4em;
+  width: .8em;
+  height: .9em;
+  background: inherit;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 24'%3E%3Cpath d='M20 0H10v6C10 14 7 19 0 22c7 3 15 2 20-2Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.hero-conversation[data-phase="thinking"] .hero-typing {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition-delay: 0s;
+}
+.hero-conversation[data-phase="thinking"] .hero-dots i { animation: hero-dot 1200ms ease-in-out infinite; }
+.hero-conversation[data-phase="thinking"] .hero-dots i:nth-child(2) { animation-delay: 160ms; }
+.hero-conversation[data-phase="thinking"] .hero-dots i:nth-child(3) { animation-delay: 320ms; }
+.hero-conversation[data-phase="typing"] .hero-bubble,
+.hero-conversation[data-phase="thinking"] .hero-bubble,
+.hero-conversation[data-phase="sending"] .hero-bubble { opacity: 0; transform: translateY(8px); transition: none; }
+.hero-conversation[data-phase="sent"] .hero-bubble { animation: hero-message-arrive var(--hero-send-duration) var(--hero-ease) both; }
+@keyframes hero-message-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .hero-conversation { --hero-message-bg: #303033; --hero-message-ink: #f5f5f7; --hero-dot-ink: #a2a2a7; }
+}
+.hero-conversation[data-paused] .hero-caret,
+.hero-conversation[data-paused] .hero-dots i { animation-play-state: paused; }
+@keyframes hero-caret-blink { 50% { opacity: 0; } }
+@keyframes hero-dot { 0%, 60%, 100% { opacity: .45; transform: scale(.9); } 30% { opacity: 1; transform: scale(1); } }
 
 @media (prefers-reduced-motion: reduce) {
   .t-stagger-line { transition: none !important; }
-  /* Without motion the lines simply start where they rest. */
   .t-stagger-line { opacity: 1; transform: none; filter: none; }
-  .hero-caret, .hero-dots i { animation: none; }
-  .hero-typing, .hero-bubble { opacity: 1; transform: none; transition: none; }
+  .hero-caret, .hero-dots i { animation: none !important; }
+  .hero-typing { display: none; }
+  .hero-conversation .hero-bubble { opacity: 1 !important; transform: none !important; transition: none; animation: none !important; }
 }
 
 /* Menu dropdown: grows from its trigger (Base UI sets --transform-origin). */

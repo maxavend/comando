@@ -67,13 +67,19 @@ const needs = [
     <DotField />
     <div class="page grid items-center gap-10 lg:grid-cols-[minmax(0,9fr)_minmax(0,16fr)] lg:max-xl:grid-cols-2">
       <div class="t-stagger" data-hero-reveal>
-        <h1 class="hero-conversation max-w-[16ch] t-stagger-line" data-enter style="--i: 0">
-          <span class="sr-only">Tu terminal, como un chat. Más fácil de usar.</span>
-          <span class="hero-terminal" aria-hidden="true"><span data-hero-typed></span><span class="hero-caret"></span></span>
-          <span class="hero-typing" aria-hidden="true"><span class="hero-dots"><i></i><i></i><i></i></span><span>Escribiendo</span></span>
-          <span class="hero-bubble" aria-hidden="true">Más fácil de usar.</span>
+        <p class="hero-eyebrow t-stagger-line" data-enter style="--i: 0">Una terminal hecha para conversar</p>
+        <h1 class="hero-conversation t-stagger-line" data-enter style="--i: 1">
+          <span class="sr-only">Tu terminal, como un chat. Pídelo con tus palabras.</span>
+          <span class="hero-terminal" aria-hidden="true">
+            <span class="hero-type-line"><span class="hero-type-space">Tu terminal,</span><span class="hero-type-ink"><span data-hero-line>Tu terminal,</span><span class="hero-caret"></span></span></span>
+            <span class="hero-type-line"><span class="hero-type-space">como un chat.</span><span class="hero-type-ink"><span data-hero-line>como un chat.</span><span class="hero-caret"></span></span></span>
+          </span>
+          <span class="hero-reply" aria-hidden="true">
+            <span class="hero-typing"><span class="hero-dots"><i></i><i></i><i></i></span></span>
+            <span class="hero-bubble">Pídelo con tus palabras.</span>
+          </span>
         </h1>
-        <p class="mt-6 max-w-[30ch] text-lead text-ink-2 t-stagger-line t-stagger-line--2" data-enter style="--i: 1">Escribe un comando o pide algo con tus palabras.</p>
+        <p class="hero-lead mt-6 max-w-[34ch] text-lead text-ink-2 t-stagger-line t-stagger-line--2" data-enter style="--i: 2">Dile qué necesitas hacer. Comando te propone cómo, te lo explica y espera tu clic.</p>
         <div class="t-stagger-line t-stagger-line--3" data-enter style="--i: 2">
         <div class="download-stack mt-10 flex flex-col items-start gap-3">
           <LinkButton href={release.href} size="xl" download>
@@ -186,24 +192,78 @@ const needs = [
     </div>
   </section>
   <noscript><style>.t-stagger-line { opacity: 1; transform: none; filter: none; }</style></noscript>
-  <script is:inline>
-    // Texts reveal: show the hero's lines once the first frame has painted.
-    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector("[data-hero-reveal]")?.classList.add("is-shown")))
-    const typed = document.querySelector("[data-hero-typed]")
-    const hero = document.querySelector(".hero-conversation")
-    const phrase = "Tu terminal, como un chat."
-    if (typed && hero && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      let i = 0
-      const typeNext = () => {
-        typed.textContent = phrase.slice(0, ++i)
-        if (i < phrase.length) setTimeout(typeNext, 58)
-        else setTimeout(() => hero.classList.add("hero-is-typing"), 430)
+  <script>
+    const block = document.querySelector<HTMLElement>("[data-hero-reveal]")
+    const hero = document.querySelector<HTMLElement>(".hero-conversation")
+    const lines = [...document.querySelectorAll<HTMLElement>("[data-hero-line]")]
+    const motion = matchMedia("(prefers-reduced-motion: reduce)")
+
+    if (block && hero && lines.length === 2) {
+      const phrases = lines.map((line) => line.textContent ?? "")
+      let frame = 0
+      let elapsed = 0
+      let previous = 0
+      let visible = true
+      let finished = false
+      const startDelay = 320
+      const characterTime = 48
+      const linePause = 160
+      const typedAt = startDelay + phrases.join("").length * characterTime + linePause
+      const thinkingAt = typedAt + 280
+      const sentAt = thinkingAt + 2200
+      const completeAt = sentAt + 180
+
+      const finish = () => {
+        finished = true
+        cancelAnimationFrame(frame)
+        phrases.forEach((phrase, i) => { lines[i].textContent = phrase })
+        hero.dataset.phase = "sent"
+        hero.dataset.cursor = "1"
+        hero.setAttribute("data-holding", "")
+        motion.removeEventListener("change", onMotionChange)
       }
-      setTimeout(() => { hero.classList.add("hero-is-typing-started"); typeNext() }, 280)
-      setTimeout(() => hero.classList.add("hero-replied"), 2500)
-    } else if (typed) {
-      typed.textContent = phrase
-      hero?.classList.add("hero-is-typing-started", "hero-is-typing", "hero-replied")
+      const tick = (now: number) => {
+        elapsed += previous ? Math.min(now - previous, 64) : 0
+        previous = now
+        const count = Math.max(0, Math.floor((elapsed - startDelay) / characterTime))
+        const firstLength = phrases[0].length
+        const secondCount = Math.max(0, Math.floor((elapsed - startDelay - firstLength * characterTime - linePause) / characterTime))
+        const values = [phrases[0].slice(0, count), phrases[1].slice(0, secondCount)]
+        values.forEach((value, i) => { if (lines[i].textContent !== value) lines[i].textContent = value })
+        const cursor = count < firstLength ? "0" : "1"
+        if (hero.dataset.cursor !== cursor) hero.dataset.cursor = cursor
+        hero.toggleAttribute("data-holding", elapsed >= typedAt)
+        if (elapsed >= completeAt) return finish()
+        const phase = elapsed >= sentAt ? "sending" : elapsed >= thinkingAt ? "thinking" : "typing"
+        if (hero.dataset.phase !== phase) hero.dataset.phase = phase
+        frame = requestAnimationFrame(tick)
+      }
+      const syncPlayback = () => {
+        cancelAnimationFrame(frame)
+        previous = 0
+        const paused = !visible || document.hidden
+        hero.toggleAttribute("data-paused", paused)
+        if (!finished && !paused) frame = requestAnimationFrame(tick)
+      }
+      const onMotionChange = () => { if (motion.matches) finish() }
+      const onVisibilityChange = () => syncPlayback()
+      const observer = new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting
+        syncPlayback()
+      })
+
+      // Keep complete server-rendered copy until fonts are ready. Layout is
+      // reserved by the full lines, so typing never moves the CTA or screenshot.
+      document.fonts.ready.then(() => {
+        block.classList.add("is-shown")
+        if (motion.matches) return finish()
+        hero.dataset.phase = "typing"
+        hero.dataset.cursor = "0"
+        lines.forEach((line) => { line.textContent = "" })
+        motion.addEventListener("change", onMotionChange)
+        document.addEventListener("visibilitychange", onVisibilityChange)
+        observer.observe(hero)
+      })
     }
   </script>
 </Base>
