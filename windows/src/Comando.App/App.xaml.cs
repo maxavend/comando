@@ -60,7 +60,7 @@ public partial class App : Application
 
         Settings = AppSettings.Load();
         Dispatcher = new DispatcherQueueDispatcher(DispatcherQueue.GetForCurrentThread());
-        Model = new PhiSilicaModel();
+        Model = DemoLanguageModel.IsRequested ? new DemoLanguageModel() : new PhiSilicaModel();
         Controller = new TerminalController(() => new ConPtyTerminal(), Dispatcher, new SessionStore(), Version)
         {
             Settings = Settings,
