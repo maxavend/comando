@@ -917,3 +917,11 @@
     .site-safari-toolbar-transparent { display: block; }
   }
 }
+
+/* Match the lower Safari chrome without obscuring the closing Comando wordmark.
+   The divider and everything below it share the exact same solid color. */
+@media (max-width: 60rem) and (prefers-color-scheme: dark) {
+  html { background-color: #0a0d12; }
+  .footer-end { background-color: #0a0d12; }
+  .footer-end > p { color: rgb(245 245 247 / .13); }
+}
