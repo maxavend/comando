@@ -51,6 +51,36 @@ jobs:
             -p:GenerateAppxPackageOnBuild=false -o out/Comando
           Compress-Archive -Path out/Comando -DestinationPath "out/Comando-Windows-${{ matrix.platform }}-portable.zip"
 
+      # Opens the portable app, sends a command and keeps screenshots, so a
+      # crash at startup or a broken shell shows up here.
+      - name: Prueba de humo
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $settings = Join-Path $env:LOCALAPPDATA 'Comando'
+          New-Item -ItemType Directory -Force $settings | Out-Null
+          '{"HasSeenWelcome":true}' | Set-Content (Join-Path $settings 'settings.json')
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Save-Screen([string]$path) {
+            $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+            $bitmap.Save($path)
+          }
+          $app = Start-Process -FilePath out/Comando/Comando.exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($app.HasExited) { Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"; exit 1 }
+          Save-Screen 'out/captura-inicio.png'
+          $shell = New-Object -ComObject WScript.Shell
+          $null = $shell.AppActivate($app.Id)
+          Start-Sleep -Seconds 1
+          [System.Windows.Forms.SendKeys]::SendWait('Get-ChildItem C:\Windows -Directory | Select-Object -First 5 Name{ENTER}')
+          Start-Sleep -Seconds 10
+          Save-Screen 'out/captura-comando.png'
+          if ($app.HasExited) { Write-Error "Comando se cerró al ejecutar un comando"; exit 1 }
+          Stop-Process -Id $app.Id
+
       # Installable: MSIX signed with a test certificate (Phi Silica needs a package).
       - name: Certificado de prueba
         shell: pwsh
@@ -82,3 +112,4 @@ jobs:
           path: |
             out/Comando-Windows-${{ matrix.platform }}-portable.zip
             out/Comando-Windows-${{ matrix.platform }}-msix.zip
+            out/captura-*.png
