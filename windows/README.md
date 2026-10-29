@@ -32,11 +32,13 @@ dotnet test windows/tests/Comando.Core.Tests
 
 La CI (`.github/workflows/windows.yml`) corre esas pruebas y compila la app en `windows-latest` en cada push que toque `windows/`.
 
-## Qué funciona en esta fase
+## Instalar sin compilar
 
-- Ventana con Mica, barra de título propia con búsqueda y barra lateral de sesiones (fijar, renombrar, borrar historial, abrir en el Explorador de archivos).
-- Comandos de PowerShell como mensajes, con colores ANSI, salida en vivo y “Mostrar todo” para salidas largas.
-- Confirmación antes de comandos riesgosos, con la opción de enviar a la Papelera de reciclaje en vez de borrar.
-- Historial guardado en `%LocalAppData%\Comando\sessions.json`.
+Cada push a esta rama genera dos descargas en GitHub Actions (pestaña **Actions** → la última ejecución de **Windows** → **Artifacts**), para x64 y ARM64:
 
-Los programas de pantalla completa (`vim`, `ssh`, agentes de IA) todavía no tienen terminal integrada: la burbuja lo dice y se pueden detener o responder desde el campo de texto.
+- **Portátil** (`Comando-Windows-x64-portable.zip`): descomprime y abre `Comando.exe`. No instala nada. El asistente responde con la guía y las recetas, pero sin Phi Silica, porque el modelo necesita la app instalada como paquete.
+- **MSIX** (`Comando-Windows-x64-msix.zip`): descomprime, clic derecho en `Instalar.ps1` → **Ejecutar con PowerShell**. Windows pide permiso de administrador una vez para confiar en el certificado de prueba. Esta es la versión con Phi Silica, en PCs Copilot+.
+
+## Qué incluye
+
+Lo mismo que en macOS: chat de comandos, terminal integrada, asistente, recetas, herramientas, agentes de IA como chat, ajustes y notificaciones. Lo que funciona distinto está en [docs/windows/STACK.md](../docs/windows/STACK.md#pendiente-o-distinto-de-macos).

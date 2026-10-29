@@ -42,10 +42,10 @@ windows/
 | SwiftData | Modelos `ObservableObject` + JSON (`SessionStore`) |
 | zsh + `ZDOTDIR` con hooks `precmd`/`preexec` | `pwsh` + `comando.ps1`: función `prompt` y `PSConsoleHostReadLine` |
 | PTY de SwiftTerm (`LocalProcess`) | `ConPtyTerminal` (P/Invoke a `kernel32`) |
-| SwiftTerm (terminal integrada) | Fase 2: xterm.js dentro de WebView2, o un control nativo |
-| Apple Intelligence (`FoundationModels`) | Fase 3: Phi Silica (`LanguageModel`) |
+| SwiftTerm (terminal integrada) | xterm.js dentro de WebView2 (`TerminalCard`) |
+| Apple Intelligence (`FoundationModels`) | Phi Silica (`LanguageModel`), con la guía y las recetas como respaldo |
 | `/usr/bin/trash` | Función `papelera` de la integración: envía a la Papelera de reciclaje |
-| Homebrew, npm, pipx, uv | Fase 4: winget, Scoop, npm, pipx, uv |
+| Homebrew, npm, pipx, uv | winget, Scoop, npm, pipx, uv |
 | `UserNotifications` | Notificaciones de la app (`AppNotificationManager`) |
 | `⌘` | `Ctrl` |
 
@@ -63,21 +63,30 @@ El script `comando.ps1` se escribe en `%LocalAppData%\Comando\shell` cada vez qu
 
 PSReadLine no entiende el pegado entre corchetes (bracketed paste) que usa zsh para comandos de varias líneas. Por eso la app envía `#comando:<base64>`: `PSConsoleHostReadLine` lo decodifica y devuelve el comando original, que PowerShell ejecuta como si se hubiera escrito. Para PSReadLine es un comentario, así que no queda en el historial con esa forma.
 
-## Fases
+## Estado
 
-1. **Chat de comandos** (esta rama): ventana con Mica, sesiones en la barra lateral, comandos de PowerShell como mensajes con colores ANSI, confirmación de comandos riesgosos con opción de Papelera de reciclaje, historial guardado.
-2. **Programas interactivos**: terminal integrada para `vim`, `ssh`, REPL y agentes de IA; detección de la pantalla alternativa (ya está en el núcleo).
-3. **Asistente** con Phi Silica: propuestas de comandos, explicación, guía de la app.
-4. **Recetas y herramientas**: recetas reescritas para PowerShell; inventario de winget, Scoop, npm, pipx y uv.
-5. **Agentes como chat**: `claude`, `codex`, `qwen`, `agy` en burbujas.
-6. **Distribución**: firma, instalador, actualizaciones.
+Todo lo de la versión de macOS está portado; lo distinto se explica abajo.
+
+| Parte | Estado |
+| --- | --- |
+| Chat de comandos con PowerShell, colores, salida en vivo, “Mostrar todo” | Hecho |
+| Sesiones: fijar, archivar, renombrar, ícono y color, búsqueda en la barra de título | Hecho |
+| Terminal integrada (xterm.js en WebView2) para `vim`, `ssh`, REPL y agentes | Hecho |
+| Asistente: guía, recetas y Phi Silica; adjuntar archivos arrastrándolos | Hecho |
+| Pistas para comandos que fallan y “qué hace cada parte” | Hecho |
+| Recetas (Ctrl+K) y “Mis recetas” guardadas desde el chat | Hecho |
+| Herramientas (Ctrl+Mayús+I): winget, Scoop, npm, pipx, uv | Hecho |
+| Agentes de IA como chat: `agy`, `claude`, `codex`, `qwen` | Hecho |
+| Ajustes, bienvenida, notificaciones, Tab para completar | Hecho |
+| Empaquetado: zip portátil y MSIX para x64 y ARM64 en la CI | Hecho |
 
 ## Pendiente o distinto de macOS
 
-- **Contraseñas**: en macOS se detecta el eco apagado con `tcgetattr`. ConPTY no lo expone; hay que buscar otra señal (por ejemplo, `Read-Host -AsSecureString`).
-- **Detener un programa**: macOS manda señales al grupo de procesos. En Windows se envía `Ctrl+C` por la consola; si no basta, habrá que cerrar los procesos hijos de `pwsh`.
-- **Código de salida al interrumpir**: Windows usa `-1073741510` (`STATUS_CONTROL_C_EXIT`), no `130`.
-- **Recetas y explicaciones de comandos**: están escritas para zsh y herramientas de macOS; se reescriben para PowerShell, no se traducen.
+- **Contraseñas**: en macOS se detecta el eco apagado con `tcgetattr`. ConPTY no lo expone, así que el campo no se oculta al escribir una contraseña; conviene escribirla en la terminal integrada.
+- **Detener un programa**: macOS manda señales al grupo de procesos. En Windows se envía `Ctrl+C` dos veces por la consola; un programa que lo ignora se detiene reiniciando la sesión.
+- **Asistente sin Phi Silica**: en PCs que no son Copilot+, o con la versión portátil (sin paquete), responden la guía y las recetas, no el modelo.
+- **Firma**: el MSIX de la CI está firmado con un certificado de prueba; `Instalar.ps1` lo agrega a los de confianza. Para publicar en Microsoft Store o instalar sin ese paso hace falta un certificado de firma de código real.
+- **Ícono**: el actual tiene la forma de ícono de macOS; las guías de Windows piden otro estilo.
 
 ## Referencias de diseño
 

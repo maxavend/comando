@@ -183,6 +183,18 @@ public sealed partial class ChatView : UserControl
                 e.Handled = true;
                 Send();
                 break;
+            case VirtualKey.Tab when !shift && !control && !(_shell?.IsBusy ?? false):
+                e.Handled = true;
+                Complete();
+                break;
+            // Up in an empty field brings back the last command, like a terminal.
+            case VirtualKey.Up when Composer.Text.Length == 0 && _session is not null:
+                if (_session.Entries.LastOrDefault(entry => entry.Kind == EntryKind.Command) is { } last)
+                {
+                    e.Handled = true;
+                    Draft(last.Command);
+                }
+                break;
             // Ctrl+C stops the running program when there's nothing to copy.
             case VirtualKey.C when control && _shell?.IsBusy == true && Composer.SelectionLength == 0:
                 e.Handled = true;
@@ -192,6 +204,85 @@ public sealed partial class ChatView : UserControl
     }
 
     private void OnSend(object sender, RoutedEventArgs e) => Send();
+
+    /// <summary>
+    /// Tab completes the word before the cursor: a program for the first
+    /// word, otherwise a file or folder. Several matches are offered in a menu.
+    /// </summary>
+    private void Complete()
+    {
+        if (_shell is null) return;
+        var text = Composer.Text[..Composer.SelectionStart];
+        var start = text.LastIndexOfAny([' ', '\t', '"', '\'']) + 1;
+        var word = text[start..];
+        var isFirst = text[..start].Trim().Length == 0;
+        var matches = Completions(word, isFirst).Take(40).ToList();
+        if (matches.Count == 0) return;
+        if (matches.Count == 1)
+        {
+            Insert(start, word, matches[0]);
+            return;
+        }
+        var common = matches.Aggregate((a, b) => CommonPrefix(a, b));
+        if (common.Length > word.Length)
+        {
+            Insert(start, word, common, finished: false);
+            return;
+        }
+        var menu = new MenuFlyout();
+        foreach (var match in matches)
+        {
+            var item = new MenuFlyoutItem { Text = match };
+            item.Click += (_, _) => Insert(start, word, match);
+            menu.Items.Add(item);
+        }
+        menu.ShowAt(Composer);
+    }
+
+    private IEnumerable<string> Completions(string word, bool isFirst)
+    {
+        var results = new List<string>();
+        if (isFirst && !word.Contains('\\') && !word.Contains('/'))
+        {
+            results.AddRange(ExecutableIndex.Names(_shell!.PathEntries)
+                .Where(name => name.StartsWith(word, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(name => name.Length));
+        }
+        try
+        {
+            var separator = word.LastIndexOfAny(['\\', '/']);
+            var folderPart = separator >= 0 ? word[..(separator + 1)] : "";
+            var prefix = word[(separator + 1)..];
+            var folder = Path.GetFullPath(Path.Combine(_shell!.Directory, folderPart.Length > 0 ? folderPart : "."));
+            foreach (var entry in Directory.EnumerateFileSystemEntries(folder, prefix + "*").Take(200))
+            {
+                var name = Path.GetFileName(entry);
+                results.Add(folderPart + name + (Directory.Exists(entry) ? "\\" : ""));
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+        }
+        return results.Distinct(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void Insert(int start, string word, string completion, bool finished = true)
+    {
+        // Names with spaces need quotes in PowerShell.
+        var value = completion.Contains(' ') ? $"'{completion}'" : completion;
+        if (finished && !completion.EndsWith('\\')) value += " ";
+        var before = Composer.Text[..start];
+        var after = Composer.Text[(start + word.Length)..];
+        Composer.Text = before + value + after;
+        Composer.SelectionStart = before.Length + value.Length;
+    }
+
+    private static string CommonPrefix(string a, string b)
+    {
+        var length = 0;
+        while (length < a.Length && length < b.Length && char.ToLowerInvariant(a[length]) == char.ToLowerInvariant(b[length])) length++;
+        return a[..length];
+    }
 
     private void Send()
     {
