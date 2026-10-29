@@ -33,9 +33,9 @@ public sealed partial class ChatView : UserControl
         };
         App.Settings.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(Comando.Core.Services.AppSettings.FontSize)) Composer.FontSize = App.Settings.FontSize;
+            if (e.PropertyName == nameof(Comando.Core.Services.AppSettings.FontSize)) Composer.FontSize = Formatting.MessageFontSize;
         };
-        Composer.FontSize = App.Settings.FontSize;
+        Composer.FontSize = Formatting.MessageFontSize;
     }
 
     /// <summary>Places a command in the composer to edit before sending.</summary>

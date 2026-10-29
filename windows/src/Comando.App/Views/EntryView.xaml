@@ -40,8 +40,6 @@
             <TextBlock
                 x:Name="CommandText"
                 Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
-                FontFamily="{StaticResource TerminalFontFamily}"
-                FontSize="{StaticResource TerminalFontSize}"
                 TextWrapping="Wrap"
                 IsTextSelectionEnabled="True" />
         </Border>

@@ -148,8 +148,6 @@
                 MinHeight="40"
                 Padding="12,10,48,10"
                 CornerRadius="8"
-                FontFamily="{StaticResource TerminalFontFamily}"
-                FontSize="{StaticResource TerminalFontSize}"
                 IsSpellCheckEnabled="False"
                 IsTextPredictionEnabled="False"
                 PreviewKeyDown="OnComposerKeyDown"
