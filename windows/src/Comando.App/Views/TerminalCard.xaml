@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Comando.Views.TerminalCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Loaded="OnLoaded"
+    Unloaded="OnUnloaded"
+    ActualThemeChanged="OnThemeChanged">
+
+    <Grid
+        x:Name="Card"
+        Height="440"
+        CornerRadius="12"
+        BorderThickness="1"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="12,6,6,6" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <FontIcon Glyph="&#xE756;" FontSize="14" VerticalAlignment="Center" />
+            <TextBlock x:Name="TitleText" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+            <Button Grid.Column="2" Content="Detener" Click="OnStop" />
+        </Grid>
+
+        <WebView2 x:Name="View" Grid.Row="1" />
+    </Grid>
+</UserControl>

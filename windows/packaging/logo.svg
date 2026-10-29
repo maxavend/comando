@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="700" viewBox="162 126 700 700">
+  <!-- Comando's mark without the macOS plate: the bubble and the prompt. -->
+  <defs>
+    <linearGradient id="bubble" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3B90FF"/>
+      <stop offset="1" stop-color="#1468E6"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#bubble)">
+    <circle cx="512" cy="462" r="300"/>
+    <path d="M612 724 C652 768 714 790 780 786 C748 750 738 690 742 628 Z"/>
+  </g>
+  <g fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="348,318 420,374 348,430"/>
+    <line x1="458" y1="430" x2="526" y2="430"/>
+  </g>
+</svg>

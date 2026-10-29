@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="xterm.css">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg, #ffffff); }
+    #terminal { position: absolute; inset: 8px 4px 8px 12px; }
+    .xterm .xterm-viewport { scrollbar-width: thin; }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  <script src="xterm.js"></script>
+  <script src="addon-fit.js"></script>
+  <script>
+    // Comando's embedded terminal: bytes from the pseudoconsole come in as
+    // base64 messages; keys go back as text. The app owns the process.
+    const host = window.chrome.webview;
+    const term = new Terminal({
+      fontFamily: "'Cascadia Mono', 'Cascadia Code', Consolas, monospace",
+      fontSize: 13,
+      cursorBlink: true,
+      scrollback: 5000,
+      allowProposedApi: false,
+      macOptionIsMeta: false,
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById('terminal'));
+
+    const post = (message) => host.postMessage(message);
+
+    let lastSize = '';
+    function resize() {
+      try {
+        fit.fit();
+      } catch (e) {
+        return;
+      }
+      const size = term.cols + 'x' + term.rows;
+      if (size !== lastSize) {
+        lastSize = size;
+        post({ type: 'resize', cols: term.cols, rows: term.rows });
+      }
+    }
+    new ResizeObserver(resize).observe(document.body);
+
+    term.onData((data) => post({ type: 'input', data }));
+    term.onBinary((data) => post({ type: 'input', data }));
+
+    // The visible text, so the chat keeps how the program ended.
+    let transcriptTimer = 0;
+    function sendTranscriptSoon() {
+      clearTimeout(transcriptTimer);
+      transcriptTimer = setTimeout(() => {
+        const buffer = term.buffer.active;
+        const lines = [];
+        for (let i = 0; i < buffer.length; i++) {
+          lines.push(buffer.getLine(i).translateToString(true));
+        }
+        post({ type: 'transcript', text: lines.join('\n') });
+      }, 300);
+    }
+
+    function decode(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+
+    host.addEventListener('message', (event) => {
+      const message = event.data;
+      switch (message.type) {
+        case 'write':
+          term.write(decode(message.data), sendTranscriptSoon);
+          break;
+        case 'theme':
+          document.body.style.setProperty('--bg', message.theme.background);
+          term.options.theme = message.theme;
+          break;
+        case 'focus':
+          term.focus();
+          break;
+      }
+    });
+
+    resize();
+    term.focus();
+    post({ type: 'ready', cols: term.cols, rows: term.rows });
+  </script>
+</body>
+</html>

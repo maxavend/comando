@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Version>0.1.0</Version>
+    <Authors>Maximiliano Avendaño</Authors>
+    <Copyright>© 2026 Maximiliano Avendaño (maxavend). MIT License.</Copyright>
+    <NeutralLanguage>es</NeutralLanguage>
+  </PropertyGroup>
+</Project>

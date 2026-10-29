@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- No Windows target: the core's tests run on any OS. Windows-only code
+       (ConPTY) is marked with [SupportedOSPlatform("windows")]. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Comando.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Comando.Core.Tests" />
+  </ItemGroup>
+</Project>

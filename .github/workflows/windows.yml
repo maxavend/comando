@@ -1,0 +1,184 @@
+name: Windows
+
+on:
+  push:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Pruebas del núcleo
+        run: dotnet test windows/tests/Comando.Core.Tests/Comando.Core.Tests.csproj -c Release
+
+      - name: Compilar la app (x64)
+        run: dotnet build windows/src/Comando.App/Comando.App.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:GenerateAppxPackageOnBuild=false
+
+  package:
+    needs: build
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, ARM64]
+    env:
+      RID: ${{ matrix.platform == 'x64' && 'win-x64' || 'win-arm64' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      # Portable: one folder with everything, Comando.exe opens with a double click.
+      - name: Versión portátil
+        shell: pwsh
+        run: |
+          dotnet publish windows/src/Comando.App/Comando.App.csproj -c Release `
+            -p:Platform=${{ matrix.platform }} -r $env:RID `
+            -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:SelfContained=true `
+            -p:GenerateAppxPackageOnBuild=false -o out/Comando
+          Compress-Archive -Path out/Comando -DestinationPath "out/Comando-Windows-${{ matrix.platform }}-portable.zip"
+
+      # Opens the portable app, sends a command and keeps screenshots, so a
+      # crash at startup or a broken shell shows up here.
+      - name: Prueba de humo
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $settings = Join-Path $env:LOCALAPPDATA 'Comando'
+          New-Item -ItemType Directory -Force $settings | Out-Null
+          '{"HasSeenWelcome":true}' | Set-Content (Join-Path $settings 'settings.json')
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Save-Screen([string]$path) {
+            $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+            $bitmap.Save($path)
+          }
+          $app = Start-Process -FilePath out/Comando/Comando.exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($app.HasExited) { Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"; exit 1 }
+          Save-Screen 'out/captura-inicio.png'
+          # Focus the composer through UI Automation, then type into it.
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $byProcess = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $app.Id)
+          $window = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $byProcess)
+          $byName = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Comando')
+          $isEdit = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+          $composer = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition($byName, $isEdit)))
+          if ($null -eq $composer) { Write-Error 'No encontré el campo de texto'; exit 1 }
+          $composer.SetFocus()
+          Start-Sleep -Seconds 1
+          [System.Windows.Forms.SendKeys]::SendWait('Get-ChildItem C:\Windows -Directory | Select-Object -First 5 Name{ENTER}')
+          Start-Sleep -Seconds 10
+          Save-Screen 'out/captura-comando.png'
+          if ($app.HasExited) { Write-Error "Comando se cerró al ejecutar un comando"; exit 1 }
+
+          # The assistant's guide answers without a model.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('para que sirve Comando{ENTER}')
+          Start-Sleep -Seconds 4
+          Save-Screen 'out/captura-asistente.png'
+
+          # A nested PowerShell opens the embedded terminal (WebView2 + xterm.js).
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('pwsh -NoLogo{ENTER}')
+          Start-Sleep -Seconds 12
+          Save-Screen 'out/captura-terminal.png'
+          [System.Windows.Forms.SendKeys]::SendWait('Write-Output desde-la-terminal{ENTER}')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-terminal-2.png'
+          [System.Windows.Forms.SendKeys]::SendWait('exit{ENTER}')
+          Start-Sleep -Seconds 4
+          if ($app.HasExited) { Write-Error "Comando se cerró con la terminal integrada"; exit 1 }
+
+          # Recipes.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('^k')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-recetas.png'
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+          Start-Sleep -Seconds 1
+          # A typo gets a hint.
+          $composer.SetFocus()
+          [System.Windows.Forms.SendKeys]::SendWait('gti status{ENTER}')
+          Start-Sleep -Seconds 5
+          Save-Screen 'out/captura-pista.png'
+
+          # Tools and settings.
+          [System.Windows.Forms.SendKeys]::SendWait('^+i')
+          Start-Sleep -Seconds 15
+          Save-Screen 'out/captura-herramientas.png'
+          [System.Windows.Forms.SendKeys]::SendWait('^,')
+          Start-Sleep -Seconds 3
+          Save-Screen 'out/captura-ajustes.png'
+          if ($app.HasExited) { Write-Error "Comando se cerró"; exit 1 }
+          Stop-Process -Id $app.Id
+
+      # Installable: MSIX signed with a test certificate (Phi Silica needs a package).
+      - name: Certificado de prueba
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=maxavend" -KeyUsage DigitalSignature `
+            -FriendlyName "Comando (prueba)" -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          $password = ConvertTo-SecureString -String "comando" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath out-cert.pfx -Password $password | Out-Null
+          New-Item -ItemType Directory -Force out | Out-Null
+          Export-Certificate -Cert $cert -FilePath out/Comando.cer | Out-Null
+
+      - name: Paquete MSIX
+        shell: pwsh
+        run: |
+          dotnet publish windows/src/Comando.App/Comando.App.csproj -c Release `
+            -p:Platform=${{ matrix.platform }} -r $env:RID `
+            -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="$PWD/out-cert.pfx" -p:PackageCertificatePassword=comando `
+            -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:AppxPackageDir="$PWD/out/msix/"
+          Copy-Item windows/packaging/Instalar.ps1 out/msix/
+          Copy-Item out/Comando.cer out/msix/
+          Compress-Archive -Path out/msix/* -DestinationPath "out/Comando-Windows-${{ matrix.platform }}-msix.zip"
+
+      # Installs the MSIX the way a person would, and opens the installed app.
+      - name: Prueba de instalación
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          Expand-Archive "out/Comando-Windows-x64-msix.zip" -DestinationPath out/instalar -Force
+          & out/instalar/Instalar.ps1
+          $package = Get-AppxPackage maxavend.Comando
+          if ($null -eq $package) { Write-Error 'El paquete no quedó instalado'; exit 1 }
+          Write-Host "Instalado: $($package.PackageFullName)"
+          Start-Process "shell:AppsFolder\$($package.PackageFamilyName)!App"
+          Start-Sleep -Seconds 20
+          $app = Get-Process -Name Comando -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $app) { Write-Error 'La app instalada no abrió'; exit 1 }
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          [System.Drawing.Graphics]::FromImage($bitmap).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bitmap.Save('out/captura-instalada.png')
+          Stop-Process -Id $app.Id
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Comando-Windows-${{ matrix.platform }}
+          path: |
+            out/Comando-Windows-${{ matrix.platform }}-portable.zip
+            out/Comando-Windows-${{ matrix.platform }}-msix.zip
+            out/captura-*.png
