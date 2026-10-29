@@ -39,6 +39,8 @@ const { title, description } = Astro.props
       class="fixed top-[-6rem] left-4 z-50 rounded-lg bg-foreground px-4 py-2 text-background focus-visible:top-4"
       >Saltar al contenido</a
     >
+    <!-- Fixed mobile top fade: over page content, under the floating pill. -->
+    <div class="site-top-fade" aria-hidden="true"></div>
     <Header />
     <main id="main">
       <slot />
