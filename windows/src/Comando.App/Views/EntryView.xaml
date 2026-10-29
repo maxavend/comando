@@ -55,15 +55,12 @@
                     FontSize="{StaticResource TerminalFontSize}"
                     TextWrapping="Wrap"
                     IsTextSelectionEnabled="True" />
-                <TextBlock
-                    x:Name="InteractiveText"
-                    Visibility="Collapsed"
-                    TextWrapping="Wrap"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="Este programa usa la pantalla completa. La terminal integrada todavía no está en la versión para Windows: escribe abajo para responderle o deténlo." />
                 <HyperlinkButton x:Name="ShowAllButton" Padding="0" Visibility="Collapsed" Click="OnShowAll" />
             </StackPanel>
         </Border>
+
+        <!-- Programs that draw their own screen get a real terminal. -->
+        <Border x:Name="TerminalHost" Visibility="Collapsed" />
 
         <!-- How it went. -->
         <StackPanel x:Name="StatusPanel" Orientation="Horizontal" Spacing="6" Margin="4,0,0,0">

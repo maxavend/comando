@@ -119,13 +119,20 @@ public sealed partial class EntryView : UserControl
 
         if (entry.IsFinished)
         {
-            _rendered = entry.Output.Length > 0 ? OutputRenderer.Render(entry.Output) : RenderedOutput.Empty;
-            InteractiveText.Visibility = Visibility.Collapsed;
+            CloseTerminal();
+            // An interactive program leaves its last screen; anything else, its output.
+            _rendered = entry.Transcript is { Length: > 0 } transcript
+                ? OutputRenderer.Render(System.Text.Encoding.UTF8.GetBytes(transcript))
+                : entry.Output.Length > 0 ? OutputRenderer.Render(entry.Output) : RenderedOutput.Empty;
+        }
+        else if (_live is { IsInteractive: true })
+        {
+            OpenTerminal(entry);
+            _rendered = RenderedOutput.Empty;
         }
         else if (_live is { } live)
         {
             _rendered = OutputRenderer.RenderTail(live.Buffer, OutputRenderer.LiveLineLimit);
-            InteractiveText.Visibility = Formatting.VisibleIf(live.IsInteractive);
         }
         else
         {
@@ -138,7 +145,7 @@ public sealed partial class EntryView : UserControl
     private void Render()
     {
         var running = _live is not null;
-        OutputBubble.Visibility = Formatting.VisibleIf(!_rendered.IsEmpty || InteractiveText.Visibility == Visibility.Visible);
+        OutputBubble.Visibility = Formatting.VisibleIf(!_rendered.IsEmpty);
         OutputText.Visibility = Formatting.VisibleIf(!_rendered.IsEmpty);
         // Columns that line up with spaces need a monospaced font; sentences read better without.
         OutputText.FontFamily = _rendered.IsTabular
@@ -155,6 +162,23 @@ public sealed partial class EntryView : UserControl
         {
             ShowAllButton.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private void OpenTerminal(CommandEntry entry)
+    {
+        if (TerminalHost.Child is not null || _shell is null) return;
+        var card = new TerminalCard();
+        card.Attach(_shell, entry.Command);
+        TerminalHost.Child = card;
+        TerminalHost.Visibility = Visibility.Visible;
+        card.Loaded += (_, _) => card.FocusTerminal();
+    }
+
+    private void CloseTerminal()
+    {
+        if (TerminalHost.Child is null) return;
+        TerminalHost.Child = null;
+        TerminalHost.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
@@ -226,7 +250,7 @@ public sealed partial class EntryView : UserControl
         string text;
         if (running)
         {
-            text = _live?.IsInteractive == true ? "En curso, a pantalla completa" : "En curso";
+            text = _live?.IsInteractive == true ? "En curso en la terminal integrada" : "En curso";
         }
         else if (entry.WasInterrupted)
         {

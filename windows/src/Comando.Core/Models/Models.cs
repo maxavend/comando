@@ -59,6 +59,10 @@ public sealed partial class CommandEntry : ObservableObject
     [ObservableProperty]
     public partial bool Truncated { get; set; }
 
+    /// <summary>Final text of an embedded-terminal program (an ssh or python session).</summary>
+    [ObservableProperty]
+    public partial string? Transcript { get; set; }
+
     /// <summary>Folder the shell was in after the command, when the command changed it.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MovedTo))]

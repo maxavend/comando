@@ -35,6 +35,9 @@ public sealed partial class ShellSession : ObservableObject, IDisposable
     private readonly List<byte> _interactiveBacklog = [];
     private Action<byte[]>? _interactiveSink;
 
+    /// <summary>The embedded terminal's visible text, kept when an interactive program ends.</summary>
+    public Func<string?>? TranscriptProvider { get; set; }
+
     public ShellSession(Guid id, string directory, Func<IPseudoTerminal> terminalFactory, IDispatcher dispatcher, string appVersion = "0")
     {
         Id = id;
@@ -306,13 +309,19 @@ public sealed partial class ShellSession : ObservableObject, IDisposable
     private void FinishCurrent(int? exitCode)
     {
         if (Live is not { } live) return;
+        string? transcript = null;
+        if (live.IsInteractive && TranscriptProvider?.Invoke()?.Trim() is { Length: > 0 } text)
+        {
+            transcript = text;
+        }
         var result = new CommandResult(
             live.EntryId,
             exitCode,
             [.. live.Raw],
             live.Truncated,
             live.IsInteractive,
-            DateTimeOffset.Now);
+            DateTimeOffset.Now,
+            transcript);
         Live = null;
         _interactiveSink = null;
         _interactiveBacklog.Clear();

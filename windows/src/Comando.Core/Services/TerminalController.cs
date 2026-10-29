@@ -237,6 +237,7 @@ public sealed partial class TerminalController : ObservableObject
         entry.Output = result.Output;
         entry.PlainOutput = plain.Length > CommandEntry.PlainOutputLimit ? plain[..CommandEntry.PlainOutputLimit] : plain;
         entry.Truncated = result.Truncated;
+        entry.Transcript = result.Transcript;
         entry.ExitCode = result.ExitCode;
         entry.EndDirectory = shell.Directory;
         entry.Kind = result.WasInteractive ? EntryKind.Interactive : EntryKind.Command;

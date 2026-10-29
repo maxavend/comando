@@ -113,4 +113,5 @@ public sealed record CommandResult(
     byte[] Output,
     bool Truncated,
     bool WasInteractive,
-    DateTimeOffset FinishedAt);
+    DateTimeOffset FinishedAt,
+    string? Transcript = null);
