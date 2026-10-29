@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { useEffect, useRef, useState } from "react"
 
 type Props = {
   light: string
@@ -15,20 +16,40 @@ type Props = {
 }
 
 function Capture({ light, dark, alt, width = 1600, height = 1048, srcSet, sizes, priority, className }: Props) {
+  const imageRef = useRef<HTMLImageElement>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const image = imageRef.current
+    if (image?.complete && image.naturalWidth > 0) setLoaded(true)
+  }, [])
+
   return (
-    <picture>
-      {dark && <source media="(prefers-color-scheme: dark)" srcSet={srcSet?.dark ?? dark} sizes={sizes} />}
-      <img
-        src={light}
-        srcSet={srcSet?.light}
-        sizes={sizes}
-        width={width}
-        height={height}
-        alt={alt}
-        className={className}
-        {...(priority ? { fetchPriority: "high" as const } : { loading: "lazy" as const, decoding: "async" as const })}
-      />
-    </picture>
+    <div
+      className={cn("t-skel shot-loading", loaded && "is-revealed")}
+      data-state={loaded ? "loaded" : "loading"}
+      style={{ aspectRatio: `${width} / ${height}` }}
+    >
+      <div className="t-skel-skeleton is-pulsing" aria-hidden="true">
+        <span />
+      </div>
+      <picture className="t-skel-content">
+        {dark && <source media="(prefers-color-scheme: dark)" srcSet={srcSet?.dark ?? dark} sizes={sizes} />}
+        <img
+          ref={imageRef}
+          src={light}
+          srcSet={srcSet?.light}
+          sizes={sizes}
+          width={width}
+          height={height}
+          alt={alt}
+          className={className}
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+          {...(priority ? { fetchPriority: "high" as const } : { loading: "lazy" as const, decoding: "async" as const })}
+        />
+      </picture>
+    </div>
   )
 }
 
