@@ -68,6 +68,8 @@ jobs:
             $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
             $bitmap.Save($path)
           }
+          # Sharper captures for the website, when the runner allows it.
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { Write-Host "Resolución sin cambiar: $_" }
           $app = Start-Process -FilePath out/Comando/Comando.exe -PassThru
           Start-Sleep -Seconds 20
           if ($app.HasExited) { Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"; exit 1 }
@@ -127,6 +129,22 @@ jobs:
           Start-Sleep -Seconds 3
           Save-Screen 'out/captura-ajustes.png'
           if ($app.HasExited) { Write-Error "Comando se cerró"; exit 1 }
+
+          # Several sessions chosen: the panel to archive them together.
+          try {
+            [System.Windows.Forms.SendKeys]::SendWait('^n')
+            Start-Sleep -Seconds 3
+            $isList = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::List)
+            $bySessions = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Sesiones')
+            $list = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition($bySessions, $isList)))
+            $isItem = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem)
+            $items = $list.FindAll([System.Windows.Automation.TreeScope]::Children, $isItem)
+            $items[0].GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+            $items[1].GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).AddToSelection()
+            Start-Sleep -Seconds 3
+            Save-Screen 'out/captura-seleccion.png'
+          } catch { Write-Host "Sin captura de la selección: $_" }
+          if ($app.HasExited) { Write-Error "Comando se cerró al elegir varias sesiones"; exit 1 }
           Stop-Process -Id $app.Id
 
       # Installable: MSIX signed with a test certificate (Phi Silica needs a package).
@@ -174,6 +192,13 @@ jobs:
           [System.Drawing.Graphics]::FromImage($bitmap).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
           $bitmap.Save('out/captura-instalada.png')
           Stop-Process -Id $app.Id
+
+      # The captures alone, small enough to fetch quickly for the website.
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'x64'
+        with:
+          name: Capturas-Windows
+          path: out/captura-*.png
 
       - uses: actions/upload-artifact@v4
         with:
