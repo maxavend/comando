@@ -2,6 +2,9 @@ name: Windows
 
 on:
   push:
+    branches: ["**"]
+    # A `windows-vX.Y.Z` tag also publishes the prerelease (job `release`).
+    tags: ["windows-v*"]
     paths:
       - "windows/**"
       - ".github/workflows/windows.yml"
@@ -207,3 +210,33 @@ jobs:
             out/Comando-Windows-${{ matrix.platform }}-portable.zip
             out/Comando-Windows-${{ matrix.platform }}-msix.zip
             out/captura-*.png
+
+  # Publishes the tagged version as a GitHub prerelease, so `releases/latest`
+  # (read by the website) keeps pointing at the macOS version.
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/windows-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Comando-Windows-*
+          merge-multiple: true
+          path: artifacts
+
+      - name: Prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#windows-v}"
+          mkdir release
+          for file in artifacts/Comando-Windows-*.zip; do
+            name="$(basename "$file")"
+            cp "$file" "release/${name/Comando-Windows-/Comando-Windows-$version-}"
+          done
+          (cd release && sha256sum *.zip > SHA256SUMS-Windows.txt)
+          gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "Comando para Windows $version (prueba)" --notes "Versión de prueba $version para Windows."
