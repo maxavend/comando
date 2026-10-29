@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Comando.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <FontFamily x:Key="TerminalFontFamily">Cascadia Mono, Cascadia Code, Consolas</FontFamily>
+            <x:Double x:Key="TerminalFontSize">13</x:Double>
+            <CornerRadius x:Key="BubbleCornerRadius">18</CornerRadius>
+            <x:Double x:Key="BubbleMaxWidth">640</x:Double>
+
+            <Style x:Key="CommandBubbleStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                <Setter Property="CornerRadius" Value="{StaticResource BubbleCornerRadius}" />
+                <Setter Property="Padding" Value="14,8" />
+                <Setter Property="HorizontalAlignment" Value="Right" />
+                <Setter Property="MaxWidth" Value="{StaticResource BubbleMaxWidth}" />
+            </Style>
+
+            <Style x:Key="OutputBubbleStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="{StaticResource BubbleCornerRadius}" />
+                <Setter Property="Padding" Value="14,10" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Comando.Views.EntryView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Loaded="OnLoaded"
+    Unloaded="OnUnloaded"
+    ActualThemeChanged="OnThemeChanged">
+
+    <StackPanel Padding="0,8" Spacing="6">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="Result">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="Failed">
+                    <VisualState.Setters>
+                        <Setter Target="StatusIcon.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" />
+                        <Setter Target="StatusText.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <!-- The command: what the person sent. -->
+        <Border Style="{StaticResource CommandBubbleStyle}">
+            <Border.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Text="Copiar comando" Click="OnCopyCommand">
+                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C8;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="Ejecutar de nuevo" Click="OnRunAgain">
+                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE72C;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </Border.ContextFlyout>
+            <TextBlock
+                x:Name="CommandText"
+                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                FontFamily="{StaticResource TerminalFontFamily}"
+                FontSize="{StaticResource TerminalFontSize}"
+                TextWrapping="Wrap"
+                IsTextSelectionEnabled="True" />
+        </Border>
+
+        <!-- The answer. -->
+        <Border x:Name="OutputBubble" Style="{StaticResource OutputBubbleStyle}" Visibility="Collapsed">
+            <Border.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Text="Copiar resultado" Click="OnCopyOutput">
+                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C8;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </Border.ContextFlyout>
+            <StackPanel Spacing="6">
+                <RichTextBlock
+                    x:Name="OutputText"
+                    FontSize="{StaticResource TerminalFontSize}"
+                    TextWrapping="Wrap"
+                    IsTextSelectionEnabled="True" />
+                <TextBlock
+                    x:Name="InteractiveText"
+                    Visibility="Collapsed"
+                    TextWrapping="Wrap"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Este programa usa la pantalla completa. La terminal integrada todavía no está en la versión para Windows: escribe abajo para responderle o deténlo." />
+                <HyperlinkButton x:Name="ShowAllButton" Padding="0" Visibility="Collapsed" Click="OnShowAll" />
+            </StackPanel>
+        </Border>
+
+        <!-- How it went. -->
+        <StackPanel x:Name="StatusPanel" Orientation="Horizontal" Spacing="6" Margin="4,0,0,0">
+            <ProgressRing x:Name="RunningRing" Width="14" Height="14" IsActive="False" Visibility="Collapsed" />
+            <FontIcon x:Name="StatusIcon" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock
+                x:Name="StatusText"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>
