@@ -73,15 +73,28 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Like Mensajes: the list's title with a compose button beside it. -->
-                <Grid Padding="12,4,4,0">
+                <!-- Like Mensajes: the list's title with a compose button beside it,
+                     and Seleccionar for checkboxes, as in Mail's list. -->
+                <Grid Padding="12,4,4,0" ColumnSpacing="2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="Sesiones" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
-                    <Button
+                    <ToggleButton
+                        x:Name="SelectButton"
                         Grid.Column="1"
+                        Click="OnSelectClick"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="10,8"
+                        ToolTipService.ToolTip="Seleccionar varias"
+                        AutomationProperties.Name="Seleccionar varias">
+                        <FontIcon Glyph="&#xE762;" FontSize="16" />
+                    </ToggleButton>
+                    <Button
+                        Grid.Column="2"
                         Click="OnNewSession"
                         Background="Transparent"
                         BorderThickness="0"
@@ -96,7 +109,7 @@
                     x:Name="SessionList"
                     Grid.Row="1"
                     ItemsSource="{x:Bind Controller.Sessions}"
-                    SelectionMode="Single"
+                    SelectionMode="Extended"
                     SelectionChanged="OnSessionSelectionChanged"
                     AutomationProperties.Name="Sesiones">
                     <ListView.ItemTemplate>
@@ -124,6 +137,7 @@
                                         <MenuFlyoutItem Text="Borrar historial" Tag="{x:Bind}" Click="OnClearSession">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE894;" /></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
+                                        <!-- In a multiple selection, these two act on every chosen session. -->
                                         <MenuFlyoutItem Text="Archivar o desarchivar" Tag="{x:Bind}" Click="OnToggleArchive">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7B8;" /></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
@@ -212,6 +226,7 @@
                     <views:ChatView x:Name="Chat" x:FieldModifier="public" />
                     <views:ToolsView x:Name="Tools" Visibility="Collapsed" />
                     <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed" />
+                    <views:SelectionView x:Name="Selection" Visibility="Collapsed" />
                 </Grid>
             </Border>
         </Grid>

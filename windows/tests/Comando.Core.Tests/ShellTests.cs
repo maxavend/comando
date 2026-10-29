@@ -220,6 +220,36 @@ public class ControllerTests
         controller.Submit("cls", session);
         Assert.Empty(session.Entries);
     }
+
+    [Fact]
+    public void ArchivingSeveralMovesThemDownAndTheSelectionAway()
+    {
+        var controller = Controller(out _);
+        var first = controller.SelectedSession!;
+        var second = controller.CreateSession();
+        var third = controller.CreateSession();
+        controller.SetArchived([third, second], true);
+        Assert.True(third.IsArchived);
+        Assert.True(second.IsArchived);
+        Assert.Same(first, controller.Sessions[0]);
+        Assert.Same(first, controller.SelectedSession);
+
+        controller.SetArchived([second], false);
+        Assert.Same(second, controller.Sessions[0]);
+        Assert.Same(third, controller.Sessions[^1]);
+    }
+
+    [Fact]
+    public void DeletingSeveralSelectsTheNextOneLeft()
+    {
+        var controller = Controller(out _);
+        var first = controller.SelectedSession!;
+        var second = controller.CreateSession();
+        var third = controller.CreateSession();
+        controller.Delete([third, second]);
+        Assert.Same(first, Assert.Single(controller.Sessions));
+        Assert.Same(first, controller.SelectedSession);
+    }
 }
 
 public class LanguageTests

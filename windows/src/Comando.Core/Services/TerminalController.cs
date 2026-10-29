@@ -33,11 +33,11 @@ public sealed partial class TerminalController : ObservableObject
 
         var saved = store.Load();
         RepairInterruptedEntries(saved);
-        Sessions = new ObservableCollection<TerminalSession>(saved.OrderByDescending(s => s.IsPinned).ThenByDescending(s => s.LastActivity));
+        Sessions = new ObservableCollection<TerminalSession>(saved.OrderBy(s => s.IsArchived).ThenByDescending(s => s.IsPinned).ThenByDescending(s => s.LastActivity));
         SelectedSession = Sessions.FirstOrDefault() ?? CreateSession();
     }
 
-    /// <summary>Sessions in the sidebar: pinned first, then by activity.</summary>
+    /// <summary>Sessions in the sidebar: pinned first, then by activity, archived at the bottom.</summary>
     public ObservableCollection<TerminalSession> Sessions { get; }
 
     [ObservableProperty]
@@ -84,21 +84,30 @@ public sealed partial class TerminalController : ObservableObject
             ColorIndex = Sessions?.Count ?? 0,
         };
         session.Remember(session.Directory);
-        Sessions!.Insert(Sessions.Count(s => s.IsPinned), session);
+        Sessions!.Insert(Sessions.Count(s => s.IsPinned && !s.IsArchived), session);
         SelectedSession = session;
         Save();
         return session;
     }
 
-    public void Delete(TerminalSession session)
+    public void Delete(TerminalSession session) => Delete([session]);
+
+    /// <summary>Deletes one or several sessions; the selection moves to the next one left.</summary>
+    public void Delete(IReadOnlyCollection<TerminalSession> sessions)
     {
-        EndAgent(session);
-        if (_shells.Remove(session.Id, out var shell)) shell.Dispose();
-        var index = Sessions.IndexOf(session);
-        Sessions.Remove(session);
-        if (SelectedSession == session)
+        var index = SelectedSession is { } selected ? Sessions.IndexOf(selected) : 0;
+        foreach (var session in sessions.ToList())
         {
-            SelectedSession = Sessions.Count > 0 ? Sessions[Math.Min(index, Sessions.Count - 1)] : CreateSession();
+            EndAgent(session);
+            if (_shells.Remove(session.Id, out var shell)) shell.Dispose();
+            var at = Sessions.IndexOf(session);
+            if (at < 0) continue;
+            if (at < index) index--;
+            Sessions.RemoveAt(at);
+        }
+        if (SelectedSession is null || !Sessions.Contains(SelectedSession))
+        {
+            SelectedSession = Sessions.Count > 0 ? Sessions[Math.Clamp(index, 0, Sessions.Count - 1)] : CreateSession();
         }
         Save();
     }
@@ -289,12 +298,14 @@ public sealed partial class TerminalController : ObservableObject
 
     private TerminalSession? Find(Guid id) => Sessions.FirstOrDefault(s => s.Id == id);
 
-    /// <summary>Keeps the sidebar order: pinned first, then most recent activity.</summary>
+    /// <summary>Keeps the sidebar order: pinned first, then most recent activity, archived last.</summary>
     private void Reorder(TerminalSession session)
     {
         var from = Sessions.IndexOf(session);
         if (from < 0) return;
-        var to = session.IsPinned ? 0 : Sessions.Count(s => s.IsPinned && s != session);
+        var to = session.IsArchived ? Sessions.Count(s => !s.IsArchived && s != session)
+            : session.IsPinned ? 0
+            : Sessions.Count(s => s.IsPinned && !s.IsArchived && s != session);
         if (from != to) Sessions.Move(from, to);
     }
 
@@ -323,6 +334,19 @@ public sealed partial class TerminalController : ObservableObject
         }
         Reorder(session);
         Save();
+    }
+
+    /// <summary>
+    /// Archives or brings back several sessions chosen together. As in Mail,
+    /// archiving the open session moves the selection to one still in use.
+    /// </summary>
+    public void SetArchived(IReadOnlyCollection<TerminalSession> sessions, bool archived)
+    {
+        foreach (var session in sessions.ToList()) SetArchived(session, archived);
+        if (archived && SelectedSession is { IsArchived: true })
+        {
+            SelectedSession = Sessions.FirstOrDefault(s => !s.IsArchived) ?? SelectedSession;
+        }
     }
 
     /// <summary>The session in a new folder: <c>Set-Location</c> in its shell, shown as a command.</summary>

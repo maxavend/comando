@@ -70,7 +70,7 @@ Todo lo de la versión de macOS está portado; lo distinto se explica abajo.
 | Parte | Estado |
 | --- | --- |
 | Chat de comandos con PowerShell, colores, salida en vivo, “Mostrar todo” | Hecho |
-| Sesiones: fijar, archivar, renombrar, ícono y color, búsqueda en la barra de título | Hecho |
+| Sesiones: fijar, archivar, renombrar, ícono y color, búsqueda en la barra de título; elegir varias (Ctrl+clic, Mayús+clic o Seleccionar) para archivarlas o eliminarlas juntas | Hecho |
 | Terminal integrada (xterm.js en WebView2) para `vim`, `ssh`, REPL y agentes | Hecho |
 | Asistente: guía, recetas y Phi Silica; adjuntar archivos arrastrándolos | Hecho |
 | Pistas para comandos que fallan y “qué hace cada parte” | Hecho |

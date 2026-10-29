@@ -53,6 +53,8 @@ public sealed partial class MainWindow : Window
         Tools.BackRequested += ShowChat;
         SettingsPage.BackRequested += ShowChat;
         SettingsPage.WelcomeRequested += () => _ = WelcomeDialog.ShowAsync(Content.XamlRoot);
+        Selection.ArchiveRequested += Archive;
+        Selection.DeleteRequested += sessions => _ = ConfirmDeleteAsync(sessions);
         Root.Loaded += OnRootLoaded;
 
         ApplyTheme();
@@ -84,26 +86,42 @@ public sealed partial class MainWindow : Window
 
     private void ShowChat()
     {
+        if (Selection.Visibility == Visibility.Visible) EndSelecting();
         Chat.Visibility = Visibility.Visible;
         Tools.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Collapsed;
+        Selection.Visibility = Visibility.Collapsed;
         Chat.FocusComposer();
     }
 
     private void ShowTools()
     {
+        EndSelecting();
         Chat.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Collapsed;
+        Selection.Visibility = Visibility.Collapsed;
         Tools.Visibility = Visibility.Visible;
         Tools.Show();
     }
 
     private void ShowSettings()
     {
+        EndSelecting();
         Chat.Visibility = Visibility.Collapsed;
         Tools.Visibility = Visibility.Collapsed;
+        Selection.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
         SettingsPage.Show();
+    }
+
+    /// <summary>Several sessions chosen, or checkboxes on: what can be done with them.</summary>
+    private void ShowChosen()
+    {
+        Chat.Visibility = Visibility.Collapsed;
+        Tools.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Collapsed;
+        Selection.Visibility = Visibility.Visible;
+        Selection.Show(Chosen(), IsSelecting);
     }
 
     private async void ShowRecipes()
@@ -168,7 +186,12 @@ public sealed partial class MainWindow : Window
 
     private void ShowSelection()
     {
-        if (!ReferenceEquals(SessionList.SelectedItem, Controller.SelectedSession))
+        // Another session opened (Ctrl+N, Ctrl+Tab, a notification…): back to one.
+        if (IsSelecting || SessionList.SelectedItems.Count > 1)
+        {
+            ShowChat();
+        }
+        else if (!ReferenceEquals(SessionList.SelectedItem, Controller.SelectedSession))
         {
             SessionList.SelectedItem = Controller.SelectedSession;
         }
@@ -179,11 +202,64 @@ public sealed partial class MainWindow : Window
 
     private void OnSessionSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_syncingSelection) return;
+        if (IsSelecting || SessionList.SelectedItems.Count > 1)
+        {
+            ShowChosen();
+            return;
+        }
         if (SessionList.SelectedItem is TerminalSession session && session != Controller.SelectedSession)
         {
             Controller.SelectedSession = session;
         }
         if (SessionList.SelectedItem is not null && Chat.Visibility != Visibility.Visible) ShowChat();
+    }
+
+    // Choosing several: Ctrl+clic and Mayús+clic always, checkboxes with Seleccionar.
+
+    private bool _syncingSelection;
+
+    private bool IsSelecting => SelectButton.IsChecked == true;
+
+    private List<TerminalSession> Chosen() => SessionList.SelectedItems.OfType<TerminalSession>().ToList();
+
+    private void OnSelectClick(object sender, RoutedEventArgs e)
+    {
+        if (IsSelecting)
+        {
+            SessionList.SelectionMode = ListViewSelectionMode.Multiple;
+            ShowChosen();
+        }
+        else
+        {
+            ShowChat();
+        }
+    }
+
+    /// <summary>Checkboxes off and the list back on the open session.</summary>
+    private void EndSelecting()
+    {
+        _syncingSelection = true;
+        SelectButton.IsChecked = false;
+        SessionList.SelectionMode = ListViewSelectionMode.Extended;
+        SessionList.SelectedItems.Clear();
+        SessionList.SelectedItem = Controller.SelectedSession;
+        _syncingSelection = false;
+    }
+
+    /// <summary>Archives from the selection panel or a menu on several: back to the chat first.</summary>
+    private void Archive(IReadOnlyList<TerminalSession> sessions, bool archived)
+    {
+        ShowChat();
+        Controller.SetArchived(sessions, archived);
+    }
+
+    /// <summary>The session a menu was opened on, or all the chosen ones when it is among them.</summary>
+    private List<TerminalSession> Targets(object sender)
+    {
+        if (Session(sender) is not { } session) return [];
+        var chosen = Chosen();
+        return chosen.Count > 1 && chosen.Contains(session) ? chosen : [session];
     }
 
     private void OnNewSession(object sender, RoutedEventArgs e) => NewSession();
@@ -223,7 +299,9 @@ public sealed partial class MainWindow : Window
 
     private void OnToggleArchive(object sender, RoutedEventArgs e)
     {
-        if (Session(sender) is { } session) Controller.SetArchived(session, !session.IsArchived);
+        var sessions = Targets(sender);
+        if (sessions.Count == 1 && Selection.Visibility != Visibility.Visible) Controller.SetArchived(sessions[0], !sessions[0].IsArchived);
+        else if (sessions.Count > 0) Archive(sessions, !sessions.All(s => s.IsArchived));
     }
 
     private async void OnEditAppearance(object sender, RoutedEventArgs e)
@@ -277,22 +355,26 @@ public sealed partial class MainWindow : Window
         if (Session(sender) is { } session) Controller.ClearHistory(session);
     }
 
-    private async void OnDeleteSession(object sender, RoutedEventArgs e)
+    private void OnDeleteSession(object sender, RoutedEventArgs e) => _ = ConfirmDeleteAsync(Targets(sender));
+
+    private async Task ConfirmDeleteAsync(IReadOnlyList<TerminalSession> sessions)
     {
-        if (Session(sender) is not { } session) return;
+        if (sessions.Count == 0) return;
+        var one = sessions.Count == 1;
         var dialog = new ContentDialog
         {
             XamlRoot = Content.XamlRoot,
-            Title = $"¿Eliminar “{session.DisplayName}”?",
-            Content = "Se borra su historial y se cierra lo que esté en curso. No se puede deshacer.",
-            PrimaryButtonText = "Eliminar",
+            Title = one ? $"¿Eliminar “{sessions[0].DisplayName}”?" : $"¿Eliminar {sessions.Count} sesiones?",
+            Content = one
+                ? "Se borra su historial y se cierra lo que esté en curso. No se puede deshacer."
+                : "Se borra su historial y se cierra lo que esté en curso. No se puede deshacer. Si solo quieres sacarlas de la lista, archívalas.",
+            PrimaryButtonText = one ? "Eliminar" : $"Eliminar {sessions.Count}",
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
         };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-        {
-            Controller.Delete(session);
-        }
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (Selection.Visibility == Visibility.Visible) ShowChat();
+        Controller.Delete(sessions);
     }
 
     private static TerminalSession? Session(object sender) => (sender as FrameworkElement)?.Tag as TerminalSession;
