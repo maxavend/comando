@@ -91,7 +91,7 @@ public sealed partial class EntryView : UserControl
                 Refresh();
                 break;
             case nameof(CommandEntry.AgentReply) or nameof(CommandEntry.AssistantReply) or nameof(CommandEntry.AssistantRanAt)
-                or nameof(CommandEntry.HintMessage) or nameof(CommandEntry.AgentConversationId):
+                or nameof(CommandEntry.HintMessage) or nameof(CommandEntry.HintSuggestion) or nameof(CommandEntry.AgentConversationId):
                 Refresh();
                 break;
         }

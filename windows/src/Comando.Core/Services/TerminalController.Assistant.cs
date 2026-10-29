@@ -145,8 +145,9 @@ public sealed partial class TerminalController
     {
         if (entry.Kind != EntryKind.Command || entry.Succeeded || entry.ExitCode is null) return;
         var hint = ErrorExplainer.Hint(entry.Command, entry.PlainOutput, entry.ExitCode, () => ExecutableIndex.Names(shell.PathEntries));
-        entry.HintMessage = hint?.Message;
+        // The suggestion first: views redraw when the message arrives.
         entry.HintSuggestion = hint?.Suggestion;
+        entry.HintMessage = hint?.Message;
     }
 
     /// <summary>Reports right away on the calling thread, unlike <see cref="Progress{T}"/>.</summary>
