@@ -23,7 +23,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        AppWindow.Resize(new SizeInt32(1100, 720));
+        FitToScreen();
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.PreferredMinimumWidth = 680;
@@ -138,6 +138,20 @@ public sealed partial class MainWindow : Window
     }
 
     public TerminalController Controller => App.Controller;
+
+    /// <summary>1100 × 720 at the screen's scale, smaller on small screens, centered.</summary>
+    private void FitToScreen()
+    {
+        var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
+        if (scale <= 0) scale = 1;
+        var width = (int)Math.Min(1100 * scale, area.Width - 32 * scale);
+        var height = (int)Math.Min(720 * scale, area.Height - 32 * scale);
+        AppWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2, area.Y + (area.Height - height) / 2, width, height));
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     private void OnControllerChanged(object? sender, PropertyChangedEventArgs e)
     {

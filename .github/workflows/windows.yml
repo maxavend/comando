@@ -72,8 +72,16 @@ jobs:
           Start-Sleep -Seconds 20
           if ($app.HasExited) { Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"; exit 1 }
           Save-Screen 'out/captura-inicio.png'
-          $shell = New-Object -ComObject WScript.Shell
-          $null = $shell.AppActivate($app.Id)
+          # Focus the composer through UI Automation, then type into it.
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $byProcess = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $app.Id)
+          $window = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $byProcess)
+          $byName = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Comando')
+          $isEdit = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+          $composer = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition($byName, $isEdit)))
+          if ($null -eq $composer) { Write-Error 'No encontré el campo de texto'; exit 1 }
+          $composer.SetFocus()
           Start-Sleep -Seconds 1
           [System.Windows.Forms.SendKeys]::SendWait('Get-ChildItem C:\Windows -Directory | Select-Object -First 5 Name{ENTER}')
           Start-Sleep -Seconds 10
