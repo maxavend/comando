@@ -41,13 +41,12 @@ const { title, description } = Astro.props
     >
     <!-- Fixed mobile top fade: over page content, under the floating pill. -->
     <div class="site-top-fade" aria-hidden="true"></div>
-    <!-- Safari samples this tiny edge strip to tint its bottom address bar
-         the same color as the page, without covering the footer wordmark. -->
-    <div class="site-bottom-tint" aria-hidden="true"></div>
     <Header />
     <main id="main">
       <slot />
     </main>
     <Footer />
+    <!-- Safari 26+: transparent sentinel after all scrollable content. -->
+    <div class="site-safari-toolbar-transparent" aria-hidden="true"></div>
   </body>
 </html>
