@@ -3,9 +3,10 @@ import Base from "@/layouts/base.astro"
 import DocPage from "@/components/doc-page.astro"
 import { CopyCode } from "@/components/copy-code"
 import { LinkButton } from "@/components/link-button"
-import { latestRelease } from "@/lib/release"
+import { latestRelease, windowsRelease } from "@/lib/release"
 
 const release = await latestRelease()
+const windows = await windowsRelease()
 const verify = "shasum -a 256 ~/Downloads/Comando-*.dmg"
 const build = `git clone https://github.com/maxavend/comando.git
 cd comando
@@ -19,16 +20,27 @@ const steps = [
   },
   { title: "Activa Apple Intelligence, si quieres", body: "El asistente la usa para entender lo que pides. Sin ella, los comandos, la guía y las recetas funcionan igual." },
 ]
+const windowsSteps = [
+  {
+    title: "Descomprime y abre Comando.exe",
+    body: "Clic derecho en el .zip › <strong>Extraer todo</strong>, y abre <strong>Comando.exe</strong> en la carpeta. No instala nada: para quitarla, borra la carpeta.",
+  },
+  {
+    title: "Ábrela una vez de todos modos",
+    body: "La app no está firmada, así que Windows puede decir «Windows protegió tu PC». Presiona <strong>Más información</strong> y <strong>Ejecutar de todos modos</strong>. Usa PowerShell 7 si lo tienes; si no, te ofrece instalarlo.",
+  },
+]
 const step = "grid grid-cols-[3.5rem_minmax(0,1fr)] gap-6 border-b py-10 max-sm:grid-cols-1 max-sm:gap-3"
 const num = "font-heading text-[2.441rem] leading-none font-bold text-primary tabular-nums"
 ---
 
-<Base title="Instalar Comando en tu Mac" description="Cómo descargar Comando, abrirlo la primera vez aunque no esté notarizado y compilarlo desde el código.">
+<Base title="Instalar Comando en tu Mac o PC" description="Cómo descargar Comando para Mac o Windows, abrirlo la primera vez aunque no esté firmado y compilarlo desde el código.">
   <DocPage
     title="Instalar Comando"
     lead="Tres pasos, y uno más si quieres el asistente."
     toc={[
       { href: "#pasos", label: "Pasos" },
+      { href: "#windows", label: "En Windows" },
       { href: "#verificar", label: "Verificar la descarga" },
       { href: "#compilar", label: "Compilar desde el código" },
     ]}
@@ -57,6 +69,42 @@ const num = "font-heading text-[2.441rem] leading-none font-bold text-primary ta
         ))
       }
     </ol>
+
+    <section aria-labelledby="windows" class="mt-24">
+      <h2 id="windows" class="display text-section">En Windows</h2>
+      <p class="mt-4 max-w-[52ch] text-ink-2">
+        {windows.version ? `Una versión de prueba, la ${windows.version}, ` : "Una versión de prueba, "}
+        para Windows 10 y 11. Elige x64 para la mayoría de los PC y ARM64 para los que tienen Snapdragon.
+      </p>
+      <ol class="mt-10 border-t">
+        <li class={step}>
+          <span class={num} aria-hidden="true">1</span>
+          <div>
+            <h3 class="display text-title">Descarga el .zip</h3>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <LinkButton href={windows.x64} size="xl" download>Windows x64</LinkButton>
+              <LinkButton href={windows.arm64} size="xl" variant="outline" download>Windows ARM64</LinkButton>
+            </div>
+          </div>
+        </li>
+        {
+          windowsSteps.map((s, i) => (
+            <li class={step}>
+              <span class={num} aria-hidden="true">{i + 2}</span>
+              <div>
+                <h3 class="display text-title">{s.title}</h3>
+                <p class="mt-2 text-ink-2" set:html={s.body} />
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+      <p class="mt-6 max-w-[60ch] text-sm text-muted-foreground">
+        Para tenerla en el menú Inicio y usar el asistente con Phi Silica, descarga el <code>…-msix.zip</code> de la
+        <a class="underline decoration-border underline-offset-4 hover:decoration-primary" href="https://github.com/maxavend/comando/releases">misma versión en GitHub</a>
+        y ejecuta <code>Instalar.ps1</code> con PowerShell.
+      </p>
+    </section>
 
     <div class="prose-doc mt-16">
       <h2 id="verificar">Verificar la descarga</h2>

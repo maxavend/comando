@@ -1,13 +1,15 @@
 ---
 import Base from "@/layouts/base.astro"
 import DotField from "@/components/dot-field.astro"
+import Download from "@/components/download.astro"
 import { LinkButton } from "@/components/link-button"
 import { FeatureStage } from "@/components/feature-stage"
 import { Shot } from "@/components/shot"
-import { latestRelease } from "@/lib/release"
+import { latestRelease, windowsRelease } from "@/lib/release"
 import { repo, url } from "@/lib/site"
 
 const release = await latestRelease()
+const windows = await windowsRelease()
 const img = (name: string) => url(`img/${name}.webp`)
 
 const moments = [
@@ -42,6 +44,15 @@ const moments = [
     body: "Los programas interactivos se abren en una terminal dentro del chat.",
     shot: "integrada",
     alt: "Python abierto en una terminal integrada dentro del chat, con un print y una suma.",
+  },
+]
+
+const onWindows = [
+  { title: "PowerShell 7", body: "Tu PowerShell y tu perfil, en burbujas. Si no lo tienes, Comando te ofrece instalarlo." },
+  { title: "Phi Silica", body: "En los PC Copilot+, el asistente entiende lo que pides sin salir de tu equipo. En los demás responden la guía y las recetas." },
+  {
+    title: windows.version ? `Versión de prueba ${windows.version}` : "Versión de prueba",
+    body: `Para Windows 10 y 11, en PC x64 o ARM64. <a class="underline decoration-border underline-offset-4 hover:decoration-primary" href="${url("instalar/#windows")}">Cómo abrirla</a>`,
   },
 ]
 
@@ -81,12 +92,7 @@ const needs = [
         </h1>
         <p class="hero-lead mt-6 max-w-[34ch] text-lead text-ink-2 t-stagger-line t-stagger-line--2" data-enter style="--i: 2">Dile qué necesitas hacer. Comando te propone cómo, te lo explica y espera tu clic.</p>
         <div class="t-stagger-line t-stagger-line--3" data-enter style="--i: 2">
-        <div class="download-stack mt-10 flex flex-col items-start gap-3">
-          <LinkButton href={release.href} size="xl" download>
-                        Descargar para Mac
-          </LinkButton>
-          <p class="text-sm text-muted-foreground">Gratis y de código abierto. Para macOS 27.</p>
-        </div>
+        <Download class="mt-10" note="Gratis y de código abierto. Para macOS 27." />
         </div>
       </div>
       <div data-enter style="--i: 3">
@@ -153,6 +159,39 @@ const needs = [
     </div>
   </section>
 
+  <section aria-labelledby="windows" class="pt-36 max-lg:pt-24 max-sm:pt-18">
+    <div class="page grid items-center gap-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] max-lg:gap-10">
+      <div>
+        <h2 id="windows" class="display max-w-[16ch] text-section">También para Windows.</h2>
+        <p class="mt-6 max-w-[40ch] text-lead text-ink-2">El mismo chat de comandos, hecho con las piezas de Windows 11.</p>
+        <dl class="mt-10 border-t">
+          {
+            onWindows.map((n) => (
+              <div class="grid gap-1 border-b py-5">
+                <dt class="font-heading text-lg font-semibold">{n.title}</dt>
+                <dd class="max-w-[48ch] text-ink-2" set:html={n.body} />
+              </div>
+            ))
+          }
+        </dl>
+        <div class="download-stack mt-10 flex flex-col items-start gap-3">
+          <LinkButton href={windows.x64} size="xl" download>Descargar para Windows</LinkButton>
+          <p class="text-sm text-muted-foreground">
+            x64, para la mayoría de los PC. ¿Tu PC tiene Snapdragon?{" "}
+            <a class="text-ink-2 underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-primary" href={windows.arm64}>Descarga ARM64</a>.
+          </p>
+        </div>
+      </div>
+      <Shot
+        client:visible
+        light={img("windows-chat")}
+        width={1084}
+        height={711}
+        alt="Comando en Windows: la lista de sesiones a la izquierda, un comando de PowerShell con su resultado y la pregunta «para qué sirve Comando» respondida por la guía."
+      />
+    </div>
+  </section>
+
   <section aria-labelledby="requisitos" class="pt-36 max-lg:pt-24 max-sm:pt-18">
     <div class="page grid items-start gap-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
       <h2 id="requisitos" class="display max-w-[30ch] text-section">Solo necesitas tu Mac</h2>
@@ -175,12 +214,7 @@ const needs = [
         <div>
           <h2 id="cierre" class="display text-section">Empieza con un <code>ls</code>.</h2>
           <p class="mt-4 text-lead text-band-muted">O pregúntale «¿para qué sirve?».</p>
-          <div class="download-stack mt-10 flex flex-col items-start gap-3">
-            <LinkButton href={release.href} size="xl" download className="focus-visible:outline-band-foreground">
-                            Descargar para Mac
-            </LinkButton>
-            <p class="text-sm text-band-muted">{release.note}</p>
-          </div>
+          <Download class="mt-10" note={release.note} onBand />
         </div>
         <Shot
           client:visible

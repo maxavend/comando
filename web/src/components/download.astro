@@ -1,0 +1,31 @@
+---
+import { LinkButton } from "@/components/link-button"
+import { downloadOptions } from "@/lib/downloads"
+
+interface Props {
+  /** What the Mac download says under the button. */
+  note: string
+  /** On the dark band: its own text and focus colors. */
+  onBand?: boolean
+  class?: string
+}
+
+const { note, onBand = false, class: className } = Astro.props
+const options = await downloadOptions(note)
+const link = onBand
+  ? "text-band-foreground underline decoration-band-border underline-offset-4 hover:decoration-band-foreground"
+  : "text-ink-2 underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-primary"
+const muted = onBand ? "text-band-muted" : "text-muted-foreground"
+---
+
+<!-- Built for Mac; on Windows the browser switches the button to the right
+     processor, and the last line always offers the other downloads. -->
+<div class:list={["download-stack flex flex-col items-start gap-3", className]} data-download={JSON.stringify(options)}>
+  <LinkButton href={options.mac.href} size="xl" download className={onBand ? "focus-visible:outline-band-foreground" : undefined}>
+    <span data-download-label>{options.mac.button}</span>
+  </LinkButton>
+  <p class:list={["text-sm", muted]} data-download-note>{note}</p>
+  <p class:list={["text-sm", muted]} data-download-others>
+    También para Windows: <a class={link} href={options["win-x64"].href}>x64</a> o <a class={link} href={options["win-arm64"].href}>ARM64</a>, para PC con Snapdragon.
+  </p>
+</div>

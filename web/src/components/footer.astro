@@ -1,14 +1,17 @@
 ---
-import { latestRelease } from "@/lib/release"
+import { downloadHrefs } from "@/lib/downloads"
+import { latestRelease, windowsRelease } from "@/lib/release"
 import { repo, url } from "@/lib/site"
 
 const release = await latestRelease()
+const windows = await windowsRelease()
+const downloads = await downloadHrefs()
 
 const columns = [
   {
     title: "Producto",
     links: [
-      { href: release.href, label: "Descargar" },
+      { href: downloads.mac, label: "Descargar", hrefs: downloads },
       { href: url("instalar/"), label: "Instalar" },
       { href: url("novedades/"), label: "Novedades" },
       { href: url("atajos/"), label: "Atajos" },
@@ -57,6 +60,7 @@ const columns = [
                   <li>
                     <a
                       href={link.href}
+                      data-download-href={"hrefs" in link ? JSON.stringify(link.hrefs) : undefined}
                       class="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 text-ink-2 transition-colors duration-200 hover:bg-glass-hover hover:text-foreground focus-visible:outline-offset-0 active:bg-glass-press"
                     >
                       {link.label}
@@ -76,7 +80,10 @@ const columns = [
     <div class="page">
       <div class="flex flex-wrap items-center justify-between gap-x-8 gap-y-2 py-6 text-sm text-muted-foreground">
         <p>© 2026 Maximiliano Avendaño. Código abierto con licencia MIT.</p>
-        <p>{release.version ? `Versión ${release.version}, para macOS 27` : "Para macOS 27"}</p>
+        <p>
+          {release.version ? `Versión ${release.version} para macOS 27` : "Para macOS 27"}
+          {windows.version && ` y ${windows.version} de prueba para Windows`}
+        </p>
       </div>
     </div>
 

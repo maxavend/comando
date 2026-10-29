@@ -1,12 +1,12 @@
 ---
 import { LinkButton } from "@/components/link-button"
 import { MobileMenu } from "@/components/mobile-menu"
-import { latestRelease } from "@/lib/release"
+import { downloadHrefs } from "@/lib/downloads"
 import { pages, url } from "@/lib/site"
 
 const path = Astro.url.pathname
 const links = pages.map((p) => ({ href: url(p.href), label: p.label, current: path.startsWith(url(p.href)) }))
-const release = await latestRelease()
+const downloads = await downloadHrefs()
 ---
 
 <header class="pointer-events-none sticky top-0 z-40 py-3" data-nav>
@@ -88,17 +88,24 @@ const release = await latestRelease()
       </script>
       <div class="flex items-center gap-1 justify-self-end">
         <div class="lg:hidden">
-          <MobileMenu client:media="(max-width: 60rem)" links={[...links, { href: release.href, label: "Descargar para Mac", current: false }]} />
+          <MobileMenu client:media="(max-width: 60rem)" links={links} downloads={downloads} />
         </div>
-        <LinkButton href={release.href} size="pill" className="max-[26rem]:hidden">
-          Descargar
-        </LinkButton>
+        <span class="contents" data-download-href={JSON.stringify(downloads)}>
+          <LinkButton href={downloads.mac} size="pill" className="max-[26rem]:hidden">
+            Descargar
+          </LinkButton>
+        </span>
       </div>
     </nav>
   </div>
 </header>
 
 <script>
+  import { applyDownloads } from "@/lib/platform"
+
+  // On Windows, every download on the page points at the visitor's processor.
+  applyDownloads()
+
   // The capsule casts a shadow once the page scrolls under it.
   const nav = document.querySelector<HTMLElement>("[data-bar]")
   const mark = document.createElement("div")
