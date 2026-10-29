@@ -52,9 +52,9 @@ internal static class ReplyViews
         {
             var thinking = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             thinking.Children.Add(new ProgressRing { IsActive = true, Width = 14, Height = 14 });
-            thinking.Children.Add(Paragraph("Pensando…", secondary: true));
+            thinking.Children.Add(Paragraph("Pensando en tu PC…", secondary: true));
             stack.Children.Add(thinking);
-            return Bubble(stack);
+            return Thinking(Bubble(stack));
         }
 
         if (reply.Error is { } error)
@@ -122,11 +122,29 @@ internal static class ReplyViews
             }
         }
 
-        if (reply.IsWriting)
+        return reply.IsWriting ? Thinking(Bubble(stack)) : Bubble(stack);
+    }
+
+    /// <summary>
+    /// The bubble the assistant is still writing carries the same gradient
+    /// edge as the glowing field, so both read as one moment.
+    /// </summary>
+    private static Border Thinking(Border bubble)
+    {
+        bubble.BorderThickness = new Thickness(1.5);
+        bubble.BorderBrush = new LinearGradientBrush
         {
-            stack.Children.Add(new ProgressBar { IsIndeterminate = true, MaxWidth = 120, HorizontalAlignment = HorizontalAlignment.Left });
-        }
-        return Bubble(stack);
+            StartPoint = new Windows.Foundation.Point(0, 0),
+            EndPoint = new Windows.Foundation.Point(1, 1),
+            GradientStops =
+            {
+                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0x4F, 0x8B, 0xFF), Offset = 0 },
+                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0xA4, 0x5C, 0xFF), Offset = 0.35 },
+                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0xFF, 0x5C, 0xA8), Offset = 0.65 },
+                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0xFF, 0xB5, 0x47), Offset = 1 },
+            },
+        };
+        return bubble;
     }
 
     /// <summary>A proposed command with what it does, and what each part means on demand.</summary>

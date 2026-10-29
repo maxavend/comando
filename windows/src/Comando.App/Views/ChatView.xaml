@@ -11,6 +11,49 @@
     Drop="OnDrop">
 
     <UserControl.Resources>
+        <!-- The gradient's direction turns once every three seconds. -->
+        <Storyboard x:Key="GlowTurn" RepeatBehavior="Forever">
+            <PointAnimationUsingKeyFrames Storyboard.TargetName="EdgeBrush" Storyboard.TargetProperty="StartPoint" EnableDependentAnimation="True">
+                <LinearPointKeyFrame KeyTime="0:0:0" Value="0,0" />
+                <LinearPointKeyFrame KeyTime="0:0:0.75" Value="1,0" />
+                <LinearPointKeyFrame KeyTime="0:0:1.5" Value="1,1" />
+                <LinearPointKeyFrame KeyTime="0:0:2.25" Value="0,1" />
+                <LinearPointKeyFrame KeyTime="0:0:3" Value="0,0" />
+            </PointAnimationUsingKeyFrames>
+            <PointAnimationUsingKeyFrames Storyboard.TargetName="EdgeBrush" Storyboard.TargetProperty="EndPoint" EnableDependentAnimation="True">
+                <LinearPointKeyFrame KeyTime="0:0:0" Value="1,1" />
+                <LinearPointKeyFrame KeyTime="0:0:0.75" Value="0,1" />
+                <LinearPointKeyFrame KeyTime="0:0:1.5" Value="0,0" />
+                <LinearPointKeyFrame KeyTime="0:0:2.25" Value="1,0" />
+                <LinearPointKeyFrame KeyTime="0:0:3" Value="1,1" />
+            </PointAnimationUsingKeyFrames>
+            <PointAnimationUsingKeyFrames Storyboard.TargetName="HaloBrush" Storyboard.TargetProperty="StartPoint" EnableDependentAnimation="True">
+                <LinearPointKeyFrame KeyTime="0:0:0" Value="0,0" />
+                <LinearPointKeyFrame KeyTime="0:0:0.75" Value="1,0" />
+                <LinearPointKeyFrame KeyTime="0:0:1.5" Value="1,1" />
+                <LinearPointKeyFrame KeyTime="0:0:2.25" Value="0,1" />
+                <LinearPointKeyFrame KeyTime="0:0:3" Value="0,0" />
+            </PointAnimationUsingKeyFrames>
+            <PointAnimationUsingKeyFrames Storyboard.TargetName="HaloBrush" Storyboard.TargetProperty="EndPoint" EnableDependentAnimation="True">
+                <LinearPointKeyFrame KeyTime="0:0:0" Value="1,1" />
+                <LinearPointKeyFrame KeyTime="0:0:0.75" Value="0,1" />
+                <LinearPointKeyFrame KeyTime="0:0:1.5" Value="0,0" />
+                <LinearPointKeyFrame KeyTime="0:0:2.25" Value="1,0" />
+                <LinearPointKeyFrame KeyTime="0:0:3" Value="1,1" />
+            </PointAnimationUsingKeyFrames>
+        </Storyboard>
+        <Storyboard x:Key="GlowIn">
+            <DoubleAnimation Storyboard.TargetName="GlowEdge" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="5" /></DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="GlowHalo" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.6">
+                <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="5" /></DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+        <Storyboard x:Key="GlowOut">
+            <DoubleAnimation Storyboard.TargetName="GlowEdge" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.4" />
+            <DoubleAnimation Storyboard.TargetName="GlowHalo" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.4" />
+        </Storyboard>
         <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -126,7 +169,7 @@
         </StackPanel>
 
         <!-- Composer -->
-        <Grid Grid.Row="3" Padding="20,8,20,16" RowSpacing="8">
+        <Grid Grid.Row="3" Padding="20,8,20,16" RowSpacing="8" ColumnSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -136,57 +179,83 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <StackPanel x:Name="AttachmentBar" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Visibility="Collapsed" />
-            <!-- The send button sits inside the field, as in Mensajes. -->
-            <TextBox
-                x:Name="Composer"
-                Grid.Row="1"
-                Grid.ColumnSpan="2"
-                PlaceholderText="Escribe un comando"
-                AcceptsReturn="True"
-                TextWrapping="Wrap"
-                MaxHeight="180"
-                MinHeight="40"
-                Padding="12,10,48,10"
-                CornerRadius="8"
-                IsSpellCheckEnabled="False"
-                IsTextPredictionEnabled="False"
-                PreviewKeyDown="OnComposerKeyDown"
-                TextChanged="OnComposerTextChanged"
-                AutomationProperties.Name="Comando" />
-            <Button
-                x:Name="SendButton"
-                Grid.Row="1"
-                Grid.Column="1"
-                Width="36"
-                Height="32"
-                Padding="0"
-                Margin="0,0,4,4"
-                VerticalAlignment="Bottom"
-                Background="Transparent"
-                BorderThickness="0"
-                IsEnabled="False"
-                Click="OnSend"
-                ToolTipService.ToolTip="Enviar (Entrar)"
-                AutomationProperties.Name="Enviar">
-                <FontIcon Glyph="&#xE724;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-            </Button>
-            <Button
-                x:Name="StopButton"
-                Grid.Row="1"
-                Grid.Column="1"
-                Width="36"
-                Height="32"
-                Padding="0"
-                Margin="0,0,4,4"
-                VerticalAlignment="Bottom"
-                Background="Transparent"
-                BorderThickness="0"
-                Visibility="Collapsed"
-                Click="OnStop"
-                ToolTipService.ToolTip="Detener (Ctrl+C)"
-                AutomationProperties.Name="Detener">
-                <FontIcon Glyph="&#xE71A;" FontSize="16" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-            </Button>
+
+            <Grid Grid.Row="1">
+                <!-- While the assistant thinks, the field glows: a soft halo and a
+                     turning gradient edge, Windows' take on Apple Intelligence's glow. -->
+                <Border x:Name="GlowHalo" Margin="-6" CornerRadius="14" BorderThickness="6" Opacity="0" IsHitTestVisible="False">
+                    <Border.BorderBrush>
+                        <LinearGradientBrush x:Name="HaloBrush" StartPoint="0,0" EndPoint="1,1" Opacity="0.35">
+                            <GradientStop Color="#4F8BFF" Offset="0" />
+                            <GradientStop Color="#A45CFF" Offset="0.35" />
+                            <GradientStop Color="#FF5CA8" Offset="0.65" />
+                            <GradientStop Color="#FFB547" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.BorderBrush>
+                </Border>
+                <Border x:Name="GlowEdge" Margin="-2" CornerRadius="10" BorderThickness="2" Opacity="0" IsHitTestVisible="False">
+                    <Border.BorderBrush>
+                        <LinearGradientBrush x:Name="EdgeBrush" StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#4F8BFF" Offset="0" />
+                            <GradientStop Color="#A45CFF" Offset="0.35" />
+                            <GradientStop Color="#FF5CA8" Offset="0.65" />
+                            <GradientStop Color="#FFB547" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.BorderBrush>
+                </Border>
+
+                <!-- The send button sits inside the field, as in Mensajes. -->
+                <TextBox
+                    x:Name="Composer"
+                    PlaceholderText="Escribe un comando"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    MaxHeight="180"
+                    MinHeight="40"
+                    Padding="12,10,48,10"
+                    CornerRadius="8"
+                    IsSpellCheckEnabled="False"
+                    IsTextPredictionEnabled="False"
+                    PreviewKeyDown="OnComposerKeyDown"
+                    TextChanged="OnComposerTextChanged"
+                    AutomationProperties.Name="Comando" />
+                <Button
+                    x:Name="SendButton"
+                    Width="36"
+                    Height="32"
+                    Padding="0"
+                    Margin="0,0,4,4"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    IsEnabled="False"
+                    Click="OnSend"
+                    ToolTipService.ToolTip="Enviar (Entrar)"
+                    AutomationProperties.Name="Enviar">
+                    <FontIcon Glyph="&#xE724;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                </Button>
+            </Grid>
+
+            <!-- While something runs, Stop waits beside the field, ringed by progress. -->
+            <Grid x:Name="StopArea" Grid.Row="1" Grid.Column="1" Width="40" Height="40" VerticalAlignment="Bottom" Visibility="Collapsed">
+                <ProgressRing x:Name="StopRing" Width="40" Height="40" IsActive="False" IsHitTestVisible="False" />
+                <Button
+                    x:Name="StopButton"
+                    Width="32"
+                    Height="32"
+                    Padding="0"
+                    CornerRadius="16"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    Click="OnStop"
+                    ToolTipService.ToolTip="Detener (Ctrl+C)"
+                    AutomationProperties.Name="Detener">
+                    <FontIcon Glyph="&#xE71A;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                </Button>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>
