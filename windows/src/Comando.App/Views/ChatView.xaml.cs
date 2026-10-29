@@ -30,7 +30,7 @@ public sealed partial class ChatView : UserControl
         App.Controller.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Comando.Core.Services.TerminalController.AgentChatsVersion)) UpdateShellState();
-            if (e.PropertyName == nameof(Comando.Core.Services.TerminalController.AssistantRequestsInFlight)) UpdateGlow();
+            if (e.PropertyName == nameof(Comando.Core.Services.TerminalController.AssistantRequestsInFlight)) UpdateThinking();
         };
         App.Settings.PropertyChanged += (_, e) =>
         {
@@ -39,33 +39,15 @@ public sealed partial class ChatView : UserControl
         Composer.FontSize = Formatting.MessageFontSize;
     }
 
-    private bool _glowing;
+    private bool _thinking;
 
-    /// <summary>The field glows while the assistant is thinking.</summary>
-    private void UpdateGlow()
+    /// <summary>While the assistant thinks, the field shows Fluent's progress bar.</summary>
+    private void UpdateThinking()
     {
         var thinking = App.Controller.AssistantRequestsInFlight > 0;
-        if (thinking == _glowing) return;
-        _glowing = thinking;
-        var turn = (Microsoft.UI.Xaml.Media.Animation.Storyboard)Resources["GlowTurn"];
-        if (thinking)
-        {
-            turn.Begin();
-            ((Microsoft.UI.Xaml.Media.Animation.Storyboard)Resources["GlowIn"]).Begin();
-        }
-        else
-        {
-            var fade = (Microsoft.UI.Xaml.Media.Animation.Storyboard)Resources["GlowOut"];
-            fade.Completed += StopTurning;
-            fade.Begin();
-        }
+        if (thinking == _thinking) return;
+        _thinking = thinking;
         UpdateShellState();
-    }
-
-    private void StopTurning(object? sender, object e)
-    {
-        if (sender is Microsoft.UI.Xaml.Media.Animation.Storyboard fade) fade.Completed -= StopTurning;
-        if (!_glowing) ((Microsoft.UI.Xaml.Media.Animation.Storyboard)Resources["GlowTurn"]).Stop();
     }
 
     /// <summary>Places a command in the composer to edit before sending.</summary>
@@ -164,12 +146,13 @@ public sealed partial class ChatView : UserControl
         }
         var busy = _shell?.IsBusy ?? false;
         var agentWorking = !busy && chat is { IsResponding: true };
-        // Send stays in the field (a running program can be answered); Stop waits beside it.
+        // Stop takes Send's place inside the field while something runs.
         var running = busy || agentWorking;
-        StopArea.Visibility = Formatting.VisibleIf(running);
-        StopRing.IsActive = running;
+        StopButton.Visibility = Formatting.VisibleIf(running);
+        SendButton.Visibility = Formatting.VisibleIf(!running);
+        ActivityBar.Visibility = Formatting.VisibleIf(running || _thinking);
         Composer.PlaceholderText = busy ? "Escribe para responderle al programa"
-            : _glowing ? "El asistente está pensando…"
+            : _thinking ? "El asistente está pensando…"
             : chat is not null ? $"Escribe a {Comando.Core.Agents.AgentKinds.DisplayName(chat.Kind)}"
             : _attachments.Count > 0 ? "Dile al asistente qué hacer con estos archivos"
             : App.Settings.AssistantEnabled ? "Escribe un comando o pídelo con tus palabras"

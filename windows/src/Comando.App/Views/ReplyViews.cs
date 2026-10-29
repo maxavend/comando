@@ -54,7 +54,7 @@ internal static class ReplyViews
             thinking.Children.Add(new ProgressRing { IsActive = true, Width = 14, Height = 14 });
             thinking.Children.Add(Paragraph("Pensando en tu PC…", secondary: true));
             stack.Children.Add(thinking);
-            return Thinking(Bubble(stack));
+            return Bubble(stack);
         }
 
         if (reply.Error is { } error)
@@ -126,24 +126,21 @@ internal static class ReplyViews
     }
 
     /// <summary>
-    /// The bubble the assistant is still writing carries the same gradient
-    /// edge as the glowing field, so both read as one moment.
+    /// The card the assistant is still writing shows Fluent's indeterminate
+    /// progress along its bottom, like the field.
     /// </summary>
     private static Border Thinking(Border bubble)
     {
-        bubble.BorderThickness = new Thickness(1.5);
-        bubble.BorderBrush = new LinearGradientBrush
-        {
-            StartPoint = new Windows.Foundation.Point(0, 0),
-            EndPoint = new Windows.Foundation.Point(1, 1),
-            GradientStops =
-            {
-                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0x4F, 0x8B, 0xFF), Offset = 0 },
-                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0xA4, 0x5C, 0xFF), Offset = 0.35 },
-                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0xFF, 0x5C, 0xA8), Offset = 0.65 },
-                new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0xFF, 0xB5, 0x47), Offset = 1 },
-            },
-        };
+        var content = bubble.Child;
+        bubble.Child = null;
+        var grid = new Grid { RowSpacing = 10 };
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.Children.Add(content);
+        var progress = new ProgressBar { IsIndeterminate = true, MinWidth = 160 };
+        Grid.SetRow(progress, 1);
+        grid.Children.Add(progress);
+        bubble.Child = grid;
         return bubble;
     }
 
