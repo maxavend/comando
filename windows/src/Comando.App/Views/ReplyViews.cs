@@ -122,26 +122,7 @@ internal static class ReplyViews
             }
         }
 
-        return reply.IsWriting ? Thinking(Bubble(stack)) : Bubble(stack);
-    }
-
-    /// <summary>
-    /// The card the assistant is still writing shows Fluent's indeterminate
-    /// progress along its bottom, like the field.
-    /// </summary>
-    private static Border Thinking(Border bubble)
-    {
-        var content = bubble.Child;
-        bubble.Child = null;
-        var grid = new Grid { RowSpacing = 10 };
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.Children.Add(content);
-        var progress = new ProgressBar { IsIndeterminate = true, MinWidth = 160 };
-        Grid.SetRow(progress, 1);
-        grid.Children.Add(progress);
-        bubble.Child = grid;
-        return bubble;
+        return Bubble(stack);
     }
 
     /// <summary>A proposed command with what it does, and what each part means on demand.</summary>
