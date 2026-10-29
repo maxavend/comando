@@ -214,8 +214,14 @@ public sealed partial class ChatView : UserControl
     private void OnSend(object sender, RoutedEventArgs e) => Send();
 
     /// <summary>The send button lights up once there's something to send.</summary>
-    private void OnComposerTextChanged(object sender, TextChangedEventArgs e) =>
+    private void OnComposerTextChanged(object sender, TextChangedEventArgs e) => UpdateSendButton();
+
+    private void UpdateSendButton()
+    {
         SendButton.IsEnabled = Composer.Text.Trim().Length > 0 || _attachments.Count > 0;
+        // Its icon keeps the accent color, so it dims by hand while there's nothing to send.
+        SendButton.Opacity = SendButton.IsEnabled ? 1 : 0.4;
+    }
 
     /// <summary>
     /// Tab completes the word before the cursor: a program for the first
@@ -358,7 +364,7 @@ public sealed partial class ChatView : UserControl
             AttachmentBar.Children.Add(chip);
         }
         AttachmentBar.Visibility = Formatting.VisibleIf(_attachments.Count > 0);
-        SendButton.IsEnabled = Composer.Text.Trim().Length > 0 || _attachments.Count > 0;
+        UpdateSendButton();
         UpdateShellState();
     }
 

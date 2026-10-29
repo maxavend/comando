@@ -78,6 +78,7 @@ Todo lo de la versión de macOS está portado; lo distinto se explica abajo.
 | Herramientas (Ctrl+Mayús+I): winget, Scoop, npm, pipx, uv | Hecho |
 | Agentes de IA como chat: `agy`, `claude`, `codex`, `qwen` | Hecho |
 | Ajustes, bienvenida, notificaciones, Tab para completar | Hecho |
+| Aspecto de Mensajes de Windows (Vínculo móvil) y logo sin placa | Hecho |
 | Empaquetado: zip portátil y MSIX para x64 y ARM64 en la CI | Hecho |
 
 ## Pendiente o distinto de macOS
@@ -86,7 +87,6 @@ Todo lo de la versión de macOS está portado; lo distinto se explica abajo.
 - **Detener un programa**: macOS manda señales al grupo de procesos. En Windows se envía `Ctrl+C` dos veces por la consola; un programa que lo ignora se detiene reiniciando la sesión.
 - **Asistente sin Phi Silica**: en PCs que no son Copilot+, o con la versión portátil (sin paquete), responden la guía y las recetas, no el modelo.
 - **Firma**: el MSIX de la CI está firmado con un certificado de prueba; `Instalar.ps1` lo agrega a los de confianza. Para publicar en Microsoft Store o instalar sin ese paso hace falta un certificado de firma de código real.
-- **Ícono**: el actual tiene la forma de ícono de macOS; las guías de Windows piden otro estilo.
 
 ## Referencias de diseño
 
