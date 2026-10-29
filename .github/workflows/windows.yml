@@ -154,6 +154,27 @@ jobs:
           Copy-Item out/Comando.cer out/msix/
           Compress-Archive -Path out/msix/* -DestinationPath "out/Comando-Windows-${{ matrix.platform }}-msix.zip"
 
+      # Installs the MSIX the way a person would, and opens the installed app.
+      - name: Prueba de instalación
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          Expand-Archive "out/Comando-Windows-x64-msix.zip" -DestinationPath out/instalar -Force
+          & out/instalar/Instalar.ps1
+          $package = Get-AppxPackage maxavend.Comando
+          if ($null -eq $package) { Write-Error 'El paquete no quedó instalado'; exit 1 }
+          Write-Host "Instalado: $($package.PackageFullName)"
+          Start-Process "shell:AppsFolder\$($package.PackageFamilyName)!App"
+          Start-Sleep -Seconds 20
+          $app = Get-Process -Name Comando -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $app) { Write-Error 'La app instalada no abrió'; exit 1 }
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          [System.Drawing.Graphics]::FromImage($bitmap).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bitmap.Save('out/captura-instalada.png')
+          Stop-Process -Id $app.Id
+
       - uses: actions/upload-artifact@v4
         with:
           name: Comando-Windows-${{ matrix.platform }}
