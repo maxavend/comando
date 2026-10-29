@@ -713,10 +713,18 @@
   .t-morph-swap > span { transition: none !important; }
 }
 
-/* Paint behind the transparent header too, including Safari's top safe area.
-   Only the background extends; the hero content keeps its current position. */
+/* On phones, the hero itself starts at the top of the scrollable page.
+   Safari can then composite its moving dot texture behind the status bar,
+   while the extra padding leaves all hero text in its original position. */
 .landing-hero > [data-dot-field] {
   top: calc(-1 * var(--nav-height));
+}
+@media (max-width: 60rem) {
+  .landing-hero {
+    margin-top: calc(-1 * var(--nav-height));
+    padding-top: calc(4rem + var(--nav-height));
+  }
+  .landing-hero > [data-dot-field] { top: 0; }
 }
 
 /* Dot grid behind the hero: faint ink dots, and a second layer of brand
@@ -849,7 +857,7 @@
 
   .page { padding-inline: max(1.25rem, env(safe-area-inset-left), env(safe-area-inset-right)); }
   .page > *, .download-card > * { min-width: 0; }
-  .landing-hero { padding-top: 2.5rem; padding-bottom: 1rem; }
+  .landing-hero { padding-top: calc(2.5rem + var(--nav-height)); padding-bottom: 1rem; }
   .landing-hero h1 { max-width: 12ch; }
   .download-stack { width: 100%; margin-top: 1.75rem; }
   .download-stack > a { width: 100%; min-height: 3.25rem; }
@@ -907,9 +915,10 @@
    strip. Start the glass behind the navigation, below Safari's sampling band,
    so normal hero pixels can appear behind the clock and Dynamic Island. */
 @media (max-width: 60rem) {
-  .site-header::before {
-    top: calc(env(safe-area-inset-top, 0px) + 12px);
-  }
+  /* Fully remove the pinned glass at scroll zero: opacity: 0 alone is still
+     sampled as a solid status-bar strip by iOS Safari. */
+  .site-header[data-home]:not([data-nav-scrolled])::before { display: none; }
+  .site-header::before { top: calc(env(safe-area-inset-top, 0px) + 12px); }
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
