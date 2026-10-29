@@ -283,7 +283,9 @@
   html {
     @apply font-sans;
     scroll-padding-top: calc(var(--nav-height) + 1rem);
-    background-color: #080a0e;
+    /* Safari paints its status-bar strip from the root background, not from the dot texture.
+       Match the page background in both color schemes to avoid a visible seam on iPhone. */
+    background-color: var(--background);
     scrollbar-color: var(--ink-muted) var(--paper);
   }
   body {
