@@ -902,6 +902,16 @@
   -webkit-mask-image: var(--nav-fade);
   mask-image: var(--nav-fade);
 }
+/* iPhone Safari treats a full-width sticky backdrop touching the top edge as
+   the status-bar background, replacing the scrolling dot field with a solid
+   strip. Start the glass behind the navigation, below Safari's sampling band,
+   so normal hero pixels can appear behind the clock and Dynamic Island. */
+@media (max-width: 60rem) {
+  .site-header::before {
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .site-header::before { background: #080a0e; }
 }
