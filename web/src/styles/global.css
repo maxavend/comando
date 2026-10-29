@@ -898,3 +898,18 @@
 @media (max-width: 60rem) and (prefers-color-scheme: dark) {
   :root { --status-fade: #080a0e; }
 }
+
+/* Safari 26+ chooses a fixed/sticky edge element's background-color for
+   browser chrome. Leave the footer unmasked: sample its real page color
+   from a 6px edge strip, almost entirely under the bottom toolbar. */
+@media (max-width: 60rem) {
+  .site-bottom-tint {
+    position: fixed;
+    inset-inline: 0;
+    bottom: -6px;
+    height: 14px;
+    z-index: 2;
+    pointer-events: none;
+    background-color: var(--background);
+  }
+}
