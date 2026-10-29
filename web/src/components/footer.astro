@@ -36,7 +36,7 @@ const columns = [
 ---
 
 <footer class="relative overflow-clip border-t pt-24 max-lg:pt-16">
-  <div class="page">
+  <div class="page pb-20 max-lg:pb-14">
     <div class="grid gap-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] max-lg:gap-12">
       <div>
         <a href={url()} aria-label="Comando, inicio" class="inline-flex items-center gap-2.5 rounded-full font-heading text-xl leading-none font-bold tracking-tight">
@@ -70,18 +70,23 @@ const columns = [
         }
       </nav>
     </div>
-
-    <Separator className="mt-20 max-lg:mt-14" />
-    <div class="flex flex-wrap items-center justify-between gap-x-8 gap-y-2 py-6 text-sm text-muted-foreground">
-      <p>© 2026 Maximiliano Avendaño. Código abierto con licencia MIT.</p>
-      <p>{release.version ? `Versión ${release.version}, para macOS 27` : "Para macOS 27"}</p>
-    </div>
   </div>
 
-  <p
-    aria-hidden="true"
-    class="display pointer-events-none -mb-[0.22em] text-center text-[clamp(3rem,19vw,17rem)] leading-none whitespace-nowrap tracking-[-0.055em] text-foreground/[0.07] select-none"
-  >
-    Comando
-  </p>
+  <!-- The color boundary begins exactly at the divider, not over the wordmark. -->
+  <div class="footer-end">
+    <div class="page">
+      <Separator />
+      <div class="flex flex-wrap items-center justify-between gap-x-8 gap-y-2 py-6 text-sm text-muted-foreground">
+        <p>© 2026 Maximiliano Avendaño. Código abierto con licencia MIT.</p>
+        <p>{release.version ? `Versión ${release.version}, para macOS 27` : "Para macOS 27"}</p>
+      </div>
+    </div>
+
+    <p
+      aria-hidden="true"
+      class="display pointer-events-none -mb-[0.22em] text-center text-[clamp(3rem,19vw,17rem)] leading-none whitespace-nowrap tracking-[-0.055em] text-foreground/[0.07] select-none"
+    >
+      Comando
+    </p>
+  </div>
 </footer>
