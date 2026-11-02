@@ -134,7 +134,7 @@ function Save-Window([string] $name) {
         $full.Dispose()
         [ComandoWindow]::DeleteObject($handle) | Out-Null
     }
-    if ($script:app.HasExited) { Write-Error "Comando se cerró antes de $name" }
+    if ($script:process.HasExited) { Write-Error "Comando se cerró antes de $name" }
 }
 
 foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscuro'; Value = 2; Light = 0 })) {
@@ -147,18 +147,18 @@ foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscur
     Set-ItemProperty $personalize AppsUseLightTheme $theme.Light -Type DWord
     Set-ItemProperty $personalize SystemUsesLightTheme $theme.Light -Type DWord
 
-    $script:app = Start-Process -FilePath $App -WorkingDirectory $nido -PassThru
+    $script:process = Start-Process -FilePath $App -WorkingDirectory $nido -PassThru
     for ($i = 0; $i -lt 60; $i++) {
         Start-Sleep -Milliseconds 500
-        $app.Refresh()
-        if ($app.HasExited -or $app.MainWindowHandle -ne [IntPtr]::Zero) { break }
+        $process.Refresh()
+        if ($process.HasExited -or $process.MainWindowHandle -ne [IntPtr]::Zero) { break }
     }
-    if ($app.HasExited) {
+    if ($process.HasExited) {
         Get-Content (Join-Path $settings 'sessions.json')
         Get-WinEvent -LogName Application -MaxEvents 6 | Format-List TimeCreated, ProviderName, Message
-        Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"
+        Write-Error "Comando se cerró al abrir (código $($process.ExitCode))"
     }
-    $script:window = $app.MainWindowHandle
+    $script:window = $process.MainWindowHandle
     if ($window -eq [IntPtr]::Zero) { Write-Error 'Comando no abrió su ventana' }
     Start-Sleep -Seconds 10
     # Logical 1260 x 700, the size of Bardo's captures: about 1868 x 1037 at 150 %.
@@ -166,7 +166,7 @@ foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscur
     "Escala $([ComandoWindow]::Scale($window))" | Tee-Object -FilePath (Join-Path $Output 'pantalla.txt')
 
     $root = [System.Windows.Automation.AutomationElement]::RootElement
-    $byProcess = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $app.Id)
+    $byProcess = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
     $element = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $byProcess)
     $byName = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Comando')
     $isEdit = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
@@ -202,7 +202,7 @@ foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscur
     Start-Sleep -Seconds 3
     Save-Window "07-ajustes-$suffix"
 
-    Stop-Process -Id $app.Id -Force
+    Stop-Process -Id $process.Id -Force
     Start-Sleep -Seconds 3
 }
 
