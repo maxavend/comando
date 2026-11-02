@@ -35,12 +35,18 @@ public static class ComandoWindow
     [DllImport("gdi32.dll")] private static extern bool DeleteDC(IntPtr deviceContext);
     [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr gdiObject);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out Rect value, int size);
+    [DllImport("user32.dll")] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+
+    // PowerShell isn't DPI aware, so Windows would hand it the window's rectangle in scaled
+    // points while DWM answers in pixels. Per-monitor aware, both are in pixels.
+    private static void InPixels() { SetThreadDpiAwarenessContext(new IntPtr(-4)); }
 
     public static double Scale(IntPtr window) { return GetDpiForWindow(window) / 96.0; }
 
     /// <summary>Puts the window at the top left, at a logical size, and in front.</summary>
     public static void Place(IntPtr window, int width, int height)
     {
+        InPixels();
         var scale = Scale(window);
         SetWindowPos(window, IntPtr.Zero, 0, 0, (int)(width * scale), (int)(height * scale), 0x0040 | 0x0004);
         SetForegroundWindow(window);
@@ -49,6 +55,7 @@ public static class ComandoWindow
     /// <summary>The window as Windows draws it, Mica included, even where the taskbar covers it.</summary>
     public static IntPtr Print(IntPtr window)
     {
+        InPixels();
         Rect rect;
         GetWindowRect(window, out rect);
         var screen = GetDC(IntPtr.Zero);
@@ -65,6 +72,7 @@ public static class ComandoWindow
     /// <summary>Left, top, width and height of what is visible: the window rectangle also holds the invisible resize border.</summary>
     public static int[] Visible(IntPtr window)
     {
+        InPixels();
         Rect rect, frame;
         GetWindowRect(window, out rect);
         var visible = DwmGetWindowAttribute(window, 9, out frame, Marshal.SizeOf(typeof(Rect))) == 0 ? frame : rect;
@@ -125,6 +133,7 @@ function Save-Window([string] $name) {
         $visible = [ComandoWindow]::Visible($script:window)
         $border = [math]::Ceiling([ComandoWindow]::Scale($script:window))
         $area = [System.Drawing.Rectangle]::new($visible[0] + $border, $visible[1] + $border, $visible[2] - 2 * $border, $visible[3] - 2 * $border)
+        $area.Intersect([System.Drawing.Rectangle]::new(0, 0, $full.Width, $full.Height))
         $cut = $full.Clone($area, [System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
         $cut.Save((Join-Path $Output "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
         "$name $($cut.Width)x$($cut.Height)"
