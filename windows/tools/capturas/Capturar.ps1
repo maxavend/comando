@@ -182,18 +182,16 @@ foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscur
     $script:composer = $element.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition($byName, $isEdit)))
     if ($null -eq $composer) { Write-Error 'No encontré el campo de texto' }
 
-    Send 'Get-ChildItem{ENTER}' 6
-    Send 'convierte entrevista.mov a mp4{ENTER}' 12
-    Save-Window "01-propuesta-$suffix"
-
+    # PowerShell paints folders with a blue background in listings; files alone read cleaner.
+    Send 'Get-ChildItem -File{ENTER}' 6
     Send 'gti status{ENTER}' 5
-    Save-Window "02-pista-$suffix"
+    Save-Window "01-pista-$suffix"
 
     Send 'para que sirve Comando{ENTER}' 5
-    Save-Window "03-asistente-$suffix"
+    Save-Window "02-asistente-$suffix"
 
     Send '^k' 3
-    Save-Window "04-recetas-$suffix"
+    Save-Window "03-recetas-$suffix"
     [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
     Start-Sleep -Seconds 1
 
@@ -201,15 +199,15 @@ foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscur
     Send 'pwsh -NoLogo{ENTER}' 12
     [System.Windows.Forms.SendKeys]::SendWait('Get-ChildItem fotos{ENTER}')
     Start-Sleep -Seconds 4
-    Save-Window "05-terminal-$suffix"
+    Save-Window "04-terminal-$suffix"
     [System.Windows.Forms.SendKeys]::SendWait('exit{ENTER}')
     Start-Sleep -Seconds 4
 
-    Send '^+i' 15
-    Save-Window "06-herramientas-$suffix"
-    [System.Windows.Forms.SendKeys]::SendWait('^,')
-    Start-Sleep -Seconds 3
-    Save-Window "07-ajustes-$suffix"
+    # Last, so no other capture shows it: the proposal's words come from the CI's stand-in
+    # for Phi Silica (DemoLanguageModel), not from the model. Tools and Settings are left
+    # out, since they would show the CI machine's programs and that stand-in as ready.
+    Send 'convierte entrevista.mov a mp4{ENTER}' 12
+    Save-Window "05-propuesta-demo-$suffix"
 
     Stop-Process -Id $process.Id -Force
     Start-Sleep -Seconds 3
