@@ -148,9 +148,18 @@ foreach ($theme in @(@{ Name = 'claro'; Value = 1; Light = 1 }, @{ Name = 'oscur
     Set-ItemProperty $personalize SystemUsesLightTheme $theme.Light -Type DWord
 
     $script:app = Start-Process -FilePath $App -WorkingDirectory $nido -PassThru
-    for ($i = 0; $i -lt 60 -and $app.MainWindowHandle -eq 0; $i++) { Start-Sleep -Milliseconds 500; $app.Refresh() }
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Milliseconds 500
+        $app.Refresh()
+        if ($app.HasExited -or $app.MainWindowHandle -ne [IntPtr]::Zero) { break }
+    }
+    if ($app.HasExited) {
+        Get-Content (Join-Path $settings 'sessions.json')
+        Get-WinEvent -LogName Application -MaxEvents 6 | Format-List TimeCreated, ProviderName, Message
+        Write-Error "Comando se cerró al abrir (código $($app.ExitCode))"
+    }
     $script:window = $app.MainWindowHandle
-    if ($window -eq 0) { Write-Error 'Comando no abrió su ventana' }
+    if ($window -eq [IntPtr]::Zero) { Write-Error 'Comando no abrió su ventana' }
     Start-Sleep -Seconds 10
     # Logical 1260 x 700, the size of Bardo's captures: about 1868 x 1037 at 150 %.
     [ComandoWindow]::Place($window, 1260, 700)
