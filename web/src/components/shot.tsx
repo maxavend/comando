@@ -34,7 +34,7 @@ function Capture({ light, dark, alt, width = 1600, height = 1048, srcSet, sizes,
         <span />
       </div>
       <picture className="t-skel-content">
-        {dark && <source media="(prefers-color-scheme: dark)" srcSet={srcSet?.dark ?? dark} sizes={sizes} />}
+        {dark && <source srcSet={srcSet?.dark ?? dark} sizes={sizes} />}
         <img
           ref={imageRef}
           src={light}
