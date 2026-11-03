@@ -17,7 +17,7 @@ const { title, description } = Astro.props
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta property="og:title" content={title} />
@@ -34,6 +34,7 @@ const { title, description } = Astro.props
     </script>
   </head>
   <body>
+    <div class="browser-theme-edge" aria-hidden="true"></div>
     <a
       href="#main"
       class="fixed top-[-6rem] left-4 z-50 rounded-lg bg-foreground px-4 py-2 text-background focus-visible:top-4"
@@ -46,7 +47,6 @@ const { title, description } = Astro.props
       <slot />
     </main>
     <Footer />
-    <!-- Safari 26+: transparent sentinel after all scrollable content. -->
-    <div class="site-safari-toolbar-transparent" aria-hidden="true"></div>
+
   </body>
 </html>

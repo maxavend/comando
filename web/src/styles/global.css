@@ -900,25 +900,6 @@
   :root { --status-fade: #080a0e; }
 }
 
-/* iOS Safari 26+: a transparent sticky edge sentinel prevents the floating
-   address bar from getting stuck opaque. Unlike a fixed solid strip it does
-   not cover, crop, or tint the underlying page content. */
-@media (max-width: 60rem) {
-  .site-safari-toolbar-transparent {
-    display: none;
-    position: sticky;
-    bottom: -2px;
-    width: 100%;
-    height: 6px;
-    z-index: 38;
-    pointer-events: none;
-    background-color: transparent;
-  }
-  @supports (-webkit-touch-callout: none) {
-    .site-safari-toolbar-transparent { display: block; }
-  }
-}
-
 /* Blend the footer into Safari's bottom chrome without masking content.
    The gradient begins at the previous background and gradually reaches
    the same solid #0a0d12 used at the bottom edge. */
@@ -934,3 +915,16 @@
   }
   .footer-end > p { color: rgb(245 245 247 / .13); }
 }
+
+/* Browser chrome gets a stable opaque edge; interactive content respects every inset. */
+.browser-theme-edge { position: fixed; inset: 0 0 auto; height: max(12px, env(safe-area-inset-top, 0px)); background: var(--paper); z-index: 39; pointer-events: none; }
+header.sticky { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); }
+html { background-color: var(--paper); }
+body > footer { padding-bottom: env(safe-area-inset-bottom, 0px); }
+@media print { .browser-theme-edge { display: none; } }
+.page { padding-left: max(var(--browser-gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--browser-gutter), env(safe-area-inset-right, 0px)); }
+@media (max-width: 60rem) { .site-top-fade { top: max(12px, env(safe-area-inset-top, 0px)); } }
+
+:root { --browser-gutter: 4rem; }
+@media (max-width: 60rem) { :root { --browser-gutter: 1.5rem; } }
+@media (max-width: 40rem) { :root { --browser-gutter: 1.25rem; } }
