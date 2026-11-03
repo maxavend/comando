@@ -503,6 +503,7 @@ html.dark {
   border-radius: .9em .9em .9em .18em;
   background: var(--hero-message-bg);
   color: var(--hero-message-ink);
+  transform: translate3d(0, 0, 0);
   transform-origin: bottom left;
   transition: opacity var(--hero-send-duration) ease, transform var(--hero-send-duration) var(--hero-ease);
   will-change: opacity, transform;
@@ -528,11 +529,11 @@ html.dark {
 .hero-conversation[data-phase="thinking"] .hero-dots i:nth-child(2) { animation-delay: 160ms; }
 .hero-conversation[data-phase="thinking"] .hero-dots i:nth-child(3) { animation-delay: 320ms; }
 .hero-conversation[data-phase="typing"] .hero-bubble,
-.hero-conversation[data-phase="thinking"] .hero-bubble { opacity: 0; transform: translateY(8px); transition: none; }
-.hero-conversation[data-phase="sent"] .hero-bubble { animation: hero-message-arrive var(--hero-send-duration) var(--hero-ease) both; }
-@keyframes hero-message-arrive {
-  from { opacity: 0; transform: translate3d(0, 8px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+.hero-conversation[data-phase="thinking"] .hero-bubble { opacity: 0; transform: translate3d(0, 8px, 0); transition: none; }
+/* One owner for the arrival: do not combine keyframes with transitions. */
+.hero-conversation[data-phase="sent"] .hero-bubble { opacity: 1; transform: translate3d(0, 0, 0); }
+@media (scripting: enabled) {
+  .hero-conversation:not([data-phase]) .hero-bubble { opacity: 0; transform: translate3d(0, 8px, 0); transition: none; }
 }
 html.dark {
   .hero-conversation { --hero-message-bg: #303033; --hero-message-ink: #f5f5f7; --hero-dot-ink: #a2a2a7; }
