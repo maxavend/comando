@@ -17,6 +17,8 @@ struct CompletionPanel: View {
                     CompletionRow(candidate: candidate, fontSize: fontSize, isSelected: index == selection)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("completion-\(candidate.title)")
+                .accessibilityAddTraits(index == selection ? .isSelected : [])
             }
             Text("↩ para elegir · Tab o ↑↓ para moverte · esc para cerrar")
                 .font(.caption)
@@ -26,6 +28,7 @@ struct CompletionPanel: View {
                 .padding(.bottom, Metrics.statusSpacing / 2)
         }
         .padding(Metrics.statusSpacing + 2)
+        .background(.regularMaterial, in: .rect(cornerRadius: Metrics.composerControlSize / 2))
         .glassEffect(.regular, in: .rect(cornerRadius: Metrics.composerControlSize / 2))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Sugerencias")

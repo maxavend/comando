@@ -77,6 +77,33 @@ final class FeatureIntegrationTests {
 
     // MARK: - 1. Procesos activos
 
+    @Test func interactiveOutputSurvivesReattachingAndFinishingWithoutAView() async throws {
+        let (session, shell) = try await makeSession()
+        controller.submit(#"printf 'before-reopen\n'; read resume; printf 'after-reopen\n'; read finish"#, in: session)
+        shell.interactiveCommands = ["printf"]
+        try await waitUntil("terminal interactiva") { shell.phase == .interactive }
+
+        var firstScreen: [UInt8] = []
+        shell.attachInteractiveSink { firstScreen.append(contentsOf: $0) }
+        try await waitUntil("pantalla inicial") { String(decoding: firstScreen, as: UTF8.self).contains("before-reopen") }
+        shell.detachInteractiveSink()
+        shell.sendLine("continue")
+
+        var reopenedScreen: [UInt8] = []
+        shell.attachInteractiveSink { reopenedScreen.append(contentsOf: $0) }
+        try await waitUntil("pantalla restaurada") {
+            let text = String(decoding: reopenedScreen, as: UTF8.self)
+            return text.contains("before-reopen") && text.contains("after-reopen")
+        }
+        shell.detachInteractiveSink()
+        shell.sendLine("done")
+
+        let entry = try #require(entries(of: session).last)
+        try await waitUntil("comando terminado sin ventana") { entry.isFinished }
+        #expect(entry.succeeded)
+        #expect(entry.plainOutput.contains("after-reopen"))
+    }
+
     @Test func serverIsDetectedAndStoppedFromSidebar() async throws {
         let (session, shell) = try await makeSession()
         controller.submit("printf 'Ready\\n- Local: http://localhost:6006/\\n'; sleep 30", in: session)

@@ -74,6 +74,87 @@ struct CompletionProviderTests {
     }
 }
 
+@MainActor
+struct ContextualCompletionTests {
+    @Test func suggestsSubcommandsOptionsAndSignals() throws {
+        let git = try #require(ContextualCompletion(text: "git lo"))
+        #expect(git.staticMatches.map(\.completion) == ["git log "])
+        let option = try #require(ContextualCompletion(text: "git log --on"))
+        #expect(option.staticMatches.map(\.completion) == ["git log --oneline "])
+        let npm = try #require(ContextualCompletion(text: "npm install --save-"))
+        #expect(npm.staticMatches.map(\.completion) == ["npm install --save-dev ", "npm install --save-exact "])
+        let signal = try #require(ContextualCompletion(text: "kill -TE"))
+        #expect(signal.staticMatches.map(\.completion) == ["kill -TERM "])
+        #expect(ContextualCompletion(text: "git add -- --on") == nil)
+        #expect(ContextualCompletion(text: "echo hi; git lo") == nil)
+        #expect(ContextualCompletion(text: "git log\n") == nil)
+    }
+
+    @Test func usesGenericSuggestionsAsFallback() throws {
+        let context = try #require(ContextualCompletion(text: "git log --on"))
+        let provider = CompletionProvider()
+        let suggestions = provider.suggestions(
+            for: "git log --on", directory: "/", pathEntries: [],
+            history: ["git log --oneline -5"], limit: 2, contextual: context.staticMatches
+        )
+        #expect(suggestions.map(\.kind) == [.option])
+        #expect(ContextualCompletion(text: "git add Re") == nil)
+    }
+
+    @Test func readsScriptsFromNearestManifestAndQuotesNames() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let child = root.appending(path: "Project Files")
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try #"{"scripts":{"dev":"echo ignored","dev preview":"echo ignored","test":"echo ignored"}}"#
+            .write(to: root.appending(path: "package.json"), atomically: true, encoding: .utf8)
+        let context = try #require(ContextualCompletion(text: "npm run de"))
+        let suggestions = await context.lookup(in: child.path(percentEncoded: false))
+        #expect(suggestions.map(\.completion) == ["npm run dev ", "npm run 'dev preview' "])
+
+        try "invalid".write(to: child.appending(path: "package.json"), atomically: true, encoding: .utf8)
+        #expect(await context.lookup(in: child.path(percentEncoded: false)).isEmpty)
+    }
+
+    @Test func readsLocalGitBranchesFromASubfolder() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let child = root.appending(path: "nested")
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = root.path(percentEncoded: false)
+        try git(["init", "-q"], in: directory)
+        try git(["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
+                 "commit", "--allow-empty", "-qm", "Initial"], in: directory)
+        try git(["branch", "feature/new-ui"], in: directory)
+
+        let branch = try #require(ContextualCompletion(text: "git switch feature/n"))
+        let suggestions = await branch.lookup(in: child.path(percentEncoded: false))
+        #expect(suggestions.map(\.completion) == ["git switch feature/new-ui "])
+        let deletion = try #require(ContextualCompletion(text: "git branch -d feat"))
+        #expect(await deletion.lookup(in: directory).map(\.completion) == ["git branch -d feature/new-ui "])
+    }
+
+    @Test func processSuggestionsOnlyInsertMatchingOwnedPositivePIDs() throws {
+        let context = try #require(ContextualCompletion(text: "kill -TERM 12"))
+        let results = context.processMatches([
+            "501 123 /opt/homebrew/bin/node", "501 120 bash", "502 121 other",
+            "501 124 Comando", "501 7 unrelated", "broken"
+        ], uid: 501, excluding: 124)
+        #expect(results.map(\.title) == ["120 · bash", "123 · node"])
+        #expect(results.map(\.completion) == ["kill -TERM 120 ", "kill -TERM 123 "])
+        #expect(ContextualCompletion(text: "kill 0") == nil)
+    }
+
+    private func git(_ arguments: [String], in directory: String) throws {
+        let process = Process()
+        process.executableURL = URL(filePath: "/usr/bin/git")
+        process.arguments = ["-C", directory, "-c", "core.hooksPath=/dev/null"] + arguments
+        try process.run()
+        process.waitUntilExit()
+        try #require(process.terminationStatus == 0)
+    }
+}
+
 struct ShellLanguageTests {
     private let installed: Set<String> = ["es_ES.UTF-8", "es_MX.UTF-8", "en_US.UTF-8", "pt_BR.UTF-8"]
 

@@ -9,11 +9,12 @@ struct RootView: View {
     @State private var searchSelection = 0
     @State private var searchOpenRequest = 0
     @State private var editingRecipe: SavedRecipe?
+    let installWindowOpener: (OpenWindowAction) -> Void
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if DEBUG
     @Environment(\.openSettings) private var openSettings
-    @Environment(\.openWindow) private var openWindow
     #endif
 
     private static var isAutomated: Bool {
@@ -88,6 +89,11 @@ struct RootView: View {
             SavedRecipeEditor(editing: recipe)
         }
 
+        .onAppear { installWindowOpener(openWindow) }
+        .onChange(of: controller.activityNavigationRequest) {
+            searchText = ""
+            controller.isShowingRecipes = false
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.markSelectedAsRead()
         }

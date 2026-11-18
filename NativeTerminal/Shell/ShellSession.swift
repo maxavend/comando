@@ -39,7 +39,8 @@ final class ShellSession {
     @ObservationIgnored private var echoTask: Task<Void, Never>?
 
     // Embedded terminal plumbing.
-    @ObservationIgnored private var interactiveBacklog: [UInt8] = []
+    @ObservationIgnored private var interactiveReplay: [UInt8] = []
+    @ObservationIgnored private var truncatedInteractiveReplay = false
     @ObservationIgnored private var interactiveSink: ((ArraySlice<UInt8>) -> Void)?
     @ObservationIgnored var transcriptProvider: (() -> String?)?
 
@@ -202,18 +203,18 @@ final class ShellSession {
 
     // MARK: - Embedded terminal
 
-    /// Connects the embedded terminal view. Bytes received before it attached
-    /// are replayed so the program's first screen isn't lost.
+    /// Restore recent terminal output when the view is recreated after a
+    /// session switch or window close.
     func attachInteractiveSink(_ sink: @escaping (ArraySlice<UInt8>) -> Void) {
         interactiveSink = sink
-        if !interactiveBacklog.isEmpty {
-            sink(interactiveBacklog[...])
-            interactiveBacklog = []
+        if !interactiveReplay.isEmpty {
+            sink(interactiveReplay[...])
         }
     }
 
     func detachInteractiveSink() {
         interactiveSink = nil
+        transcriptProvider = nil
     }
 
     /// Switches the running command to the embedded terminal.
@@ -227,7 +228,7 @@ final class ShellSession {
         phase = .interactive
         live.isInteractive = true
         echoDisabled = false
-        interactiveBacklog = bytes
+        interactiveReplay = bytes
     }
 
     // MARK: - Output handling
@@ -250,11 +251,12 @@ final class ShellSession {
                 }
                 live.append(parsed)
             case .interactive:
-                if let interactiveSink {
-                    interactiveSink(parsed.raw[...])
-                } else {
-                    interactiveBacklog.append(contentsOf: parsed.raw)
+                interactiveReplay.append(contentsOf: parsed.raw)
+                if interactiveReplay.count > LiveOutput.rawLimit * 2 {
+                    interactiveReplay.removeFirst(interactiveReplay.count - LiveOutput.rawLimit)
+                    truncatedInteractiveReplay = true
                 }
+                interactiveSink?(parsed.raw[...])
             default:
                 break
             }
@@ -330,11 +332,12 @@ final class ShellSession {
         if wasInteractive, let text = transcriptProvider?()?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
             transcript = text
         }
+        let usesReplay = wasInteractive && transcript == nil && !interactiveReplay.isEmpty
         let result = CommandResult(
             entryID: live.entryID,
             exitCode: exitCode,
-            output: output,
-            truncated: live.truncated,
+            output: usesReplay ? interactiveReplay : output,
+            truncated: usesReplay ? truncatedInteractiveReplay : live.truncated,
             wasInteractive: wasInteractive,
             transcript: transcript,
             finishedAt: .now
@@ -343,7 +346,8 @@ final class ShellSession {
         echoTask?.cancel()
         echoDisabled = false
         interactiveSink = nil
-        interactiveBacklog = []
+        interactiveReplay = []
+        truncatedInteractiveReplay = false
         preOutput = []
         if phase != .exited { phase = .idle }
         applyWindowSize(columns: chatSize.columns, rows: chatSize.rows)

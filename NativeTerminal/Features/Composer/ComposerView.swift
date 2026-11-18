@@ -30,6 +30,10 @@ struct ComposerView: View {
     @State private var isImporting = false
     @State private var completions = CompletionProvider()
     @State private var candidates: [Completion] = []
+    @State private var candidateTask: Task<Void, Never>?
+    @State private var lookupID = UUID()
+    @State private var caretAtEnd = true
+    @State private var candidatesFor = ""
     @State private var selection = 0
     /// The candidates panel opens only on Tab, so typing stays calm.
     @State private var isPanelOpen = false
@@ -80,6 +84,7 @@ struct ComposerView: View {
         .padding(.top, Metrics.composerVerticalPadding)
         .padding(.bottom, Metrics.composerEdgeInset)
         .onAppear { isFocused = true }
+        .onDisappear { candidateTask?.cancel() }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .idle { isFocused = true }
         }
@@ -212,7 +217,9 @@ struct ComposerView: View {
             .lineLimit(1...8)
             .focused($isFocused)
             .disabled(phase == .interactive && !talksToAgent)
-            .onSubmit(submit)
+            .onSubmit {
+                if acceptSelection() == .ignored { submit() }
+            }
             // With the field empty, an AI agent's menus (“Do you trust this
             // folder?”) work from here too: the keys go to the agent.
             .onKeyPress(.upArrow) { forwardToAgent("\u{1B}[A") ?? moveUp() }
@@ -233,6 +240,14 @@ struct ComposerView: View {
                 updateCandidates()
             }
             .onChange(of: directory) { updateCandidates() }
+            .onChange(of: shell?.id) { updateCandidates() }
+            .onChange(of: acceptsCompletions) { updateCandidates() }
+            .onReceive(NotificationCenter.default.publisher(for: NSTextView.didChangeSelectionNotification)) { note in
+                guard isFocused, let editor = note.object as? NSTextView,
+                      editor.window?.firstResponder === editor else { return }
+                caretAtEnd = editor.selectedRange() == NSRange(location: editor.string.utf16.count, length: 0)
+                if !caretAtEnd { isPanelOpen = false }
+            }
             .dropDestination(for: URL.self) { urls, _ in
                 insert(urls)
             }
@@ -401,7 +416,7 @@ struct ComposerView: View {
     }
 
     private var ghostRemainder: String {
-        guard isFocused, !text.contains("\n"), candidates.indices.contains(selection) else { return "" }
+        guard canUseCandidates, candidates.indices.contains(selection) else { return "" }
         let candidate = candidates[selection]
         // A single typed letter matches too much; wait for a second one,
         // unless it's something the user ran before.
@@ -410,24 +425,48 @@ struct ComposerView: View {
         return String(candidate.completion.dropFirst(text.count))
     }
 
+    private var acceptsCompletions: Bool { !isRunning && agent == nil }
+
+    private var canUseCandidates: Bool {
+        acceptsCompletions && isFocused && caretAtEnd && candidatesFor == text &&
+            !text.contains(where: \.isNewline)
+    }
+
     private var showsPanel: Bool {
-        isPanelOpen && isFocused && !isRunning && candidates.count > 1
+        isPanelOpen && canUseCandidates && candidates.count > 1
     }
 
     private func updateCandidates() {
+        candidateTask?.cancel()
         selection = 0
         isPanelOpen = false
-        guard !isRunning, historyIndex == nil, !text.isEmpty else {
+        let requestID = UUID()
+        lookupID = requestID
+        candidatesFor = text
+        guard acceptsCompletions, historyIndex == nil, !text.isEmpty else {
             candidates = []
             return
         }
+        let draft = text
+        let folder = directory
+        let path = shell?.pathEntries ?? []
+        let previous = history
+        let context = ContextualCompletion(text: draft)
         candidates = completions.suggestions(
-            for: text,
-            directory: directory,
-            pathEntries: shell?.pathEntries ?? [],
-            history: history,
-            limit: 6
+            for: draft, directory: folder, pathEntries: path, history: previous,
+            limit: 6, contextual: context?.staticMatches ?? []
         )
+        guard let context, context.needsLookup else { return }
+        candidateTask = Task {
+            do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
+            let matches = await context.lookup(in: folder)
+            guard !Task.isCancelled, lookupID == requestID, text == draft, !matches.isEmpty else { return }
+            selection = 0
+            candidates = completions.suggestions(
+                for: draft, directory: folder, pathEntries: path, history: previous,
+                limit: 6, contextual: matches
+            )
+        }
     }
 
     private func accept(_ candidate: Completion) {
@@ -435,10 +474,11 @@ struct ComposerView: View {
         isFocused = true
     }
 
-    /// Tab completes like a shell: the only match, then the shared beginning,
-    /// then a panel to choose from; with the panel open it moves to the next one.
+    /// Tab accepts a visible contextual suggestion or opens the candidate panel.
+    /// Generic shell suggestions still expand their shared prefix.
     private func completeWithTab() -> KeyPress.Result {
-        guard !isRunning else { return .ignored }
+        guard acceptsCompletions, caretAtEnd, !text.contains(where: \.isNewline) else { return .ignored }
+        guard candidatesFor == text else { return .handled }
         if showsPanel {
             selection = (selection + 1) % candidates.count
             return .handled
@@ -451,9 +491,10 @@ struct ComposerView: View {
         case 1:
             accept(candidates[0])
         default:
-            let shared = candidates.dropFirst().reduce(candidates[0].completion) { String($0.commonPrefix(with: $1.completion)) }
-            if shared.count > text.count && candidates.allSatisfy({ $0.completion.hasPrefix(text) }) {
-                text = shared
+            let first = candidates[0]
+            let shared = candidates.dropFirst().reduce(first.completion) { String($0.commonPrefix(with: $1.completion)) }
+            if first.kind != .process && shared.count > text.count && shared.hasPrefix(text) {
+                if first.kind.isContextual { accept(first) } else { text = shared }
             } else {
                 isPanelOpen = true
             }

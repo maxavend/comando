@@ -18,13 +18,21 @@ final class FeatureUITests: XCTestCase {
         app = XCUIApplication()
         app.launchEnvironment["NATIVETERM_STORE"] = "UITests-\(UUID().uuidString)"
         app.launchEnvironment["NATIVETERM_SKIP_WELCOME"] = "1"
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
+        if name.contains("testMenuBarKeepsCommandRunningAndReopensWindow") {
+            app.launchEnvironment["NATIVETERM_APPEARANCE"] = "light"
+        }
         app.launch()
-        XCTAssertTrue(composer.waitForExistence(timeout: 10), "El campo de comando no apareció")
+        if !composer.waitForExistence(timeout: 5) { app.activate() }
+        if !composer.waitForExistence(timeout: 5) {
+            let windows = app.windows.allElementsBoundByIndex.map { "\($0.identifier): \($0.label)" }
+            _ = try XCTUnwrap(nil as XCUIElement?, "Xcode no presentó la ventana principal. Ventanas detectadas: \(windows)")
+        }
         run("cd \(folder.path(percentEncoded: false))")
     }
 
     override func tearDown() async throws {
-        app.terminate()
+        if app.state != .notRunning { app.terminate() }
     }
 
     private var composer: XCUIElement {
@@ -45,6 +53,82 @@ final class FeatureUITests: XCTestCase {
 
     private func text(_ label: String) -> XCUIElement {
         app.staticTexts.containing(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", label, label)).firstMatch
+    }
+
+    func testContextualCompletionOnlyInsertsTheSelectedScript() throws {
+        try #"{"scripts":{"serve":"touch ran-serve","debug":"touch ran-debug"}}"#
+            .write(to: folder.appending(path: "package.json"), atomically: true, encoding: .utf8)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("npm run ", forType: .string)
+        composer.click()
+        composer.typeKey("v", modifierFlags: .command)
+        Thread.sleep(forTimeInterval: 0.5)
+        composer.typeKey(.tab, modifierFlags: [])
+        XCTAssertTrue(app.buttons["completion-debug"].waitForExistence(timeout: 4))
+        attach("autocompletado-npm")
+        composer.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual((composer.value as? String)?.trimmingCharacters(in: .whitespaces), "npm run debug")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appending(path: "ran-debug").path))
+    }
+
+    func testCompletingAProcessStillRequiresConfirmation() throws {
+        let process = Process()
+        process.executableURL = URL(filePath: "/bin/sleep")
+        process.arguments = ["25"]
+        try process.run()
+        defer { if process.isRunning { process.terminate() } }
+
+        let command = "kill \(process.processIdentifier)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+        composer.click()
+        composer.typeKey("v", modifierFlags: .command)
+        Thread.sleep(forTimeInterval: 0.5)
+        composer.typeKey(.tab, modifierFlags: [])
+        XCTAssertEqual(composer.value as? String, command + " ")
+        composer.typeKey(.return, modifierFlags: [])
+        let cancel = app.buttons["Cancelar"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 4))
+        XCTAssertTrue(process.isRunning)
+        cancel.click()
+    }
+
+    func testMenuBarKeepsCommandRunningAndReopensWindow() throws {
+        run("while [[ ! -f release-background ]]; do sleep 0.2; done; touch background-finished", wait: 0.7)
+        let status = app.statusItems.firstMatch
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        let main = app.windows["main"]
+        main.buttons[XCUIIdentifierCloseWindow].click()
+        XCTAssertTrue(main.waitForNonExistence(timeout: 5))
+        let background = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            NSRunningApplication.runningApplications(withBundleIdentifier: "cl.native.NativeTerminal")
+                .contains { $0.activationPolicy == .accessory }
+        }, object: nil)
+        wait(for: [background], timeout: 5)
+        status.click()
+        let activeRow = app.buttons["activeSession"].firstMatch
+        _ = try XCTUnwrap(activeRow.waitForExistence(timeout: 4) ? activeRow : nil)
+        let screen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screen.name = "actividad-en-barra-de-menus"
+        screen.lifetime = .keepAlways
+        add(screen)
+        activeRow.click()
+        XCTAssertTrue(composer.waitForExistence(timeout: 5))
+        XCTAssertTrue(NSRunningApplication.runningApplications(withBundleIdentifier: "cl.native.NativeTerminal")
+            .contains { $0.activationPolicy == .regular })
+        try Data().write(to: folder.appending(path: "release-background"))
+        let finished = folder.appending(path: "background-finished").path
+        let predicate = NSPredicate { _, _ in FileManager.default.fileExists(atPath: finished) }
+        let completion = XCTNSPredicateExpectation(predicate: predicate, object: nil)
+        wait(for: [completion], timeout: 8)
+        status.click()
+        XCTAssertTrue(app.staticTexts["Sin sesiones en ejecución"].waitForExistence(timeout: 5))
+        let idle = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        idle.name = "actividad-sin-sesiones"
+        idle.lifetime = .keepAlways
+        add(idle)
+        app.buttons["Salir de Comando"].click()
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 5))
     }
 
     // MARK: - 3. Explicación por partes

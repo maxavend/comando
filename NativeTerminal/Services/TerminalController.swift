@@ -33,6 +33,8 @@ final class TerminalController {
     }
     /// An entry the chat should scroll to (from search results).
     var focusedEntryID: UUID?
+    /// Brings the chosen session forward even if the window is showing search.
+    var activityNavigationRequest = 0
     /// Presents the folder picker of the selected session (“Ir a una carpeta…”).
     var isPickingFolder = false
     /// A risky command shown in a confirmation alert before it runs.
@@ -206,10 +208,11 @@ final class TerminalController {
     }
 
     var hasRunningCommands: Bool {
-        shells.values.contains { $0.isBusy }
+        shells.values.contains { $0.isBusy } || agentChats.values.contains { $0.isResponding }
     }
 
     func terminateAll() {
+        for agent in agentChats.values { agent.end() }
         for shell in shells.values { shell.terminate() }
         flushPendingSave()
     }

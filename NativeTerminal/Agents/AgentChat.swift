@@ -40,6 +40,8 @@ final class AgentChat {
         parser = kind.makeParser()
     }
 
+    var activeTurnStartedAt: Date? { isResponding ? current?.startedAt : nil }
+
     var isInstalled: Bool { AgentProcess.executable(kind.rawValue, path: path) != nil }
 
     /// Starts the CLI ahead of the first message, so it's ready when the
