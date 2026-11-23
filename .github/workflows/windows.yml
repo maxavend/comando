@@ -181,6 +181,20 @@ jobs:
           if ($app.HasExited) { Write-Error "Comando se cerró al elegir varias sesiones"; exit 1 }
           Stop-Process -Id $app.Id
 
+      # For the website and the portfolio: Windows 11 at 150 %, only the app window, in
+      # light and dark, on a made-up project folder.
+      - name: Capturas para el portafolio
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: ./windows/tools/capturas/Capturar.ps1 -App out/Comando/Comando.exe -Output out/portafolio
+
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'x64'
+        with:
+          name: Capturas-portafolio
+          path: out/portafolio
+          if-no-files-found: warn
+
       # Installable: MSIX signed with a test certificate (Phi Silica needs a package).
       - name: Certificado de prueba
         shell: pwsh
