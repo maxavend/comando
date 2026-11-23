@@ -86,6 +86,12 @@ final class ActivityStatusItem: NSObject {
             }
         ))
         updateIndicator()
+        #if DEBUG
+        NotificationCenter.default.addObserver(forName: .debugAction, object: nil, queue: .main) { [weak self] note in
+            guard note.object as? String == "#menubar" else { return }
+            MainActor.assumeIsolated { self?.togglePopover() }
+        }
+        #endif
     }
 
     private func updateIndicator() {

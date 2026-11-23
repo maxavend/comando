@@ -100,6 +100,10 @@ enum DebugAutomation {
         case "#welcome":
             controller.isShowingWelcome = true
             try? await Task.sleep(for: .seconds(1))
+        case "#menubar":
+            // Opens or closes the activity popover of the menu bar item.
+            NotificationCenter.default.post(name: .debugAction, object: "#menubar")
+            try? await Task.sleep(for: .milliseconds(800))
         case "#type", "#submit", "#editappearance", "#saverecipe", "#recipeword", "#recipetitle", "#recipesave", "#delete", "#search", "#scope", "#showall", "#fold", "#scrolltop", "#tab", "#next", "#query", "#choose", "#attach", "#tools", "#toolsection", "#toolselect":
             var object = argument
             if action == "#showall" { object = lastEntryID(controller)?.uuidString ?? "" }
